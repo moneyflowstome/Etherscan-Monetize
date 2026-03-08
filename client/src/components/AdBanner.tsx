@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 declare global {
   interface Window {
@@ -16,30 +16,80 @@ interface AdBannerProps {
 }
 
 export function AdBanner({ slot, format = "auto", layout, layoutKey, className = "", style }: AdBannerProps) {
-  const adRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const pushed = useRef(false);
-  const [adLoaded, setAdLoaded] = useState(false);
+  const [adFilled, setAdFilled] = useState(false);
+
+  const checkAdFilled = useCallback(() => {
+    if (!containerRef.current) return false;
+    const ins = containerRef.current.querySelector("ins.adsbygoogle");
+    if (!ins) return false;
+    const status = ins.getAttribute("data-ad-status");
+    if (status === "filled") {
+      setAdFilled(true);
+      return true;
+    }
+    if (status === "unfilled") {
+      setAdFilled(false);
+      return true;
+    }
+    const height = (ins as HTMLElement).offsetHeight;
+    if (height > 0) {
+      setAdFilled(true);
+      return true;
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
     if (pushed.current) return;
-    try {
-      if (typeof window !== "undefined" && window.adsbygoogle) {
-        window.adsbygoogle.push({});
-        pushed.current = true;
-        setAdLoaded(true);
-      }
-    } catch (e) {
-      // AdSense not loaded - show placeholder
-    }
-  }, []);
 
-  const minHeight = style?.minHeight || (format === "rectangle" ? "250px" : "90px");
+    const tryPush = () => {
+      try {
+        if (typeof window !== "undefined" && window.adsbygoogle) {
+          window.adsbygoogle.push({});
+          pushed.current = true;
+
+          const observer = new MutationObserver(() => {
+            checkAdFilled();
+          });
+
+          if (containerRef.current) {
+            observer.observe(containerRef.current, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              attributeFilter: ["data-ad-status", "style"],
+            });
+          }
+
+          const interval = setInterval(() => {
+            if (checkAdFilled()) {
+              clearInterval(interval);
+            }
+          }, 500);
+
+          setTimeout(() => clearInterval(interval), 10000);
+
+          return () => {
+            observer.disconnect();
+            clearInterval(interval);
+          };
+        }
+      } catch (e) {}
+    };
+
+    tryPush();
+  }, [checkAdFilled]);
+
+  if (!adFilled) {
+    return null;
+  }
 
   return (
     <div
-      ref={adRef}
-      className={`ad-container overflow-hidden ${className}`}
-      style={{ minHeight, ...style }}
+      ref={containerRef}
+      className={`ad-container overflow-hidden transition-all duration-300 ${className}`}
       data-testid={`ad-slot-${slot}`}
     >
       <ins
@@ -52,15 +102,6 @@ export function AdBanner({ slot, format = "auto", layout, layoutKey, className =
         {...(layout ? { "data-ad-layout": layout } : {})}
         {...(layoutKey ? { "data-ad-layout-key": layoutKey } : {})}
       />
-      {!adLoaded && (
-        <div
-          className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] flex flex-col items-center justify-center gap-1 text-muted-foreground/40"
-          style={{ minHeight }}
-        >
-          <div className="text-[10px] uppercase tracking-widest font-medium">Advertisement</div>
-          <div className="text-[9px] font-mono opacity-50">Ad Slot: {slot}</div>
-        </div>
-      )}
     </div>
   );
 }
