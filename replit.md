@@ -17,7 +17,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Live ETH price & gas tracker
 - Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist
 - Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
-- Crypto news feed (CryptoCompare) with category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research)
+- Crypto news feed (CryptoCompare) with category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
 - Masternode tracker with collateral/ROI data
 - Admin panel at `/admin` with:
   - Site analytics (page views, tracked wallets, top chains)
@@ -44,6 +44,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/eth-price` - ETH price
 - `GET /api/prices?page=&per_page=` - Coin market data (CoinGecko)
 - `GET /api/prices/by-ids?ids=` - Coin data by comma-separated IDs (for watchlist)
+- `GET /api/news/archive?before=` - Older news articles with timestamp pagination
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data

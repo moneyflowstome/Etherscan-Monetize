@@ -417,6 +417,43 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/news/archive", async (req, res) => {
+    try {
+      const before = parseInt(req.query.before as string) || 0;
+      let url = "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest";
+      if (before > 0) {
+        url += `&lTs=${Math.floor(before / 1000)}`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CryptoCompare API error: ${response.status}`);
+      const data = await response.json();
+
+      let articles: any[] = [];
+      if (data.Data && Array.isArray(data.Data)) {
+        articles = data.Data.slice(0, 50).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          body: item.body?.substring(0, 200) + "...",
+          url: item.url,
+          imageUrl: item.imageurl,
+          source: item.source_info?.name || item.source,
+          publishedAt: item.published_on * 1000,
+          categories: item.categories,
+          tags: item.tags?.split("|").slice(0, 5) || [],
+        }));
+      }
+
+      const hiddenArticles = await storage.getHiddenArticles();
+      const hiddenIds = new Set(hiddenArticles.map((a) => a.articleId));
+      const filtered = articles.filter((a) => !hiddenIds.has(String(a.id)));
+
+      res.json({ articles: filtered, timestamp: Date.now() });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/masternodes", async (_req, res) => {
     try {
       if (masternodeCache && Date.now() - masternodeCache.timestamp < MASTERNODE_CACHE_TTL) {
