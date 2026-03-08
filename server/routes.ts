@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertHiddenNewsSchema, insertPinnedNewsSchema } from "@shared/schema";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { XMLParser } from "fast-xml-parser";
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
@@ -50,6 +51,10 @@ const TRENDING_CACHE_TTL = 120000;
 
 let masternodeCache: { data: any; timestamp: number } | null = null;
 const MASTERNODE_CACHE_TTL = 300000;
+
+let worldNewsCache: { data: any; timestamp: number } | null = null;
+let usaNewsCache: { data: any; timestamp: number } | null = null;
+const GENERAL_NEWS_CACHE_TTL = 600000;
 
 const activeSessions = new Set<string>();
 
@@ -449,6 +454,95 @@ export async function registerRoutes(
       const filtered = articles.filter((a) => !hiddenIds.has(String(a.id)));
 
       res.json({ articles: filtered, timestamp: Date.now() });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+
+  async function fetchRssNews(feeds: { url: string; region: string }[]): Promise<any[]> {
+    const articles: any[] = [];
+    for (const feed of feeds) {
+      try {
+        const response = await fetch(feed.url, {
+          headers: { "User-Agent": "TokenAltcoin/1.0" },
+        });
+        if (!response.ok) continue;
+        const xml = await response.text();
+        const parsed = xmlParser.parse(xml);
+        const channel = parsed?.rss?.channel;
+        if (!channel?.item) continue;
+        const items = Array.isArray(channel.item) ? channel.item : [channel.item];
+        for (const item of items.slice(0, 30)) {
+          const pubDate = item.pubDate ? new Date(item.pubDate).getTime() : Date.now();
+          let imageUrl = "";
+          if (item["media:content"]?.["@_url"]) {
+            imageUrl = item["media:content"]["@_url"];
+          } else if (item["media:thumbnail"]?.["@_url"]) {
+            imageUrl = item["media:thumbnail"]["@_url"];
+          } else if (item.enclosure?.["@_url"]) {
+            imageUrl = item.enclosure["@_url"];
+          }
+          const description = typeof item.description === "string"
+            ? item.description.replace(/<[^>]*>/g, "").substring(0, 200)
+            : "";
+          articles.push({
+            id: `${feed.region}-${pubDate}-${articles.length}`,
+            title: item.title || "",
+            body: description + (description.length >= 200 ? "..." : ""),
+            url: item.link || "",
+            imageUrl,
+            source: channel.title || feed.region,
+            publishedAt: pubDate,
+            categories: feed.region.toUpperCase(),
+            tags: [],
+            region: feed.region,
+          });
+        }
+      } catch {}
+    }
+    articles.sort((a, b) => b.publishedAt - a.publishedAt);
+    return articles;
+  }
+
+  app.get("/api/news/world", async (_req, res) => {
+    try {
+      if (worldNewsCache && Date.now() - worldNewsCache.timestamp < GENERAL_NEWS_CACHE_TTL) {
+        return res.json(worldNewsCache.data);
+      }
+
+      const feeds = [
+        { url: "https://feeds.bbci.co.uk/news/world/rss.xml", region: "World" },
+        { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", region: "World" },
+        { url: "https://feeds.skynews.com/feeds/rss/world.xml", region: "World" },
+      ];
+
+      const articles = await fetchRssNews(feeds);
+      const result = { articles: articles.slice(0, 50), timestamp: Date.now() };
+      worldNewsCache = { data: result, timestamp: Date.now() };
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/news/usa", async (_req, res) => {
+    try {
+      if (usaNewsCache && Date.now() - usaNewsCache.timestamp < GENERAL_NEWS_CACHE_TTL) {
+        return res.json(usaNewsCache.data);
+      }
+
+      const feeds = [
+        { url: "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml", region: "USA" },
+        { url: "https://rss.nytimes.com/services/xml/rss/nyt/US.xml", region: "USA" },
+        { url: "https://feeds.npr.org/1001/rss.xml", region: "USA" },
+      ];
+
+      const articles = await fetchRssNews(feeds);
+      const result = { articles: articles.slice(0, 50), timestamp: Date.now() };
+      usaNewsCache = { data: result, timestamp: Date.now() };
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

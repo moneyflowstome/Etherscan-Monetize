@@ -7,6 +7,9 @@ import {
   Newspaper,
   Archive,
   ChevronDown,
+  Globe,
+  Flag,
+  Bitcoin,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +25,7 @@ function timeAgo(ts: number): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-const CATEGORY_MAP: Record<string, string[]> = {
+const CRYPTO_CATEGORY_MAP: Record<string, string[]> = {
   "All": [],
   "Market": ["MARKET", "TRADING", "EXCHANGE", "COMMODITY"],
   "Business": ["BUSINESS", "MACROECONOMICS", "FIAT", "REGULATION"],
@@ -33,22 +36,30 @@ const CATEGORY_MAP: Record<string, string[]> = {
   "Research": ["RESEARCH", "TOKEN SALE"],
 };
 
-const CATEGORY_KEYS = Object.keys(CATEGORY_MAP);
+const CRYPTO_CATEGORY_KEYS = Object.keys(CRYPTO_CATEGORY_MAP);
 
-function matchesCategory(article: any, category: string): boolean {
+function matchesCryptoCategory(article: any, category: string): boolean {
   if (category === "All") return true;
   const cats = (article.categories || "").toUpperCase().split("|").map((c: string) => c.trim());
-  const targets = CATEGORY_MAP[category] || [];
+  const targets = CRYPTO_CATEGORY_MAP[category] || [];
   return targets.some((t) => cats.includes(t));
 }
 
-function getCategoryCounts(articles: any[]): Record<string, number> {
+function getCryptoCategoryCounts(articles: any[]): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const key of CATEGORY_KEYS) {
-    counts[key] = key === "All" ? articles.length : articles.filter((a) => matchesCategory(a, key)).length;
+  for (const key of CRYPTO_CATEGORY_KEYS) {
+    counts[key] = key === "All" ? articles.length : articles.filter((a) => matchesCryptoCategory(a, key)).length;
   }
   return counts;
 }
+
+type FeedType = "crypto" | "world" | "usa";
+
+const FEED_TABS: { key: FeedType; label: string; icon: any; description: string }[] = [
+  { key: "crypto", label: "Crypto", icon: Bitcoin, description: "Cryptocurrency & blockchain news" },
+  { key: "world", label: "World", icon: Globe, description: "International headlines" },
+  { key: "usa", label: "USA", icon: Flag, description: "United States news & trending" },
+];
 
 function NewsCard({ article, index }: { article: any; index: number }) {
   return (
@@ -112,10 +123,11 @@ function NewsCard({ article, index }: { article: any; index: number }) {
 }
 
 export default function NewsPage() {
+  const [feedType, setFeedType] = useState<FeedType>("crypto");
   const [activeCategory, setActiveCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"latest" | "archive">("latest");
 
-  const newsQuery = useQuery({
+  const cryptoQuery = useQuery({
     queryKey: ["/api/news"],
     queryFn: async () => {
       const res = await fetch("/api/news");
@@ -143,13 +155,37 @@ export default function NewsPage() {
       const oldest = articles[articles.length - 1];
       return oldest?.publishedAt || undefined;
     },
-    enabled: viewMode === "archive",
+    enabled: feedType === "crypto" && viewMode === "archive",
     staleTime: 120000,
   });
 
-  const latestArticles = newsQuery.data?.articles || [];
-  const filteredLatest = latestArticles.filter((a: any) => matchesCategory(a, activeCategory));
-  const latestCounts = getCategoryCounts(latestArticles);
+  const worldQuery = useQuery({
+    queryKey: ["/api/news/world"],
+    queryFn: async () => {
+      const res = await fetch("/api/news/world");
+      if (!res.ok) throw new Error("Failed to fetch world news");
+      return res.json();
+    },
+    refetchInterval: 600000,
+    staleTime: 300000,
+    enabled: feedType === "world",
+  });
+
+  const usaQuery = useQuery({
+    queryKey: ["/api/news/usa"],
+    queryFn: async () => {
+      const res = await fetch("/api/news/usa");
+      if (!res.ok) throw new Error("Failed to fetch USA news");
+      return res.json();
+    },
+    refetchInterval: 600000,
+    staleTime: 300000,
+    enabled: feedType === "usa",
+  });
+
+  const cryptoArticles = cryptoQuery.data?.articles || [];
+  const worldArticles = worldQuery.data?.articles || [];
+  const usaArticles = usaQuery.data?.articles || [];
 
   const archiveArticles = (archiveQuery.data?.pages || []).flatMap((p: any) => p.articles || []);
   const seenArchiveIds = new Set<string>();
@@ -159,13 +195,46 @@ export default function NewsPage() {
     seenArchiveIds.add(key);
     return true;
   });
-  const filteredArchive = uniqueArchive.filter((a: any) => matchesCategory(a, activeCategory));
-  const archiveCounts = getCategoryCounts(uniqueArchive);
 
-  const isArchive = viewMode === "archive";
-  const displayArticles = isArchive ? filteredArchive : filteredLatest;
-  const counts = isArchive ? archiveCounts : latestCounts;
-  const totalCount = isArchive ? uniqueArchive.length : latestArticles.length;
+  let displayArticles: any[] = [];
+  let isLoading = false;
+  let pageTitle = "News";
+  let pageDescription = "";
+  let showCryptoCategories = false;
+  let showArchiveToggle = false;
+
+  if (feedType === "crypto") {
+    showCryptoCategories = true;
+    showArchiveToggle = true;
+    const isArchive = viewMode === "archive";
+    const source = isArchive ? uniqueArchive : cryptoArticles;
+    displayArticles = source.filter((a: any) => matchesCryptoCategory(a, activeCategory));
+    isLoading = isArchive ? archiveQuery.isLoading : cryptoQuery.isLoading;
+    pageTitle = "Crypto News";
+    pageDescription = isArchive
+      ? `Archive — ${uniqueArchive.length} articles loaded`
+      : "Latest cryptocurrency & blockchain headlines";
+  } else if (feedType === "world") {
+    displayArticles = worldArticles;
+    isLoading = worldQuery.isLoading;
+    pageTitle = "World News";
+    pageDescription = `${worldArticles.length} articles from international sources`;
+  } else if (feedType === "usa") {
+    displayArticles = usaArticles;
+    isLoading = usaQuery.isLoading;
+    pageTitle = "USA News";
+    pageDescription = `${usaArticles.length} articles from US sources`;
+  }
+
+  const cryptoCounts = getCryptoCategoryCounts(
+    viewMode === "archive" ? uniqueArchive : cryptoArticles
+  );
+
+  const handleFeedChange = (feed: FeedType) => {
+    setFeedType(feed);
+    setActiveCategory("All");
+    if (feed !== "crypto") setViewMode("latest");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -184,85 +253,117 @@ export default function NewsPage() {
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3" data-testid="text-page-title">
               <Newspaper className="w-8 h-8 text-primary" />
-              Crypto News
+              {pageTitle}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isArchive
-                ? `Archive — ${totalCount} articles loaded`
-                : `Latest headlines from the crypto world`}
+            <p className="text-muted-foreground text-sm mt-1" data-testid="text-page-description">
+              {pageDescription}
             </p>
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === "latest" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("latest")}
-              className={
-                viewMode === "latest"
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-                  : "bg-muted/30 border-border text-muted-foreground hover:text-foreground text-xs"
-              }
-              data-testid="button-view-latest"
-            >
-              <Newspaper className="w-3.5 h-3.5 mr-1.5" />
-              Latest
-              <Badge variant="secondary" className="ml-1.5 bg-background/20 text-[10px] px-1.5 py-0" data-testid="text-latest-count">
-                {latestArticles.length}
-              </Badge>
-            </Button>
-            <Button
-              variant={viewMode === "archive" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setViewMode("archive")}
-              className={
-                viewMode === "archive"
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-                  : "bg-muted/30 border-border text-muted-foreground hover:text-foreground text-xs"
-              }
-              data-testid="button-view-archive"
-            >
-              <Archive className="w-3.5 h-3.5 mr-1.5" />
-              Archive
-              {totalCount > 0 && isArchive && (
-                <Badge variant="secondary" className="ml-1.5 bg-background/20 text-[10px] px-1.5 py-0" data-testid="text-archive-count">
-                  {totalCount}
+          {showArchiveToggle && (
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === "latest" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("latest")}
+                className={
+                  viewMode === "latest"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+                    : "bg-muted/30 border-border text-muted-foreground hover:text-foreground text-xs"
+                }
+                data-testid="button-view-latest"
+              >
+                <Newspaper className="w-3.5 h-3.5 mr-1.5" />
+                Latest
+                <Badge variant="secondary" className="ml-1.5 bg-background/20 text-[10px] px-1.5 py-0" data-testid="text-latest-count">
+                  {cryptoArticles.length}
                 </Badge>
-              )}
-            </Button>
+              </Button>
+              <Button
+                variant={viewMode === "archive" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("archive")}
+                className={
+                  viewMode === "archive"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+                    : "bg-muted/30 border-border text-muted-foreground hover:text-foreground text-xs"
+                }
+                data-testid="button-view-archive"
+              >
+                <Archive className="w-3.5 h-3.5 mr-1.5" />
+                Archive
+                {uniqueArchive.length > 0 && viewMode === "archive" && (
+                  <Badge variant="secondary" className="ml-1.5 bg-background/20 text-[10px] px-1.5 py-0" data-testid="text-archive-count">
+                    {uniqueArchive.length}
+                  </Badge>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 flex-wrap mb-5" data-testid="news-feed-tabs">
+          {FEED_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const count =
+              tab.key === "crypto" ? cryptoArticles.length
+              : tab.key === "world" ? worldArticles.length
+              : usaArticles.length;
+            return (
+              <Button
+                key={tab.key}
+                variant={feedType === tab.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleFeedChange(tab.key)}
+                className={
+                  feedType === tab.key
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+                    : "bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs"
+                }
+                data-testid={`button-feed-${tab.key}`}
+              >
+                <Icon className="w-3.5 h-3.5 mr-1.5" />
+                {tab.label}
+                {count > 0 && (
+                  <span className="ml-1 text-[10px] opacity-70">({count})</span>
+                )}
+              </Button>
+            );
+          })}
+        </div>
+
+        {showCryptoCategories && (
+          <div className="flex gap-2 flex-wrap mb-6" data-testid="news-category-tabs">
+            {CRYPTO_CATEGORY_KEYS.map((cat) => (
+              <Button
+                key={cat}
+                variant={activeCategory === cat ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveCategory(cat)}
+                className={
+                  activeCategory === cat
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+                    : "bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs"
+                }
+                data-testid={`button-category-${cat.toLowerCase().replace(" ", "-")}`}
+              >
+                {cat}
+                <span className="ml-1 text-[10px] opacity-70">({cryptoCounts[cat] || 0})</span>
+              </Button>
+            ))}
           </div>
-        </div>
+        )}
 
-        <div className="flex gap-2 flex-wrap mb-6" data-testid="news-category-tabs">
-          {CATEGORY_KEYS.map((cat) => (
-            <Button
-              key={cat}
-              variant={activeCategory === cat ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveCategory(cat)}
-              className={
-                activeCategory === cat
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-                  : "bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs"
-              }
-              data-testid={`button-category-${cat.toLowerCase().replace(" ", "-")}`}
-            >
-              {cat}
-              <span className="ml-1 text-[10px] opacity-70">({counts[cat] || 0})</span>
-            </Button>
-          ))}
-        </div>
-
-        {(isArchive ? archiveQuery.isLoading : newsQuery.isLoading) ? (
+        {isLoading ? (
           <div className="p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
             <div className="text-muted-foreground">Loading news...</div>
           </div>
         ) : displayArticles.length === 0 ? (
           <div className="glass-panel p-12 rounded-2xl text-center text-muted-foreground">
-            {activeCategory === "All"
-              ? "No news available right now. Check back soon."
-              : `No ${activeCategory} news right now. Try another category.`}
+            {feedType === "crypto" && activeCategory !== "All"
+              ? `No ${activeCategory} news right now. Try another category.`
+              : "No news available right now. Check back soon."}
           </div>
         ) : (
           <div className="space-y-4">
@@ -278,7 +379,7 @@ export default function NewsPage() {
               </div>
             ))}
 
-            {isArchive && archiveQuery.hasNextPage && (
+            {feedType === "crypto" && viewMode === "archive" && archiveQuery.hasNextPage && (
               <div className="text-center py-6">
                 <Button
                   variant="outline"
