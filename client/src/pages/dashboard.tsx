@@ -6,13 +6,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Zap,
-  LineChart,
   Search,
-  Bell,
-  Settings,
-  ArrowDownUp,
-  Settings2,
-  Info,
   Fuel,
   ExternalLink,
   Copy,
@@ -26,9 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { AdBanner } from "@/components/AdBanner";
 
 const CHAIN_OPTIONS = [
   { name: "ethereum", id: 1, symbol: "ETH", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
@@ -39,13 +33,6 @@ const CHAIN_OPTIONS = [
   { name: "base", id: 8453, symbol: "ETH", color: "bg-blue-400/20 text-blue-300 border-blue-400/30" },
   { name: "avalanche", id: 43114, symbol: "AVAX", color: "bg-red-600/20 text-red-400 border-red-600/30" },
 ];
-
-function formatWei(wei: string, decimals: number = 18): string {
-  if (!wei || wei === "0") return "0";
-  const num = parseFloat(wei) / Math.pow(10, decimals);
-  if (num < 0.0001) return "< 0.0001";
-  return num.toLocaleString(undefined, { maximumFractionDigits: 6 });
-}
 
 function formatAddress(address: string): string {
   if (!address) return "";
@@ -286,7 +273,12 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-8 md:pt-12 gap-6 md:gap-8 grid grid-cols-1 lg:grid-cols-3">
+      {/* Top Leaderboard Ad - Below Navbar */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-4">
+        <AdBanner slot="1234567890" format="horizontal" className="w-full" />
+      </div>
+
+      <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-6 md:pt-8 gap-6 md:gap-8 grid grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6 md:space-y-8">
 
           {!trackedAddress ? (
@@ -294,9 +286,9 @@ export default function Dashboard() {
               <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
                 <Search className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-display font-bold text-white mb-3" data-testid="text-welcome-title">Track Any Wallet</h2>
+              <h2 className="text-2xl font-display font-bold text-white mb-3" data-testid="text-welcome-title">Track Any Wallet - 100% Free</h2>
               <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Enter any Ethereum address above to view real-time balances, transactions, and token activity across multiple chains.
+                Enter any Ethereum address above to view real-time balances, transactions, and token activity across multiple chains. Completely free to use.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {["Ethereum", "BSC", "Arbitrum", "Base", "Polygon"].map((chain) => (
@@ -372,6 +364,9 @@ export default function Dashboard() {
                 )}
               </div>
 
+              {/* Mid-Content Ad - Between Balance and Transactions */}
+              <AdBanner slot="2345678901" format="horizontal" className="w-full" />
+
               <div className="glass-panel rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-500 delay-150">
                 <Tabs defaultValue="transactions" className="w-full">
                   <div className="px-4 md:px-6 pt-4 border-b border-white/5 bg-black/20">
@@ -409,64 +404,73 @@ export default function Dashboard() {
                           const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
                           const valueEth = parseFloat(tx.value) / 1e18;
                           const isError = tx.isError === "1";
+
                           return (
-                            <div
-                              key={i}
-                              className="flex items-center justify-between p-3 md:p-4 hover:bg-white/[0.02] transition-colors group"
-                              data-testid={`row-tx-${i}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                                    isError
-                                      ? "bg-red-500/20 text-red-400"
-                                      : isIncoming
-                                      ? "bg-green-500/20 text-green-400"
-                                      : "bg-orange-500/20 text-orange-400"
-                                  }`}
-                                >
-                                  {isIncoming ? (
-                                    <ArrowDownRight className="w-4 h-4" />
-                                  ) : (
-                                    <ArrowUpRight className="w-4 h-4" />
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-white flex items-center gap-2">
-                                    {isIncoming ? "Received" : "Sent"}
-                                    {isError && (
-                                      <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-400 border-red-500/30">
-                                        Failed
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground font-mono truncate max-w-[140px]">
-                                    {isIncoming ? `From: ${formatAddress(tx.from)}` : `To: ${formatAddress(tx.to)}`}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right flex items-center gap-3">
-                                <div>
+                            <>
+                              <div
+                                key={`tx-${i}`}
+                                className="flex items-center justify-between p-3 md:p-4 hover:bg-white/[0.02] transition-colors group"
+                                data-testid={`row-tx-${i}`}
+                              >
+                                <div className="flex items-center gap-3">
                                   <div
-                                    className={`text-sm font-mono ${
-                                      isIncoming ? "text-green-400" : "text-orange-400"
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                                      isError
+                                        ? "bg-red-500/20 text-red-400"
+                                        : isIncoming
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-orange-500/20 text-orange-400"
                                     }`}
                                   >
-                                    {isIncoming ? "+" : "-"}
-                                    {valueEth > 0 ? valueEth.toFixed(4) : "0"} {selectedChain.symbol}
+                                    {isIncoming ? (
+                                      <ArrowDownRight className="w-4 h-4" />
+                                    ) : (
+                                      <ArrowUpRight className="w-4 h-4" />
+                                    )}
                                   </div>
-                                  <div className="text-[10px] text-muted-foreground">{timeAgo(tx.timeStamp)}</div>
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-white flex items-center gap-2">
+                                      {isIncoming ? "Received" : "Sent"}
+                                      {isError && (
+                                        <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-400 border-red-500/30">
+                                          Failed
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-mono truncate max-w-[140px]">
+                                      {isIncoming ? `From: ${formatAddress(tx.from)}` : `To: ${formatAddress(tx.to)}`}
+                                    </div>
+                                  </div>
                                 </div>
-                                <a
-                                  href={getExplorerUrl(tx.hash)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
+                                <div className="text-right flex items-center gap-3">
+                                  <div>
+                                    <div
+                                      className={`text-sm font-mono ${
+                                        isIncoming ? "text-green-400" : "text-orange-400"
+                                      }`}
+                                    >
+                                      {isIncoming ? "+" : "-"}
+                                      {valueEth > 0 ? valueEth.toFixed(4) : "0"} {selectedChain.symbol}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">{timeAgo(tx.timeStamp)}</div>
+                                  </div>
+                                  <a
+                                    href={getExplorerUrl(tx.hash)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
                               </div>
-                            </div>
+                              {/* In-feed ad after every 5th transaction */}
+                              {i === 4 && (
+                                <div key="infeed-ad" className="p-3 md:p-4 border-t border-white/5">
+                                  <AdBanner slot="3456789012" format="fluid" layout="in-article" className="w-full" />
+                                </div>
+                              )}
+                            </>
                           );
                         })}
                       </div>
@@ -490,57 +494,65 @@ export default function Dashboard() {
                           const decimals = parseInt(tx.tokenDecimal) || 18;
                           const value = parseFloat(tx.value) / Math.pow(10, decimals);
                           return (
-                            <div
-                              key={i}
-                              className="flex items-center justify-between p-3 md:p-4 hover:bg-white/[0.02] transition-colors group"
-                              data-testid={`row-token-tx-${i}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className={`w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                    isIncoming
-                                      ? "bg-green-500/20 text-green-400"
-                                      : "bg-orange-500/20 text-orange-400"
-                                  }`}
-                                >
-                                  {tx.tokenSymbol?.slice(0, 2) || "?"}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-white truncate max-w-[160px]">
-                                    {tx.tokenName || "Unknown Token"}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground font-mono">
-                                    {isIncoming ? `From: ${formatAddress(tx.from)}` : `To: ${formatAddress(tx.to)}`}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right flex items-center gap-3">
-                                <div>
+                            <>
+                              <div
+                                key={`token-${i}`}
+                                className="flex items-center justify-between p-3 md:p-4 hover:bg-white/[0.02] transition-colors group"
+                                data-testid={`row-token-tx-${i}`}
+                              >
+                                <div className="flex items-center gap-3">
                                   <div
-                                    className={`text-sm font-mono ${
-                                      isIncoming ? "text-green-400" : "text-orange-400"
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                      isIncoming
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-orange-500/20 text-orange-400"
                                     }`}
                                   >
-                                    {isIncoming ? "+" : "-"}
-                                    {value > 1000000
-                                      ? `${(value / 1000000).toFixed(2)}M`
-                                      : value > 1000
-                                      ? `${(value / 1000).toFixed(2)}K`
-                                      : value.toFixed(4)}{" "}
-                                    {tx.tokenSymbol}
+                                    {tx.tokenSymbol?.slice(0, 2) || "?"}
                                   </div>
-                                  <div className="text-[10px] text-muted-foreground">{timeAgo(tx.timeStamp)}</div>
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-white truncate max-w-[160px]">
+                                      {tx.tokenName || "Unknown Token"}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      {isIncoming ? `From: ${formatAddress(tx.from)}` : `To: ${formatAddress(tx.to)}`}
+                                    </div>
+                                  </div>
                                 </div>
-                                <a
-                                  href={getExplorerUrl(tx.hash)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
+                                <div className="text-right flex items-center gap-3">
+                                  <div>
+                                    <div
+                                      className={`text-sm font-mono ${
+                                        isIncoming ? "text-green-400" : "text-orange-400"
+                                      }`}
+                                    >
+                                      {isIncoming ? "+" : "-"}
+                                      {value > 1000000
+                                        ? `${(value / 1000000).toFixed(2)}M`
+                                        : value > 1000
+                                        ? `${(value / 1000).toFixed(2)}K`
+                                        : value.toFixed(4)}{" "}
+                                      {tx.tokenSymbol}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">{timeAgo(tx.timeStamp)}</div>
+                                  </div>
+                                  <a
+                                    href={getExplorerUrl(tx.hash)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
                               </div>
-                            </div>
+                              {/* In-feed ad after every 5th token transfer */}
+                              {i === 4 && (
+                                <div key="infeed-token-ad" className="p-3 md:p-4 border-t border-white/5">
+                                  <AdBanner slot="4567890123" format="fluid" layout="in-article" className="w-full" />
+                                </div>
+                              )}
+                            </>
                           );
                         })}
                       </div>
@@ -550,8 +562,12 @@ export default function Dashboard() {
               </div>
             </>
           )}
+
+          {/* Bottom Content Ad */}
+          <AdBanner slot="5678901234" format="horizontal" className="w-full" />
         </div>
 
+        {/* Right Sidebar */}
         <div className="space-y-6 md:space-y-8">
 
           {ethPrice > 0 && (
@@ -572,6 +588,9 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           )}
+
+          {/* Sidebar Ad 1 - Rectangle */}
+          <AdBanner slot="6789012345" format="rectangle" className="w-full" style={{ minHeight: "250px" }} />
 
           {gasData && (
             <Card className="glass-panel border-white/5 overflow-hidden animate-in fade-in slide-in-from-right-6 duration-500 delay-100" data-testid="card-gas">
@@ -647,24 +666,24 @@ export default function Dashboard() {
             </Card>
           )}
 
-          <Card className="glass-panel border-primary/20 overflow-hidden relative group animate-in fade-in slide-in-from-right-8 duration-500 delay-300" data-testid="card-pro-upsell">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-60" />
-            <CardContent className="p-5 relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <Badge className="bg-primary text-primary-foreground text-[10px]">PRO</Badge>
-                <LineChart className="w-4 h-4 text-primary" />
-              </div>
-              <h3 className="text-lg font-bold font-display mb-2 text-white">Deep Analytics</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Track PnL, monitor whale wallets, get alerts, and access advanced portfolio analytics.
-              </p>
-              <Button className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm transition-all group-hover:border-primary/40" data-testid="button-upgrade">
-                Coming Soon
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Sidebar Ad 2 - Rectangle */}
+          <AdBanner slot="7890123456" format="rectangle" className="w-full" style={{ minHeight: "250px" }} />
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 mt-16 pt-8 border-t border-white/5">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-8">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" />
+            <span className="font-display font-bold text-sm tracking-wider text-white">TokenAltcoin</span>
+            <span className="text-xs text-muted-foreground ml-2">Free Multi-Chain Wallet Tracker</span>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Powered by Etherscan API V2 | Data refreshes automatically
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

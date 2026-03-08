@@ -17,6 +17,18 @@ TokenAltcoin is a real-time multi-chain cryptocurrency wallet tracker powered by
 - Gas price tracker (Slow/Average/Fast)
 - Token detection from recent transfers
 - Links to block explorers for all transactions and addresses
+- 100% Free - monetized with Google AdSense ad placements
+
+## Monetization
+- Google AdSense integration with multiple ad placements:
+  - Top leaderboard banner (below navbar)
+  - Mid-content banner (between balance and transactions)
+  - In-feed ads (within transaction/token lists every 5 items)
+  - Two sidebar rectangle ads (300x250)
+  - Bottom content leaderboard
+- AdSense script loaded in index.html
+- AdBanner component in `client/src/components/AdBanner.tsx`
+- Replace `ca-pub-XXXXXXXXXXXXXXXX` in index.html and AdBanner.tsx with your real Google AdSense publisher ID
 
 ## API Routes (all prefixed with /api)
 - `GET /api/chains` - List supported chains

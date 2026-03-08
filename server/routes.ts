@@ -44,10 +44,27 @@ export async function registerRoutes(
     );
   });
 
+  const validChainIds = new Set(Object.values(CHAIN_IDS));
+
+  function isValidAddress(address: string): boolean {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  }
+
+  function isValidChainId(chainId: number): boolean {
+    return validChainIds.has(chainId);
+  }
+
   app.get("/api/balance/:address", async (req, res) => {
     try {
       const { address } = req.params;
       const chainId = parseInt(req.query.chainId as string) || 1;
+
+      if (!isValidAddress(address)) {
+        return res.status(400).json({ error: "Invalid Ethereum address format" });
+      }
+      if (!isValidChainId(chainId)) {
+        return res.status(400).json({ error: "Unsupported chain ID" });
+      }
 
       const data = await etherscanFetch({
         module: "account",
@@ -65,8 +82,11 @@ export async function registerRoutes(
   app.get("/api/balances/:address", async (req, res) => {
     try {
       const { address } = req.params;
+      if (!isValidAddress(address)) {
+        return res.status(400).json({ error: "Invalid Ethereum address format" });
+      }
       const chainIdsParam = (req.query.chains as string) || "1";
-      const chainIds = chainIdsParam.split(",").map(Number);
+      const chainIds = chainIdsParam.split(",").map(Number).filter(id => isValidChainId(id));
 
       const results = await Promise.allSettled(
         chainIds.map(async (chainId) => {
@@ -149,6 +169,13 @@ export async function registerRoutes(
       const page = req.query.page || "1";
       const offset = req.query.offset || "20";
 
+      if (!isValidAddress(address)) {
+        return res.status(400).json({ error: "Invalid Ethereum address format" });
+      }
+      if (!isValidChainId(chainId)) {
+        return res.status(400).json({ error: "Unsupported chain ID" });
+      }
+
       const data = await etherscanFetch({
         module: "account",
         action: "txlist",
@@ -170,6 +197,13 @@ export async function registerRoutes(
     try {
       const { address } = req.params;
       const chainId = parseInt(req.query.chainId as string) || 1;
+
+      if (!isValidAddress(address)) {
+        return res.status(400).json({ error: "Invalid Ethereum address format" });
+      }
+      if (!isValidChainId(chainId)) {
+        return res.status(400).json({ error: "Unsupported chain ID" });
+      }
 
       const data = await etherscanFetch({
         module: "account",
