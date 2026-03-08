@@ -318,6 +318,24 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/prices/by-ids", async (req, res) => {
+    try {
+      const ids = req.query.ids as string;
+      if (!ids || ids.trim().length === 0) return res.json([]);
+
+      const idList = ids.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50);
+      if (idList.length === 0) return res.json([]);
+
+      const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${idList.join(",")}&order=market_cap_desc&per_page=${idList.length}&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/trending", async (_req, res) => {
     try {
       if (trendingCache && Date.now() - trendingCache.timestamp < TRENDING_CACHE_TTL) {

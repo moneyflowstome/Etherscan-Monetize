@@ -15,7 +15,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
-- Crypto prices page (CoinGecko) with sparklines and trending
+- Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist
+- Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
 - Crypto news feed (CryptoCompare) with category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research)
 - Masternode tracker with collateral/ROI data
 - Admin panel at `/admin` with:
@@ -42,6 +43,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/gas?chainId=` - Gas oracle
 - `GET /api/eth-price` - ETH price
 - `GET /api/prices?page=&per_page=` - Coin market data (CoinGecko)
+- `GET /api/prices/by-ids?ids=` - Coin data by comma-separated IDs (for watchlist)
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data
@@ -77,6 +79,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `client/src/pages/prices.tsx` - Crypto prices page
 - `client/src/pages/news.tsx` - News feed page
 - `client/src/pages/masternodes.tsx` - Masternode tracker page
+- `client/src/pages/watchlist.tsx` - Watchlist page (localStorage-persisted)
+- `client/src/hooks/use-watchlist.ts` - Watchlist hook (add/remove/toggle/isWatched)
 - `client/src/pages/admin.tsx` - Admin panel (login + tabs)
 - `client/src/components/Navbar.tsx` - Shared navigation
 - `client/src/components/Footer.tsx` - Shared footer

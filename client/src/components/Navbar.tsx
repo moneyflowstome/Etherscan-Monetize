@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/use-theme";
 const NAV_LINKS = [
   { path: "/", label: "Wallet Tracker" },
   { path: "/prices", label: "Prices" },
+  { path: "/watchlist", label: "Watchlist" },
   { path: "/news", label: "News" },
   { path: "/masternodes", label: "Masternodes" },
 ];

@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import PricesPage from "@/pages/prices";
 import NewsPage from "@/pages/news";
 import MasternodesPage from "@/pages/masternodes";
+import WatchlistPage from "@/pages/watchlist";
 import AdminPage from "@/pages/admin";
 
 function Router() {
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard}/>
       <Route path="/prices" component={PricesPage}/>
+      <Route path="/watchlist" component={WatchlistPage}/>
       <Route path="/news" component={NewsPage}/>
       <Route path="/masternodes" component={MasternodesPage}/>
       <Route path="/admin" component={AdminPage}/>

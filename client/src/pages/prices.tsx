@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AdBanner } from "@/components/AdBanner";
+import { useWatchlist } from "@/hooks/use-watchlist";
+import { useToast } from "@/hooks/use-toast";
 
 function formatMarketCap(num: number): string {
   if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
@@ -54,6 +56,8 @@ function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }
 export default function PricesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const { toggleWatchlist, isWatched } = useWatchlist();
+  const { toast } = useToast();
 
   const pricesQuery = useQuery({
     queryKey: ["/api/prices", page],
@@ -155,6 +159,7 @@ export default function PricesPage() {
                 <table className="w-full text-left min-w-[700px]">
                   <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
+                      <th className="p-4 font-medium w-10"></th>
                       <th className="p-4 font-medium w-12">#</th>
                       <th className="p-4 font-medium">Coin</th>
                       <th className="p-4 font-medium text-right">Price</th>
@@ -177,6 +182,18 @@ export default function PricesPage() {
                             className="hover:bg-muted/20 transition-colors group"
                             data-testid={`row-price-${coin.id}`}
                           >
+                            <td className="p-4">
+                              <button
+                                onClick={() => {
+                                  toggleWatchlist(coin.id);
+                                  toast({ title: isWatched(coin.id) ? `Removed ${coin.name}` : `Added ${coin.name} to watchlist` });
+                                }}
+                                className="text-muted-foreground hover:text-yellow-400 transition-colors"
+                                data-testid={`button-star-${coin.id}`}
+                              >
+                                <Star className={`w-4 h-4 ${isWatched(coin.id) ? "text-yellow-400 fill-yellow-400" : ""}`} />
+                              </button>
+                            </td>
                             <td className="p-4 text-muted-foreground text-sm">{coin.market_cap_rank}</td>
                             <td className="p-4">
                               <div className="flex items-center gap-3">
@@ -213,7 +230,7 @@ export default function PricesPage() {
                           </tr>
                           {i === 9 && (
                             <tr key="infeed-price-ad">
-                              <td colSpan={8} className="p-3">
+                              <td colSpan={9} className="p-3">
                                 <AdBanner slot="9012345678" format="fluid" layout="in-article" className="w-full" />
                               </td>
                             </tr>
