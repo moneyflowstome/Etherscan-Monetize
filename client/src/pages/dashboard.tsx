@@ -8,12 +8,17 @@ import {
   LineChart,
   Search,
   Bell,
-  Settings
+  Settings,
+  ArrowDownUp,
+  Settings2,
+  X,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import heroBg from "@/assets/images/hero-bg.png";
 
 // Mock Data
@@ -110,9 +115,94 @@ export default function Dashboard() {
               <Button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white">
                 <ArrowDownRight className="w-4 h-4 mr-2" /> Receive
               </Button>
-              <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 neon-border">
-                <Activity className="w-4 h-4 mr-2" /> Swap
-              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 neon-border">
+                    <ArrowDownUp className="w-4 h-4 mr-2" /> Swap
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="glass-panel border-white/10 sm:max-w-md p-0 overflow-hidden bg-[#0A0E17]/95">
+                  <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                    <h2 className="font-display font-bold text-xl text-white">Swap Assets</h2>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white rounded-full">
+                      <Settings2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="p-6 space-y-4">
+                    {/* Pay Section */}
+                    <div className="bg-black/30 rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-colors">
+                      <div className="text-sm text-muted-foreground mb-2 flex justify-between">
+                        <span>You pay</span>
+                        <span>Balance: 14.5 ETH</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <Input 
+                          type="number" 
+                          placeholder="0.0" 
+                          className="text-3xl bg-transparent border-none p-0 focus-visible:ring-0 text-white font-mono h-auto"
+                          defaultValue="2.5"
+                        />
+                        <Button variant="outline" className="shrink-0 bg-white/5 border-white/10 text-white rounded-full h-10 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold">E</div>
+                            <span>ETH</span>
+                          </div>
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-2 font-mono">$7,301.81</div>
+                    </div>
+
+                    {/* Swap Arrow */}
+                    <div className="relative flex justify-center -my-2 z-10">
+                      <div className="bg-[#0A0E17] p-1 rounded-xl">
+                        <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl bg-white/5 border-white/10 text-primary hover:bg-white/10 hover:text-primary">
+                          <ArrowDownUp className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Receive Section */}
+                    <div className="bg-black/30 rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-colors">
+                      <div className="text-sm text-muted-foreground mb-2 flex justify-between">
+                        <span>You receive</span>
+                        <span>Balance: 12,500 USDC</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <Input 
+                          type="number" 
+                          placeholder="0.0" 
+                          className="text-3xl bg-transparent border-none p-0 focus-visible:ring-0 text-white font-mono h-auto"
+                          defaultValue="7298.50"
+                        />
+                        <Button variant="outline" className="shrink-0 bg-white/5 border-white/10 text-white rounded-full h-10 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-blue-400/20 text-blue-300 flex items-center justify-center text-[10px] font-bold">U</div>
+                            <span>USDC</span>
+                          </div>
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-2 font-mono">$7,298.50</div>
+                    </div>
+
+                    {/* Swap Details */}
+                    <div className="rounded-xl border border-white/5 p-4 space-y-3 bg-white/[0.02]">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">Rate <Info className="w-3 h-3" /></span>
+                        <span className="text-white font-mono">1 ETH = 2,919.40 USDC</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">Network Fee <Info className="w-3 h-3" /></span>
+                        <span className="text-white font-mono">$3.42</span>
+                      </div>
+                    </div>
+
+                    <Button className="w-full h-14 text-lg font-bold bg-primary text-primary-foreground hover:bg-primary/90 neon-border rounded-xl mt-4">
+                      Review Swap
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
