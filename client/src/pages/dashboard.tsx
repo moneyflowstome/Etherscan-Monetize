@@ -212,7 +212,7 @@ export default function Dashboard() {
       <Navbar />
 
       {/* Wallet Search Bar */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-6">
+      <div className="relative z-30 max-w-7xl mx-auto px-4 md:px-6 pt-6">
         <div className="flex gap-3 items-center">
           <div className="flex-1 relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -246,26 +246,29 @@ export default function Dashboard() {
               <ChevronDown className="w-3 h-3" />
             </Button>
             {showChainSelector && (
-              <div className="absolute right-0 top-12 bg-card border border-border rounded-xl p-2 min-w-[180px] z-50 shadow-2xl" data-testid="dropdown-chains">
-                {CHAIN_OPTIONS.map((chain) => (
-                  <button
-                    key={chain.id}
-                    onClick={() => {
-                      setSelectedChainId(chain.id);
-                      setShowChainSelector(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
-                      chain.id === selectedChainId
-                        ? "bg-primary/20 text-primary"
-                        : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                    }`}
-                    data-testid={`button-chain-${chain.name}`}
-                  >
-                    <span className="capitalize font-medium">{chain.name}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">{chain.symbol}</span>
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowChainSelector(false)} />
+                <div className="absolute right-0 top-12 bg-card border border-border rounded-xl p-2 min-w-[180px] z-50 shadow-2xl" data-testid="dropdown-chains">
+                  {CHAIN_OPTIONS.map((chain) => (
+                    <button
+                      key={chain.id}
+                      onClick={() => {
+                        setSelectedChainId(chain.id);
+                        setShowChainSelector(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
+                        chain.id === selectedChainId
+                          ? "bg-primary/20 text-primary"
+                          : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                      }`}
+                      data-testid={`button-chain-${chain.name}`}
+                    >
+                      <span className="capitalize font-medium">{chain.name}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{chain.symbol}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
