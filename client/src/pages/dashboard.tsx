@@ -61,7 +61,7 @@ export default function Dashboard() {
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center neon-border">
             <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-xl tracking-widest neon-text">NEXUS</span>
+          <span className="font-display font-bold text-xl tracking-widest neon-text">TokenAltcoin</span>
         </div>
 
         <div className="flex-1 max-w-md mx-8 relative hidden md:block">
