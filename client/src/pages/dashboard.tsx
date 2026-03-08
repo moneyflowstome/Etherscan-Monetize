@@ -5,7 +5,6 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
-  Zap,
   Search,
   Fuel,
   ExternalLink,
@@ -23,6 +22,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { AdBanner } from "@/components/AdBanner";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 const CHAIN_OPTIONS = [
   { name: "ethereum", id: 1, symbol: "ETH", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
@@ -208,70 +209,67 @@ export default function Dashboard() {
         }}
       />
 
-      <nav className="relative z-10 glass-panel border-b border-white/5 sticky top-0 px-4 md:px-6 py-3 flex items-center justify-between backdrop-blur-xl bg-[#060a10]/80" data-testid="navbar">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Zap className="w-5 h-5 text-primary-foreground" />
+      <Navbar />
+
+      {/* Wallet Search Bar */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-6">
+        <div className="flex gap-3 items-center">
+          <div className="flex-1 relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={walletInput}
+              onChange={(e) => setWalletInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="w-full bg-white/5 border-white/10 pl-10 pr-20 font-mono text-xs md:text-sm focus:border-primary/50 h-10"
+              placeholder="Enter wallet address (0x...)"
+              data-testid="input-wallet-address"
+            />
+            <Button
+              size="sm"
+              onClick={handleSearch}
+              className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary/80 hover:bg-primary text-primary-foreground h-8 px-3 text-xs"
+              data-testid="button-search"
+            >
+              Track
+            </Button>
           </div>
-          <span className="font-display font-bold text-lg md:text-xl tracking-wider text-white" data-testid="text-app-name">TokenAltcoin</span>
+          <div className="relative shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowChainSelector(!showChainSelector)}
+              className="bg-white/5 border-white/10 text-white h-10 px-3 gap-2"
+              data-testid="button-chain-selector"
+            >
+              <Globe className="w-4 h-4 text-primary" />
+              <span className="hidden md:inline capitalize">{selectedChain.name}</span>
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+            {showChainSelector && (
+              <div className="absolute right-0 top-12 bg-[#0d1117] border border-white/10 rounded-xl p-2 min-w-[180px] z-50 shadow-2xl" data-testid="dropdown-chains">
+                {CHAIN_OPTIONS.map((chain) => (
+                  <button
+                    key={chain.id}
+                    onClick={() => {
+                      setSelectedChainId(chain.id);
+                      setShowChainSelector(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
+                      chain.id === selectedChainId
+                        ? "bg-primary/20 text-primary"
+                        : "text-white/70 hover:bg-white/5 hover:text-white"
+                    }`}
+                    data-testid={`button-chain-${chain.name}`}
+                  >
+                    <span className="capitalize font-medium">{chain.name}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{chain.symbol}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-
-        <div className="flex-1 max-w-lg mx-4 md:mx-8 relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={walletInput}
-            onChange={(e) => setWalletInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="w-full bg-white/5 border-white/10 pl-10 pr-20 font-mono text-xs md:text-sm focus:border-primary/50 h-10"
-            placeholder="Enter wallet address (0x...)"
-            data-testid="input-wallet-address"
-          />
-          <Button
-            size="sm"
-            onClick={handleSearch}
-            className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary/80 hover:bg-primary text-primary-foreground h-8 px-3 text-xs"
-            data-testid="button-search"
-          >
-            Track
-          </Button>
-        </div>
-
-        <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowChainSelector(!showChainSelector)}
-            className="bg-white/5 border-white/10 text-white h-10 px-3 gap-2"
-            data-testid="button-chain-selector"
-          >
-            <Globe className="w-4 h-4 text-primary" />
-            <span className="hidden md:inline capitalize">{selectedChain.name}</span>
-            <ChevronDown className="w-3 h-3" />
-          </Button>
-          {showChainSelector && (
-            <div className="absolute right-0 top-12 bg-[#0d1117] border border-white/10 rounded-xl p-2 min-w-[180px] z-50 shadow-2xl" data-testid="dropdown-chains">
-              {CHAIN_OPTIONS.map((chain) => (
-                <button
-                  key={chain.id}
-                  onClick={() => {
-                    setSelectedChainId(chain.id);
-                    setShowChainSelector(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
-                    chain.id === selectedChainId
-                      ? "bg-primary/20 text-primary"
-                      : "text-white/70 hover:bg-white/5 hover:text-white"
-                  }`}
-                  data-testid={`button-chain-${chain.name}`}
-                >
-                  <span className="capitalize font-medium">{chain.name}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">{chain.symbol}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </nav>
+      </div>
 
       {/* Top Leaderboard Ad - Below Navbar */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-4">
@@ -671,19 +669,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 mt-16 pt-8 border-t border-white/5">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-8">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            <span className="font-display font-bold text-sm tracking-wider text-white">TokenAltcoin</span>
-            <span className="text-xs text-muted-foreground ml-2">Free Multi-Chain Wallet Tracker</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Powered by Etherscan API V2 | Data refreshes automatically
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

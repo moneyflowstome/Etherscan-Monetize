@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { type Server } from "http";
+import path from "path";
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
@@ -33,16 +34,24 @@ async function etherscanFetch(params: Record<string, string>, chainId: number = 
   return res.json();
 }
 
+const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
+
+let priceCache: { data: any; timestamp: number } | null = null;
+const PRICE_CACHE_TTL = 60000;
+
+let newsCache: { data: any; timestamp: number } | null = null;
+const NEWS_CACHE_TTL = 300000;
+
+let trendingCache: { data: any; timestamp: number } | null = null;
+const TRENDING_CACHE_TTL = 120000;
+
+let masternodeCache: { data: any; timestamp: number } | null = null;
+const MASTERNODE_CACHE_TTL = 300000;
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-
-  app.get("/api/chains", (_req, res) => {
-    res.json(
-      Object.entries(CHAIN_IDS).map(([name, id]) => ({ name, id }))
-    );
-  });
 
   const validChainIds = new Set(Object.values(CHAIN_IDS));
 
@@ -54,25 +63,33 @@ export async function registerRoutes(
     return validChainIds.has(chainId);
   }
 
+  app.get("/ads.txt", (_req, res) => {
+    res.type("text/plain");
+    res.send("google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+  });
+
+  app.get("/api/chains", (_req, res) => {
+    res.json(
+      Object.entries(CHAIN_IDS).map(([name, id]) => ({ name, id }))
+    );
+  });
+
   app.get("/api/balance/:address", async (req, res) => {
     try {
       const { address } = req.params;
       const chainId = parseInt(req.query.chainId as string) || 1;
-
       if (!isValidAddress(address)) {
         return res.status(400).json({ error: "Invalid Ethereum address format" });
       }
       if (!isValidChainId(chainId)) {
         return res.status(400).json({ error: "Unsupported chain ID" });
       }
-
       const data = await etherscanFetch({
         module: "account",
         action: "balance",
         address,
         tag: "latest",
       }, chainId);
-
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -87,7 +104,6 @@ export async function registerRoutes(
       }
       const chainIdsParam = (req.query.chains as string) || "1";
       const chainIds = chainIdsParam.split(",").map(Number).filter(id => isValidChainId(id));
-
       const results = await Promise.allSettled(
         chainIds.map(async (chainId) => {
           const ethBalance = await etherscanFetch({
@@ -96,7 +112,6 @@ export async function registerRoutes(
             address,
             tag: "latest",
           }, chainId);
-
           let tokenBalances: any[] = [];
           try {
             const tokenData = await etherscanFetch({
@@ -130,10 +145,7 @@ export async function registerRoutes(
                     tag: "latest",
                   }, chainId);
                   const tokenInfo = uniqueTokens.get(contractAddress);
-                  return {
-                    ...tokenInfo,
-                    balance: bal.result || "0",
-                  };
+                  return { ...tokenInfo, balance: bal.result || "0" };
                 })
               );
               tokenBalances = balanceResults
@@ -142,7 +154,6 @@ export async function registerRoutes(
                 .filter((t) => t.balance !== "0");
             }
           } catch {}
-
           return {
             chainId,
             chainName: CHAIN_NAMES[chainId] || `Chain ${chainId}`,
@@ -151,11 +162,9 @@ export async function registerRoutes(
           };
         })
       );
-
       const balances = results
         .filter((r) => r.status === "fulfilled")
         .map((r: any) => r.value);
-
       res.json({ address, balances });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -168,14 +177,12 @@ export async function registerRoutes(
       const chainId = parseInt(req.query.chainId as string) || 1;
       const page = req.query.page || "1";
       const offset = req.query.offset || "20";
-
       if (!isValidAddress(address)) {
         return res.status(400).json({ error: "Invalid Ethereum address format" });
       }
       if (!isValidChainId(chainId)) {
         return res.status(400).json({ error: "Unsupported chain ID" });
       }
-
       const data = await etherscanFetch({
         module: "account",
         action: "txlist",
@@ -186,7 +193,6 @@ export async function registerRoutes(
         offset: offset as string,
         sort: "desc",
       }, chainId);
-
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -197,14 +203,12 @@ export async function registerRoutes(
     try {
       const { address } = req.params;
       const chainId = parseInt(req.query.chainId as string) || 1;
-
       if (!isValidAddress(address)) {
         return res.status(400).json({ error: "Invalid Ethereum address format" });
       }
       if (!isValidChainId(chainId)) {
         return res.status(400).json({ error: "Unsupported chain ID" });
       }
-
       const data = await etherscanFetch({
         module: "account",
         action: "tokentx",
@@ -213,7 +217,6 @@ export async function registerRoutes(
         offset: "25",
         sort: "desc",
       }, chainId);
-
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -223,12 +226,10 @@ export async function registerRoutes(
   app.get("/api/gas", async (req, res) => {
     try {
       const chainId = parseInt(req.query.chainId as string) || 1;
-
       const data = await etherscanFetch({
         module: "gastracker",
         action: "gasoracle",
       }, chainId);
-
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -241,8 +242,147 @@ export async function registerRoutes(
         module: "stats",
         action: "ethprice",
       }, 1);
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/prices", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const perPage = Math.min(parseInt(req.query.per_page as string) || 50, 100);
+
+      if (priceCache && Date.now() - priceCache.timestamp < PRICE_CACHE_TTL && page === 1) {
+        return res.json(priceCache.data);
+      }
+
+      const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=true&price_change_percentage=1h,24h,7d`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+      const data = await response.json();
+
+      if (page === 1) {
+        priceCache = { data, timestamp: Date.now() };
+      }
 
       res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/trending", async (_req, res) => {
+    try {
+      if (trendingCache && Date.now() - trendingCache.timestamp < TRENDING_CACHE_TTL) {
+        return res.json(trendingCache.data);
+      }
+
+      const url = `${COINGECKO_BASE}/search/trending`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+      const data = await response.json();
+
+      trendingCache = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/news", async (_req, res) => {
+    try {
+      if (newsCache && Date.now() - newsCache.timestamp < NEWS_CACHE_TTL) {
+        return res.json(newsCache.data);
+      }
+
+      const feeds = [
+        { url: "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=popular", source: "cryptocompare" },
+      ];
+
+      let articles: any[] = [];
+
+      for (const feed of feeds) {
+        try {
+          const response = await fetch(feed.url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.Data && Array.isArray(data.Data)) {
+              articles = data.Data.slice(0, 30).map((item: any) => ({
+                id: item.id,
+                title: item.title,
+                body: item.body?.substring(0, 200) + "...",
+                url: item.url,
+                imageUrl: item.imageurl,
+                source: item.source_info?.name || item.source,
+                publishedAt: item.published_on * 1000,
+                categories: item.categories,
+                tags: item.tags?.split("|").slice(0, 5) || [],
+              }));
+            }
+          }
+        } catch {}
+      }
+
+      const result = { articles, timestamp: Date.now() };
+      newsCache = { data: result, timestamp: Date.now() };
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/masternodes", async (_req, res) => {
+    try {
+      if (masternodeCache && Date.now() - masternodeCache.timestamp < MASTERNODE_CACHE_TTL) {
+        return res.json(masternodeCache.data);
+      }
+
+      const mnCoins = [
+        "dash", "pivx", "zcoin", "horizen", "energi", "syscoin",
+        "blocknet", "divi", "smartcash", "crown",
+      ];
+
+      const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${mnCoins.join(",")}&order=market_cap_desc&sparkline=false&price_change_percentage=24h,7d`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+      const priceData = await response.json();
+
+      const masternodeInfo: Record<string, { collateral: number; roi: string }> = {
+        dash: { collateral: 1000, roi: "5.7%" },
+        pivx: { collateral: 10000, roi: "9.2%" },
+        zcoin: { collateral: 1000, roi: "15.4%" },
+        horizen: { collateral: 42, roi: "7.8%" },
+        energi: { collateral: 10000, roi: "14.1%" },
+        syscoin: { collateral: 100000, roi: "8.6%" },
+        blocknet: { collateral: 5000, roi: "11.3%" },
+        divi: { collateral: 10000000, roi: "20.5%" },
+        smartcash: { collateral: 10000, roi: "12.8%" },
+        crown: { collateral: 10000, roi: "16.2%" },
+      };
+
+      const coins = priceData.map((coin: any) => {
+        const mn = masternodeInfo[coin.id] || { collateral: 0, roi: "N/A" };
+        const collateralValue = mn.collateral * (coin.current_price || 0);
+        return {
+          id: coin.id,
+          symbol: coin.symbol,
+          name: coin.name,
+          image: coin.image,
+          currentPrice: coin.current_price,
+          marketCap: coin.market_cap,
+          priceChange24h: coin.price_change_percentage_24h,
+          priceChange7d: coin.price_change_percentage_7d_in_currency,
+          collateral: mn.collateral,
+          collateralValueUsd: collateralValue,
+          estimatedRoi: mn.roi,
+          rank: coin.market_cap_rank,
+        };
+      });
+
+      const result = { coins, timestamp: Date.now() };
+      masternodeCache = { data: result, timestamp: Date.now() };
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -252,13 +392,7 @@ export async function registerRoutes(
     try {
       const { address } = req.params;
       const chainId = parseInt(req.query.chainId as string) || 1;
-
-      const data = await etherscanFetch({
-        module: "contract",
-        action: "getabi",
-        address,
-      }, chainId);
-
+      const data = await etherscanFetch({ module: "contract", action: "getabi", address }, chainId);
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -269,7 +403,6 @@ export async function registerRoutes(
     try {
       const { address } = req.params;
       const chainId = parseInt(req.query.chainId as string) || 1;
-
       const data = await etherscanFetch({
         module: "account",
         action: "txlistinternal",
@@ -280,7 +413,6 @@ export async function registerRoutes(
         offset: "20",
         sort: "desc",
       }, chainId);
-
       res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
