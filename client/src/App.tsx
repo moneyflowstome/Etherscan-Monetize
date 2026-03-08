@@ -11,6 +11,7 @@ import MasternodesPage from "@/pages/masternodes";
 import WatchlistPage from "@/pages/watchlist";
 import XrpExplorerPage from "@/pages/xrp-explorer";
 import ExplorerPage from "@/pages/explorer";
+import StakingPage from "@/pages/staking";
 import AdminPage from "@/pages/admin";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/prices" component={PricesPage}/>
       <Route path="/watchlist" component={WatchlistPage}/>
       <Route path="/xrp" component={XrpExplorerPage}/>
+      <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>
       <Route path="/masternodes" component={MasternodesPage}/>
       <Route path="/admin" component={AdminPage}/>

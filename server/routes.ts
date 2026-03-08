@@ -921,6 +921,78 @@ export async function registerRoutes(
     }
   });
 
+  const BLOCKCYPHER_DOGE_BASE = "https://api.blockcypher.com/v1/doge/main";
+
+  function isValidDogeAddress(address: string): boolean {
+    return /^[DA9][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address);
+  }
+
+  app.get("/api/doge/address/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidDogeAddress(address)) {
+        return res.status(400).json({ error: "Invalid Dogecoin address. Must start with D, A, or 9 and be 26-35 characters." });
+      }
+
+      const response = await fetch(`${BLOCKCYPHER_DOGE_BASE}/addrs/${address}/balance`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Dogecoin address" });
+        throw new Error(`Blockcypher API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      res.json({
+        address: data.address,
+        balance: (data.balance / 100000000).toFixed(8),
+        balanceSats: data.balance,
+        totalReceived: (data.total_received / 100000000).toFixed(8),
+        totalReceivedSats: data.total_received,
+        totalSent: (data.total_sent / 100000000).toFixed(8),
+        totalSentSats: data.total_sent,
+        txCount: data.n_tx,
+        unconfirmedBalance: (data.unconfirmed_balance / 100000000).toFixed(8),
+        unconfirmedTxCount: data.unconfirmed_n_tx,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/doge/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidDogeAddress(address)) {
+        return res.status(400).json({ error: "Invalid Dogecoin address. Must start with D and be 26-35 characters." });
+      }
+
+      const response = await fetch(`${BLOCKCYPHER_DOGE_BASE}/addrs/${address}?limit=15`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Dogecoin address" });
+        throw new Error(`Blockcypher API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const transactions = (data.txrefs || []).map((tx: any) => ({
+        txid: tx.tx_hash,
+        blockHeight: tx.block_height,
+        value: (tx.value / 100000000).toFixed(8),
+        valueSats: tx.value,
+        confirmed: tx.confirmations > 0,
+        confirmations: tx.confirmations,
+        time: tx.confirmed ? new Date(tx.confirmed).getTime() : null,
+        confirmedAt: tx.confirmed || null,
+        txInputN: tx.tx_input_n,
+        txOutputN: tx.tx_output_n,
+        spent: tx.spent || false,
+        doubleSpend: tx.double_spend || false,
+      }));
+
+      res.json({ address: data.address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/masternodes", async (_req, res) => {
     try {
       if (masternodeCache && Date.now() - masternodeCache.timestamp < MASTERNODE_CACHE_TTL) {

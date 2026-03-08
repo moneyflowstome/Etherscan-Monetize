@@ -13,10 +13,12 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 ## Key Features
 - Wallet address lookup with real-time balance display
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
-- Multi-Chain Explorer hub at `/explorer` — organized by "Top Chains" (ETH, BTC, SOL, XRP) and "Other EVM Chains" (BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
+- Multi-Chain Explorer hub at `/explorer` — 24+ chains in 3 sections: "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
 - Bitcoin Explorer — address balance + recent transactions via Blockstream API (free, no key)
 - Solana Explorer — account balance + recent transaction signatures via Solana public RPC (free, no key)
+- Dogecoin Explorer — address balance + recent transactions via Blockcypher API (free, no key)
 - XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
+- Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
 - Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist
@@ -62,6 +64,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/btc/transactions/:address` - Bitcoin recent transactions (last 15) via Blockstream
 - `GET /api/sol/account/:address` - Solana account balance (SOL + lamports) via public RPC
 - `GET /api/sol/transactions/:address` - Solana recent transaction signatures (last 15) via public RPC
+- `GET /api/doge/address/:address` - Dogecoin address info (balance, tx count, received/sent) via Blockcypher
+- `GET /api/doge/transactions/:address` - Dogecoin recent transactions (last 15) via Blockcypher
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data
@@ -99,8 +103,9 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `client/src/pages/masternodes.tsx` - Masternode tracker page
 - `client/src/pages/watchlist.tsx` - Watchlist page (localStorage-persisted)
 - `client/src/hooks/use-watchlist.ts` - Watchlist hook (add/remove/toggle/isWatched)
-- `client/src/pages/explorer.tsx` - Multi-Chain Explorer hub (BTC, SOL inline; links to ETH/XRP)
+- `client/src/pages/explorer.tsx` - Multi-Chain Explorer hub (BTC, SOL, DOGE inline; links to 20+ chains)
 - `client/src/pages/xrp-explorer.tsx` - XRP Ledger explorer (account, txs, tokens, NFTs)
+- `client/src/pages/staking.tsx` - Crypto staking calculator (10 PoS coins, compound interest, live prices)
 - `client/src/pages/admin.tsx` - Admin panel (login + tabs)
 - `client/src/components/Navbar.tsx` - Shared navigation
 - `client/src/components/Footer.tsx` - Shared footer

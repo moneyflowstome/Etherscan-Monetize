@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { path: "/explorer", label: "Explorer" },
   { path: "/prices", label: "Prices" },
   { path: "/watchlist", label: "Watchlist" },
+  { path: "/staking", label: "Staking" },
   { path: "/news", label: "News" },
   { path: "/masternodes", label: "Masternodes" },
 ];

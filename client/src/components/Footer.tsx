@@ -15,12 +15,13 @@ export function Footer() {
           <Link href="/explorer" className="hover:text-foreground transition-colors" data-testid="footer-link-explorer">Explorer</Link>
           <Link href="/prices" className="hover:text-foreground transition-colors" data-testid="footer-link-prices">Prices</Link>
           <Link href="/watchlist" className="hover:text-foreground transition-colors" data-testid="footer-link-watchlist">Watchlist</Link>
+          <Link href="/staking" className="hover:text-foreground transition-colors" data-testid="footer-link-staking">Staking</Link>
           <Link href="/news" className="hover:text-foreground transition-colors" data-testid="footer-link-news">News</Link>
           <Link href="/masternodes" className="hover:text-foreground transition-colors" data-testid="footer-link-masternodes">Masternodes</Link>
         </div>
       </div>
       <div className="text-center text-[10px] text-muted-foreground/50 pb-6">
-        Data powered by Etherscan API V2, CoinGecko, XRPL, Blockstream & Solana RPC | Auto-refreshing
+        Data powered by Etherscan API V2, CoinGecko, XRPL, Blockstream, Blockcypher & Solana RPC | Auto-refreshing
       </div>
     </footer>
   );
