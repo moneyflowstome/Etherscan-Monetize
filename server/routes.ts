@@ -514,7 +514,7 @@ export async function registerRoutes(
 
       const feeds = [
         { url: "https://feeds.bbci.co.uk/news/world/rss.xml", region: "World" },
-        { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", region: "World" },
+        { url: "https://www.aljazeera.com/xml/rss/all.xml", region: "World" },
         { url: "https://feeds.skynews.com/feeds/rss/world.xml", region: "World" },
       ];
 
@@ -535,7 +535,7 @@ export async function registerRoutes(
 
       const feeds = [
         { url: "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml", region: "USA" },
-        { url: "https://rss.nytimes.com/services/xml/rss/nyt/US.xml", region: "USA" },
+        { url: "https://abcnews.go.com/abcnews/usheadlines", region: "USA" },
         { url: "https://feeds.npr.org/1001/rss.xml", region: "USA" },
       ];
 

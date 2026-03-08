@@ -17,7 +17,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Live ETH price & gas tracker
 - Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist
 - Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
-- News feed with three tabs: Crypto (CryptoCompare), World (BBC, NYT, Sky News RSS), USA (BBC US, NYT US, NPR RSS)
+- News feed with three tabs: Crypto (CryptoCompare), World (BBC, Al Jazeera, Sky News RSS), USA (BBC US, ABC News, NPR RSS)
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
 - World and USA news auto-refreshed from RSS feeds, cached 10 minutes server-side
 - Masternode tracker with collateral/ROI data
@@ -47,8 +47,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/prices?page=&per_page=` - Coin market data (CoinGecko)
 - `GET /api/prices/by-ids?ids=` - Coin data by comma-separated IDs (for watchlist)
 - `GET /api/news/archive?before=` - Older news articles with timestamp pagination
-- `GET /api/news/world` - World news from RSS feeds (BBC, NYT, Sky News)
-- `GET /api/news/usa` - USA news from RSS feeds (BBC US, NYT US, NPR)
+- `GET /api/news/world` - World news from RSS feeds (BBC, Al Jazeera, Sky News)
+- `GET /api/news/usa` - USA news from RSS feeds (BBC US, ABC News, NPR)
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data
