@@ -14,12 +14,13 @@ export function Footer() {
           <Link href="/" className="hover:text-foreground transition-colors" data-testid="footer-link-tracker">Tracker</Link>
           <Link href="/prices" className="hover:text-foreground transition-colors" data-testid="footer-link-prices">Prices</Link>
           <Link href="/watchlist" className="hover:text-foreground transition-colors" data-testid="footer-link-watchlist">Watchlist</Link>
+          <Link href="/xrp" className="hover:text-foreground transition-colors" data-testid="footer-link-xrp">XRP</Link>
           <Link href="/news" className="hover:text-foreground transition-colors" data-testid="footer-link-news">News</Link>
           <Link href="/masternodes" className="hover:text-foreground transition-colors" data-testid="footer-link-masternodes">Masternodes</Link>
         </div>
       </div>
       <div className="text-center text-[10px] text-muted-foreground/50 pb-6">
-        Data powered by Etherscan API V2 & CoinGecko | Auto-refreshing
+        Data powered by Etherscan API V2, CoinGecko & XRPL | Auto-refreshing
       </div>
     </footer>
   );

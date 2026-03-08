@@ -56,6 +56,10 @@ let worldNewsCache: { data: any; timestamp: number } | null = null;
 let usaNewsCache: { data: any; timestamp: number } | null = null;
 const GENERAL_NEWS_CACHE_TTL = 600000;
 
+const XRPL_RPC = "https://s1.ripple.com:51234/";
+let xrplServerCache: { data: any; timestamp: number } | null = null;
+const XRPL_SERVER_CACHE_TTL = 30000;
+
 const activeSessions = new Set<string>();
 
 function requireAdmin(req: any, res: any, next: any) {
@@ -543,6 +547,204 @@ export async function registerRoutes(
       const result = { articles: articles.slice(0, 50), timestamp: Date.now() };
       usaNewsCache = { data: result, timestamp: Date.now() };
       res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  async function xrplRequest(method: string, params: any[] = [{}]) {
+    const response = await fetch(XRPL_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, params }),
+    });
+    if (!response.ok) throw new Error(`XRPL API error: ${response.status}`);
+    const data = await response.json();
+    if (data.result?.error) {
+      throw new Error(data.result.error_message || data.result.error);
+    }
+    return data.result;
+  }
+
+  app.get("/api/xrpl/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || !address.startsWith("r") || address.length < 25 || address.length > 35) {
+        return res.status(400).json({ error: "Invalid XRP address" });
+      }
+
+      const result = await xrplRequest("account_info", [{
+        account: address,
+        ledger_index: "validated",
+        queue: true,
+      }]);
+
+      const acct = result.account_data;
+      const dropsToXrp = (drops: string) => (parseInt(drops) / 1000000).toFixed(6);
+
+      res.json({
+        address: acct.Account,
+        balance: dropsToXrp(acct.Balance),
+        balanceDrops: acct.Balance,
+        sequence: acct.Sequence,
+        ownerCount: acct.OwnerCount,
+        flags: acct.Flags,
+        previousTxnId: acct.PreviousTxnID,
+        index: acct.index,
+        reserve: {
+          base: 10,
+          owner: acct.OwnerCount * 2,
+          total: 10 + acct.OwnerCount * 2,
+        },
+      });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch account";
+      if (msg.includes("actNotFound")) {
+        return res.status(404).json({ error: "Account not found on the XRP Ledger" });
+      }
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/xrpl/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || !address.startsWith("r") || address.length < 25 || address.length > 35) {
+        return res.status(400).json({ error: "Invalid XRP address" });
+      }
+
+      const result = await xrplRequest("account_tx", [{
+        account: address,
+        ledger_index_min: -1,
+        ledger_index_max: -1,
+        limit: 20,
+        forward: false,
+      }]);
+
+      const dropsToXrp = (drops: string | number) => {
+        const n = typeof drops === "string" ? parseInt(drops) : drops;
+        return (n / 1000000).toFixed(6);
+      };
+
+      const transactions = (result.transactions || []).map((tx: any) => {
+        const t = tx.tx || tx.tx_json || {};
+        const meta = tx.meta || {};
+        return {
+          hash: t.hash || tx.hash,
+          type: t.TransactionType,
+          from: t.Account,
+          to: t.Destination || null,
+          amount: t.Amount ? (typeof t.Amount === "string" ? dropsToXrp(t.Amount) : `${t.Amount.value} ${t.Amount.currency}`) : null,
+          fee: t.Fee ? dropsToXrp(t.Fee) : null,
+          date: t.date ? (t.date + 946684800) * 1000 : null,
+          ledgerIndex: t.ledger_index || tx.ledger_index,
+          result: meta.TransactionResult || "unknown",
+          successful: meta.TransactionResult === "tesSUCCESS",
+        };
+      });
+
+      res.json({ transactions, address });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch transactions";
+      if (msg.includes("actNotFound")) return res.status(404).json({ error: "Account not found on the XRP Ledger" });
+      if (msg.includes("actMalformed") || msg.includes("invalidParams")) return res.status(400).json({ error: "Invalid XRP address format" });
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/xrpl/tokens/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || !address.startsWith("r") || address.length < 25 || address.length > 35) {
+        return res.status(400).json({ error: "Invalid XRP address" });
+      }
+
+      const result = await xrplRequest("account_lines", [{
+        account: address,
+        ledger_index: "validated",
+      }]);
+
+      const tokens = (result.lines || []).map((line: any) => ({
+        currency: line.currency,
+        balance: line.balance,
+        issuer: line.account,
+        limit: line.limit,
+        qualityIn: line.quality_in,
+        qualityOut: line.quality_out,
+        noRipple: line.no_ripple || false,
+        freeze: line.freeze || false,
+      }));
+
+      res.json({ tokens, address });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch tokens";
+      if (msg.includes("actNotFound")) return res.status(404).json({ error: "Account not found on the XRP Ledger" });
+      if (msg.includes("actMalformed") || msg.includes("invalidParams")) return res.status(400).json({ error: "Invalid XRP address format" });
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/xrpl/nfts/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || !address.startsWith("r") || address.length < 25 || address.length > 35) {
+        return res.status(400).json({ error: "Invalid XRP address" });
+      }
+
+      const result = await xrplRequest("account_nfts", [{
+        account: address,
+        ledger_index: "validated",
+      }]);
+
+      const nfts = (result.account_nfts || []).map((nft: any) => ({
+        tokenId: nft.NFTokenID,
+        issuer: nft.Issuer,
+        taxon: nft.NFTokenTaxon,
+        serial: nft.nft_serial,
+        uri: nft.URI ? Buffer.from(nft.URI, "hex").toString("utf-8") : null,
+        flags: nft.Flags,
+        transferFee: nft.TransferFee,
+      }));
+
+      res.json({ nfts, address, count: nfts.length });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch NFTs";
+      if (msg.includes("actNotFound")) return res.status(404).json({ error: "Account not found on the XRP Ledger" });
+      if (msg.includes("actMalformed") || msg.includes("invalidParams")) return res.status(400).json({ error: "Invalid XRP address format" });
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/xrpl/server", async (_req, res) => {
+    try {
+      if (xrplServerCache && Date.now() - xrplServerCache.timestamp < XRPL_SERVER_CACHE_TTL) {
+        return res.json(xrplServerCache.data);
+      }
+
+      const result = await xrplRequest("server_info", [{}]);
+      const info = result.info;
+
+      const data = {
+        buildVersion: info.build_version,
+        completeLedgers: info.complete_ledgers,
+        hostId: info.hostid,
+        serverState: info.server_state,
+        validatedLedger: {
+          age: info.validated_ledger?.age,
+          hash: info.validated_ledger?.hash,
+          sequence: info.validated_ledger?.seq,
+          reserveBase: info.validated_ledger?.reserve_base_xrp,
+          reserveInc: info.validated_ledger?.reserve_inc_xrp,
+          baseFee: info.validated_ledger?.base_fee_xrp,
+        },
+        loadFactor: info.load_factor,
+        peers: info.peers,
+        uptime: info.uptime,
+        time: info.time,
+      };
+
+      xrplServerCache = { data, timestamp: Date.now() };
+      res.json(data);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { path: "/", label: "Wallet Tracker" },
   { path: "/prices", label: "Prices" },
   { path: "/watchlist", label: "Watchlist" },
+  { path: "/xrp", label: "XRP Explorer" },
   { path: "/news", label: "News" },
   { path: "/masternodes", label: "Masternodes" },
 ];
