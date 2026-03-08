@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { type Server } from "http";
-import path from "path";
+import { storage } from "./storage";
+import { insertHiddenNewsSchema, insertPinnedNewsSchema } from "@shared/schema";
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
@@ -48,6 +51,16 @@ const TRENDING_CACHE_TTL = 120000;
 let masternodeCache: { data: any; timestamp: number } | null = null;
 const MASTERNODE_CACHE_TTL = 300000;
 
+const activeSessions = new Set<string>();
+
+function requireAdmin(req: any, res: any, next: any) {
+  const token = req.headers["x-admin-token"];
+  if (!token || !activeSessions.has(token as string)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -63,9 +76,42 @@ export async function registerRoutes(
     return validChainIds.has(chainId);
   }
 
+  app.use((req, _res, next) => {
+    if (req.path.startsWith("/api/admin") || req.path.startsWith("/api/track")) {
+      return next();
+    }
+    const page = req.path === "/" ? "dashboard" : req.path.replace("/", "");
+    if (["dashboard", "prices", "news", "masternodes"].includes(page) || req.path === "/") {
+      storage.recordPageView({
+        page,
+        userAgent: req.headers["user-agent"] || null,
+        referer: req.headers["referer"] || null,
+        ip: req.ip || null,
+        walletTracked: null,
+        chain: null,
+      }).catch(() => {});
+    }
+    next();
+  });
+
   app.get("/ads.txt", (_req, res) => {
     res.type("text/plain");
     res.send("google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+  });
+
+  app.post("/api/track", (req, res) => {
+    const { page, walletTracked, chain } = req.body || {};
+    if (page) {
+      storage.recordPageView({
+        page: String(page),
+        walletTracked: walletTracked ? String(walletTracked) : null,
+        chain: chain ? String(chain) : null,
+        userAgent: req.headers["user-agent"] || null,
+        referer: req.headers["referer"] || null,
+        ip: req.ip || null,
+      }).catch(() => {});
+    }
+    res.json({ ok: true });
   });
 
   app.get("/api/chains", (_req, res) => {
@@ -293,7 +339,18 @@ export async function registerRoutes(
   app.get("/api/news", async (_req, res) => {
     try {
       if (newsCache && Date.now() - newsCache.timestamp < NEWS_CACHE_TTL) {
-        return res.json(newsCache.data);
+        const hiddenArticles = await storage.getHiddenArticles();
+        const pinnedArticles = await storage.getPinnedArticles();
+        const hiddenIds = new Set(hiddenArticles.map((a) => a.articleId));
+        const pinnedIds = new Set(pinnedArticles.map((a) => a.articleId));
+
+        const filtered = newsCache.data.articles.filter(
+          (a: any) => !hiddenIds.has(String(a.id))
+        );
+        const pinned = filtered.filter((a: any) => pinnedIds.has(String(a.id)));
+        const rest = filtered.filter((a: any) => !pinnedIds.has(String(a.id)));
+
+        return res.json({ articles: [...pinned, ...rest], timestamp: newsCache.data.timestamp });
       }
 
       const feeds = [
@@ -324,9 +381,19 @@ export async function registerRoutes(
         } catch {}
       }
 
-      const result = { articles, timestamp: Date.now() };
-      newsCache = { data: result, timestamp: Date.now() };
-      res.json(result);
+      const rawResult = { articles, timestamp: Date.now() };
+      newsCache = { data: rawResult, timestamp: Date.now() };
+
+      const hiddenArticles = await storage.getHiddenArticles();
+      const pinnedArticles = await storage.getPinnedArticles();
+      const hiddenIds = new Set(hiddenArticles.map((a) => a.articleId));
+      const pinnedIds = new Set(pinnedArticles.map((a) => a.articleId));
+
+      const filtered = articles.filter((a) => !hiddenIds.has(String(a.id)));
+      const pinned = filtered.filter((a) => pinnedIds.has(String(a.id)));
+      const rest = filtered.filter((a) => !pinnedIds.has(String(a.id)));
+
+      res.json({ articles: [...pinned, ...rest], timestamp: Date.now() });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -414,6 +481,142 @@ export async function registerRoutes(
         sort: "desc",
       }, chainId);
       res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (!password || typeof password !== "string") {
+        return res.status(400).json({ error: "Password required" });
+      }
+      const hashedPassword = await storage.getSetting("admin_password_hash");
+      let valid = false;
+      if (hashedPassword) {
+        valid = await bcrypt.compare(password, hashedPassword);
+      } else {
+        valid = password === "admin123";
+        if (valid) {
+          const hash = await bcrypt.hash(password, 10);
+          await storage.setSetting("admin_password_hash", hash);
+        }
+      }
+      if (!valid) {
+        return res.status(401).json({ error: "Invalid password" });
+      }
+      const token = crypto.randomBytes(32).toString("hex");
+      activeSessions.add(token);
+      res.json({ token, needsPasswordChange: !hashedPassword });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/logout", requireAdmin, (_req, res) => {
+    const token = _req.headers["x-admin-token"] as string;
+    activeSessions.delete(token);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/admin/verify", requireAdmin, (_req, res) => {
+    res.json({ authenticated: true });
+  });
+
+  app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getPageViewStats();
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/settings", requireAdmin, async (_req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      const settingsMap: Record<string, string> = {};
+      for (const s of settings) {
+        settingsMap[s.key] = s.value;
+      }
+      res.json(settingsMap);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const updates = req.body;
+      if (typeof updates !== "object" || Array.isArray(updates)) {
+        return res.status(400).json({ error: "Expected object" });
+      }
+      for (const [key, value] of Object.entries(updates)) {
+        if (key === "admin_password" && value) {
+          const hash = await bcrypt.hash(String(value), 10);
+          await storage.setSetting("admin_password_hash", hash);
+        } else if (key !== "admin_password_hash") {
+          await storage.setSetting(key, String(value));
+        }
+      }
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/hidden-news", requireAdmin, async (_req, res) => {
+    try {
+      const hidden = await storage.getHiddenArticles();
+      res.json(hidden);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/hide-news", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertHiddenNewsSchema.parse(req.body);
+      const hidden = await storage.hideArticle(parsed);
+      res.json(hidden);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/hide-news/:articleId", requireAdmin, async (req, res) => {
+    try {
+      await storage.unhideArticle(req.params.articleId);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/pinned-news", requireAdmin, async (_req, res) => {
+    try {
+      const pinned = await storage.getPinnedArticles();
+      res.json(pinned);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/pin-news", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertPinnedNewsSchema.parse(req.body);
+      const pinned = await storage.pinArticle(parsed);
+      res.json(pinned);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/pin-news/:articleId", requireAdmin, async (req, res) => {
+    try {
+      await storage.unpinArticle(req.params.articleId);
+      res.json({ ok: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
