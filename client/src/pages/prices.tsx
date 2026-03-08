@@ -88,9 +88,9 @@ export default function PricesPage() {
   const trending = trendingQuery.data?.coins?.slice(0, 6) || [];
 
   return (
-    <div className="min-h-screen bg-[#060a10]">
+    <div className="min-h-screen bg-background">
       <div
-        className="h-72 w-full absolute top-0 left-0 z-0 opacity-20"
+        className="h-72 w-full absolute top-0 left-0 z-0 page-glow"
         style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(0,200,255,0.15) 0%, transparent 70%)",
         }}
@@ -102,7 +102,7 @@ export default function PricesPage() {
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-display font-bold text-white" data-testid="text-page-title">Crypto Prices</h1>
+            <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-page-title">Crypto Prices</h1>
             <p className="text-muted-foreground text-sm mt-1">Live prices for top cryptocurrencies by market cap</p>
           </div>
           <div className="relative w-full md:w-72">
@@ -111,7 +111,7 @@ export default function PricesPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search coins..."
-              className="bg-white/5 border-white/10 pl-10 h-10 text-sm"
+              className="bg-muted/30 border-border pl-10 h-10 text-sm"
               data-testid="input-search-prices"
             />
           </div>
@@ -126,14 +126,14 @@ export default function PricesPage() {
               {trending.map((t: any, i: number) => (
                 <div
                   key={i}
-                  className="glass-panel rounded-xl p-3 hover:bg-white/[0.03] transition-colors cursor-pointer"
+                  className="glass-panel rounded-xl p-3 hover:bg-muted/30 transition-colors cursor-pointer"
                   data-testid={`card-trending-${i}`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     {t.item?.thumb && (
                       <img src={t.item.thumb} alt="" className="w-5 h-5 rounded-full" />
                     )}
-                    <span className="text-sm font-medium text-white truncate">{t.item?.name}</span>
+                    <span className="text-sm font-medium text-foreground truncate">{t.item?.name}</span>
                   </div>
                   <div className="text-xs text-muted-foreground uppercase">{t.item?.symbol}</div>
                   <div className="text-xs text-primary mt-1">#{t.item?.market_cap_rank || "—"}</div>
@@ -153,7 +153,7 @@ export default function PricesPage() {
             <>
               <div className="overflow-x-auto">
                 <table className="w-full text-left min-w-[700px]">
-                  <thead className="bg-white/5 text-xs uppercase tracking-wider text-muted-foreground">
+                  <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <th className="p-4 font-medium w-12">#</th>
                       <th className="p-4 font-medium">Coin</th>
@@ -165,7 +165,7 @@ export default function PricesPage() {
                       <th className="p-4 font-medium text-right">7d Chart</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-border">
                     {coins.map((coin: any, i: number) => {
                       const change1h = coin.price_change_percentage_1h_in_currency;
                       const change24h = coin.price_change_percentage_24h_in_currency;
@@ -174,7 +174,7 @@ export default function PricesPage() {
                         <>
                           <tr
                             key={coin.id}
-                            className="hover:bg-white/[0.02] transition-colors group"
+                            className="hover:bg-muted/20 transition-colors group"
                             data-testid={`row-price-${coin.id}`}
                           >
                             <td className="p-4 text-muted-foreground text-sm">{coin.market_cap_rank}</td>
@@ -182,12 +182,12 @@ export default function PricesPage() {
                               <div className="flex items-center gap-3">
                                 <img src={coin.image} alt="" className="w-7 h-7 rounded-full" />
                                 <div>
-                                  <div className="font-medium text-white text-sm">{coin.name}</div>
+                                  <div className="font-medium text-foreground text-sm">{coin.name}</div>
                                   <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-4 text-right font-mono text-sm text-white">
+                            <td className="p-4 text-right font-mono text-sm text-foreground">
                               ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: coin.current_price < 1 ? 6 : 2 })}
                             </td>
                             <td className={`p-4 text-right text-sm font-mono ${change1h >= 0 ? "text-green-400" : "text-red-400"}`}>
@@ -199,7 +199,7 @@ export default function PricesPage() {
                             <td className={`p-4 text-right text-sm font-mono ${change7d >= 0 ? "text-green-400" : "text-red-400"}`}>
                               {change7d != null ? `${change7d >= 0 ? "+" : ""}${change7d.toFixed(2)}%` : "—"}
                             </td>
-                            <td className="p-4 text-right text-sm font-mono text-white">
+                            <td className="p-4 text-right text-sm font-mono text-foreground">
                               {coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}
                             </td>
                             <td className="p-4 text-right">
@@ -225,13 +225,13 @@ export default function PricesPage() {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between p-4 border-t border-white/5">
+              <div className="flex items-center justify-between p-4 border-t border-border">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
-                  className="bg-white/5 border-white/10 text-white"
+                  className="bg-muted/30 border-border text-foreground"
                   data-testid="button-prev-page"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Previous
@@ -241,7 +241,7 @@ export default function PricesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage(page + 1)}
-                  className="bg-white/5 border-white/10 text-white"
+                  className="bg-muted/30 border-border text-foreground"
                   data-testid="button-next-page"
                 >
                   Next <ChevronRight className="w-4 h-4 ml-1" />

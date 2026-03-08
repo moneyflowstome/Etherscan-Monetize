@@ -201,9 +201,9 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-[#060a10]">
+    <div className="min-h-screen pb-20 bg-background">
       <div
-        className="h-72 w-full absolute top-0 left-0 z-0 opacity-30"
+        className="h-72 w-full absolute top-0 left-0 z-0 page-glow"
         style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(0,200,255,0.15) 0%, transparent 70%)",
         }}
@@ -220,7 +220,7 @@ export default function Dashboard() {
               value={walletInput}
               onChange={(e) => setWalletInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full bg-white/5 border-white/10 pl-10 pr-20 font-mono text-xs md:text-sm focus:border-primary/50 h-10"
+              className="w-full bg-muted/30 border-border pl-10 pr-20 font-mono text-xs md:text-sm focus:border-primary/50 h-10"
               placeholder="Enter wallet address (0x...)"
               data-testid="input-wallet-address"
             />
@@ -238,7 +238,7 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               onClick={() => setShowChainSelector(!showChainSelector)}
-              className="bg-white/5 border-white/10 text-white h-10 px-3 gap-2"
+              className="bg-muted/30 border-border text-foreground h-10 px-3 gap-2"
               data-testid="button-chain-selector"
             >
               <Globe className="w-4 h-4 text-primary" />
@@ -246,7 +246,7 @@ export default function Dashboard() {
               <ChevronDown className="w-3 h-3" />
             </Button>
             {showChainSelector && (
-              <div className="absolute right-0 top-12 bg-[#0d1117] border border-white/10 rounded-xl p-2 min-w-[180px] z-50 shadow-2xl" data-testid="dropdown-chains">
+              <div className="absolute right-0 top-12 bg-card border border-border rounded-xl p-2 min-w-[180px] z-50 shadow-2xl" data-testid="dropdown-chains">
                 {CHAIN_OPTIONS.map((chain) => (
                   <button
                     key={chain.id}
@@ -257,7 +257,7 @@ export default function Dashboard() {
                     className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
                       chain.id === selectedChainId
                         ? "bg-primary/20 text-primary"
-                        : "text-white/70 hover:bg-white/5 hover:text-white"
+                        : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     }`}
                     data-testid={`button-chain-${chain.name}`}
                   >
@@ -284,13 +284,13 @@ export default function Dashboard() {
               <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
                 <Search className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-display font-bold text-white mb-3" data-testid="text-welcome-title">Track Any Wallet - 100% Free</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground mb-3" data-testid="text-welcome-title">Track Any Wallet - 100% Free</h2>
               <p className="text-muted-foreground max-w-md mx-auto mb-6">
                 Enter any Ethereum address above to view real-time balances, transactions, and token activity across multiple chains. Completely free to use.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {["Ethereum", "BSC", "Arbitrum", "Base", "Polygon"].map((chain) => (
-                  <Badge key={chain} variant="outline" className="bg-white/5 border-white/10 text-muted-foreground">
+                  <Badge key={chain} variant="outline" className="bg-muted/30 border-border text-muted-foreground">
                     {chain}
                   </Badge>
                 ))}
@@ -311,7 +311,7 @@ export default function Dashboard() {
                       <span className="font-mono text-xs text-muted-foreground" data-testid="text-tracked-address">
                         {formatAddress(trackedAddress)}
                       </span>
-                      <button onClick={handleCopyAddress} className="text-muted-foreground hover:text-white transition-colors" data-testid="button-copy-address">
+                      <button onClick={handleCopyAddress} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-copy-address">
                         {copiedAddress ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
                       </button>
                       <a
@@ -333,7 +333,7 @@ export default function Dashboard() {
                       txQuery.refetch();
                       tokenTxQuery.refetch();
                     }}
-                    className="h-8 w-8 text-muted-foreground hover:text-white"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     data-testid="button-refresh"
                   >
                     <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -348,7 +348,7 @@ export default function Dashboard() {
                 ) : (
                   <>
                     <div className="flex items-baseline gap-3 mt-4">
-                      <span className="text-3xl md:text-5xl font-bold font-display tracking-tight text-white" data-testid="text-native-balance">
+                      <span className="text-3xl md:text-5xl font-bold font-display tracking-tight text-foreground" data-testid="text-native-balance">
                         {nativeBalance.toLocaleString(undefined, { maximumFractionDigits: 6 })}
                       </span>
                       <span className="text-lg text-muted-foreground font-medium">{selectedChain.symbol}</span>
@@ -367,7 +367,7 @@ export default function Dashboard() {
 
               <div className="glass-panel rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-500 delay-150">
                 <Tabs defaultValue="transactions" className="w-full">
-                  <div className="px-4 md:px-6 pt-4 border-b border-white/5 bg-black/20">
+                  <div className="px-4 md:px-6 pt-4 border-b border-border bg-muted/20">
                     <TabsList className="bg-transparent gap-4 h-auto p-0">
                       <TabsTrigger
                         value="transactions"
@@ -397,7 +397,7 @@ export default function Dashboard() {
                         No transactions found on {selectedChain.name}
                       </div>
                     ) : (
-                      <div className="divide-y divide-white/5">
+                      <div className="divide-y divide-border">
                         {transactions.map((tx: any, i: number) => {
                           const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
                           const valueEth = parseFloat(tx.value) / 1e18;
@@ -407,7 +407,7 @@ export default function Dashboard() {
                             <>
                               <div
                                 key={`tx-${i}`}
-                                className="flex items-center justify-between p-3 md:p-4 hover:bg-white/[0.02] transition-colors group"
+                                className="flex items-center justify-between p-3 md:p-4 hover:bg-muted/20 transition-colors group"
                                 data-testid={`row-tx-${i}`}
                               >
                                 <div className="flex items-center gap-3">
@@ -427,7 +427,7 @@ export default function Dashboard() {
                                     )}
                                   </div>
                                   <div className="min-w-0">
-                                    <div className="text-sm font-medium text-white flex items-center gap-2">
+                                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
                                       {isIncoming ? "Received" : "Sent"}
                                       {isError && (
                                         <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-400 border-red-500/30">
@@ -464,7 +464,7 @@ export default function Dashboard() {
                               </div>
                               {/* In-feed ad after every 5th transaction */}
                               {i === 4 && (
-                                <div key="infeed-ad" className="p-3 md:p-4 border-t border-white/5">
+                                <div key="infeed-ad" className="p-3 md:p-4 border-t border-border">
                                   <AdBanner slot="3456789012" format="fluid" layout="in-article" className="w-full" />
                                 </div>
                               )}
@@ -486,7 +486,7 @@ export default function Dashboard() {
                         No token transfers found on {selectedChain.name}
                       </div>
                     ) : (
-                      <div className="divide-y divide-white/5">
+                      <div className="divide-y divide-border">
                         {tokenTransfers.map((tx: any, i: number) => {
                           const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
                           const decimals = parseInt(tx.tokenDecimal) || 18;
@@ -495,7 +495,7 @@ export default function Dashboard() {
                             <>
                               <div
                                 key={`token-${i}`}
-                                className="flex items-center justify-between p-3 md:p-4 hover:bg-white/[0.02] transition-colors group"
+                                className="flex items-center justify-between p-3 md:p-4 hover:bg-muted/20 transition-colors group"
                                 data-testid={`row-token-tx-${i}`}
                               >
                                 <div className="flex items-center gap-3">
@@ -509,7 +509,7 @@ export default function Dashboard() {
                                     {tx.tokenSymbol?.slice(0, 2) || "?"}
                                   </div>
                                   <div className="min-w-0">
-                                    <div className="text-sm font-medium text-white truncate max-w-[160px]">
+                                    <div className="text-sm font-medium text-foreground truncate max-w-[160px]">
                                       {tx.tokenName || "Unknown Token"}
                                     </div>
                                     <div className="text-xs text-muted-foreground font-mono">
@@ -546,7 +546,7 @@ export default function Dashboard() {
                               </div>
                               {/* In-feed ad after every 5th token transfer */}
                               {i === 4 && (
-                                <div key="infeed-token-ad" className="p-3 md:p-4 border-t border-white/5">
+                                <div key="infeed-token-ad" className="p-3 md:p-4 border-t border-border">
                                   <AdBanner slot="4567890123" format="fluid" layout="in-article" className="w-full" />
                                 </div>
                               )}
@@ -569,13 +569,13 @@ export default function Dashboard() {
         <div className="space-y-6 md:space-y-8">
 
           {ethPrice > 0 && (
-            <Card className="glass-panel border-white/5 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500" data-testid="card-eth-price">
+            <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500" data-testid="card-eth-price">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">ETH Price</span>
                   <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-[10px]">Live</Badge>
                 </div>
-                <div className="text-2xl font-bold font-display text-white" data-testid="text-eth-price">
+                <div className="text-2xl font-bold font-display text-foreground" data-testid="text-eth-price">
                   ${ethPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </div>
                 {ethPriceQuery.data?.result?.ethbtc && (
@@ -591,7 +591,7 @@ export default function Dashboard() {
           <AdBanner slot="6789012345" format="rectangle" className="w-full" style={{ minHeight: "250px" }} />
 
           {gasData && (
-            <Card className="glass-panel border-white/5 overflow-hidden animate-in fade-in slide-in-from-right-6 duration-500 delay-100" data-testid="card-gas">
+            <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-6 duration-500 delay-100" data-testid="card-gas">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium flex items-center gap-1.5">
@@ -604,17 +604,17 @@ export default function Dashboard() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="text-center p-3 rounded-xl bg-green-500/5 border border-green-500/10">
                     <div className="text-[10px] text-green-400 mb-1 uppercase font-medium">Slow</div>
-                    <div className="text-lg font-bold text-white font-mono">{gasData.SafeGasPrice || "—"}</div>
+                    <div className="text-lg font-bold text-foreground font-mono">{gasData.SafeGasPrice || "—"}</div>
                     <div className="text-[10px] text-muted-foreground">Gwei</div>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
                     <div className="text-[10px] text-yellow-400 mb-1 uppercase font-medium">Avg</div>
-                    <div className="text-lg font-bold text-white font-mono">{gasData.ProposeGasPrice || "—"}</div>
+                    <div className="text-lg font-bold text-foreground font-mono">{gasData.ProposeGasPrice || "—"}</div>
                     <div className="text-[10px] text-muted-foreground">Gwei</div>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-red-500/5 border border-red-500/10">
                     <div className="text-[10px] text-red-400 mb-1 uppercase font-medium">Fast</div>
-                    <div className="text-lg font-bold text-white font-mono">{gasData.FastGasPrice || "—"}</div>
+                    <div className="text-lg font-bold text-foreground font-mono">{gasData.FastGasPrice || "—"}</div>
                     <div className="text-[10px] text-muted-foreground">Gwei</div>
                   </div>
                 </div>
@@ -623,11 +623,11 @@ export default function Dashboard() {
           )}
 
           {trackedAddress && uniqueTokens.size > 0 && (
-            <Card className="glass-panel border-white/5 overflow-hidden animate-in fade-in slide-in-from-right-8 duration-500 delay-200" data-testid="card-tokens-found">
+            <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-8 duration-500 delay-200" data-testid="card-tokens-found">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">Tokens Detected</span>
-                  <Badge variant="outline" className="bg-white/5 border-white/10 text-muted-foreground text-[10px]">
+                  <Badge variant="outline" className="bg-muted/30 border-border text-muted-foreground text-[10px]">
                     {uniqueTokens.size}
                   </Badge>
                 </div>
@@ -637,15 +637,15 @@ export default function Dashboard() {
                     .map((token, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+                        className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors"
                         data-testid={`row-token-${i}`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-bold text-white">
+                          <div className="w-7 h-7 rounded-full bg-muted/30 border border-border flex items-center justify-center text-[9px] font-bold text-foreground">
                             {token.symbol?.slice(0, 2) || "?"}
                           </div>
                           <div>
-                            <div className="text-sm text-white font-medium truncate max-w-[120px]">{token.name}</div>
+                            <div className="text-sm text-foreground font-medium truncate max-w-[120px]">{token.name}</div>
                             <div className="text-[10px] text-muted-foreground">{token.symbol}</div>
                           </div>
                         </div>

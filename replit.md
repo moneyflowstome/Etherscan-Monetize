@@ -7,7 +7,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - **Frontend**: React + TypeScript with Vite, TanStack Query, wouter routing, shadcn/ui components, Tailwind CSS v4
 - **Backend**: Express.js server proxying Etherscan API V2, CoinGecko, CryptoCompare (protects API keys)
 - **Database**: PostgreSQL with Drizzle ORM for admin settings, analytics, and content moderation
-- **Design**: Dark Future / Cyberpunk minimal — Orbitron + Inter fonts, neon cyan (#00C8FF), glassmorphism
+- **Design**: Dark Future / Cyberpunk minimal with light/dark mode toggle — Orbitron + Inter fonts, neon cyan (#00C8FF), glassmorphism
+- **Theme**: Light/dark mode via `useTheme` hook (`client/src/hooks/use-theme.ts`), persisted in localStorage, toggled from Navbar
 
 ## Key Features
 - Wallet address lookup with real-time balance display
@@ -15,7 +16,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
 - Crypto prices page (CoinGecko) with sparklines and trending
-- Crypto news feed (CryptoCompare)
+- Crypto news feed (CryptoCompare) with category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research)
 - Masternode tracker with collateral/ROI data
 - Admin panel at `/admin` with:
   - Site analytics (page views, tracked wallets, top chains)

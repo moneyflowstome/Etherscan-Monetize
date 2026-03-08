@@ -60,20 +60,20 @@ function LoginForm({ onLogin }: { onLogin: (token: string) => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#060a10] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0" style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(0,200,255,0.1) 0%, transparent 70%)",
         }} />
       </div>
-      <Card className="w-full max-w-sm bg-white/5 border-white/10 relative z-10">
+      <Card className="w-full max-w-sm bg-muted/30 border-border relative z-10">
         <CardContent className="p-8">
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-xl text-white tracking-wider" data-testid="text-admin-title">Admin Panel</h1>
+              <h1 className="font-display font-bold text-xl text-foreground tracking-wider" data-testid="text-admin-title">Admin Panel</h1>
               <p className="text-xs text-muted-foreground">TokenAltcoin</p>
             </div>
           </div>
@@ -84,7 +84,7 @@ function LoginForm({ onLogin }: { onLogin: (token: string) => void }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Admin password"
-                className="bg-white/5 border-white/10 text-white"
+                className="bg-muted/30 border-border text-foreground"
                 data-testid="input-admin-password"
                 autoFocus
               />
@@ -129,14 +129,14 @@ function AnalyticsTab({ token }: { token: string }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg font-bold text-white" data-testid="text-analytics-title">Site Analytics</h2>
+        <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-analytics-title">Site Analytics</h2>
         <Button variant="ghost" size="sm" onClick={() => refetch()} data-testid="button-refresh-stats">
           <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-muted/30 border-border">
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -144,12 +144,12 @@ function AnalyticsTab({ token }: { token: string }) {
               </div>
               <span className="text-sm text-muted-foreground">Total Page Views</span>
             </div>
-            <p className="text-3xl font-display font-bold text-white" data-testid="text-total-views">
+            <p className="text-3xl font-display font-bold text-foreground" data-testid="text-total-views">
               {stats?.total?.toLocaleString() || 0}
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-muted/30 border-border">
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center">
@@ -157,16 +157,16 @@ function AnalyticsTab({ token }: { token: string }) {
               </div>
               <span className="text-sm text-muted-foreground">Today</span>
             </div>
-            <p className="text-3xl font-display font-bold text-white" data-testid="text-today-views">
+            <p className="text-3xl font-display font-bold text-foreground" data-testid="text-today-views">
               {stats?.today?.toLocaleString() || 0}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-muted/30 border-border">
         <CardContent className="p-5">
-          <h3 className="font-display text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-primary" /> Views by Page
           </h3>
           <div className="space-y-3">
@@ -176,10 +176,10 @@ function AnalyticsTab({ token }: { token: string }) {
               return (
                 <div key={item.page} data-testid={`stat-page-${item.page}`}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-white capitalize">{item.page}</span>
+                    <span className="text-foreground capitalize">{item.page}</span>
                     <span className="text-muted-foreground">{item.count.toLocaleString()}</span>
                   </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
                     <div className="h-full bg-primary/60 rounded-full transition-all" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
@@ -192,15 +192,15 @@ function AnalyticsTab({ token }: { token: string }) {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-muted/30 border-border">
           <CardContent className="p-5">
-            <h3 className="font-display text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <Wallet className="w-4 h-4 text-primary" /> Recent Wallets Tracked
             </h3>
             {stats?.recentWallets?.length ? (
               <div className="space-y-2">
                 {stats.recentWallets.map((w: string) => (
-                  <div key={w} className="font-mono text-xs text-muted-foreground bg-white/5 rounded px-3 py-2 truncate" data-testid={`text-wallet-${w.slice(0,8)}`}>
+                  <div key={w} className="font-mono text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2 truncate" data-testid={`text-wallet-${w.slice(0,8)}`}>
                     {w}
                   </div>
                 ))}
@@ -211,17 +211,17 @@ function AnalyticsTab({ token }: { token: string }) {
           </CardContent>
         </Card>
 
-        <Card className="bg-white/5 border-white/10">
+        <Card className="bg-muted/30 border-border">
           <CardContent className="p-5">
-            <h3 className="font-display text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
               <Globe className="w-4 h-4 text-primary" /> Top Chains
             </h3>
             {stats?.topChains?.length ? (
               <div className="space-y-2">
                 {stats.topChains.map((c: any) => (
                   <div key={c.chain} className="flex justify-between items-center text-sm" data-testid={`stat-chain-${c.chain}`}>
-                    <span className="text-white capitalize">{c.chain}</span>
-                    <Badge variant="secondary" className="bg-white/10 text-white border-0">{c.count}</Badge>
+                    <span className="text-foreground capitalize">{c.chain}</span>
+                    <Badge variant="secondary" className="bg-muted/50 text-foreground border-0">{c.count}</Badge>
                   </div>
                 ))}
               </div>
@@ -300,7 +300,7 @@ function SettingsTab({ token }: { token: string }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg font-bold text-white" data-testid="text-settings-title">Site Settings</h2>
+        <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-settings-title">Site Settings</h2>
         <Button
           size="sm"
           onClick={() => saveMutation.mutate(localSettings)}
@@ -318,15 +318,15 @@ function SettingsTab({ token }: { token: string }) {
           <Zap className="w-4 h-4" /> AdSense Configuration
         </h3>
         {settingsFields.slice(0, 5).map((field) => (
-          <Card key={field.key} className="bg-white/5 border-white/10">
+          <Card key={field.key} className="bg-muted/30 border-border">
             <CardContent className="p-4">
-              <label className="text-sm font-medium text-white block mb-1">{field.label}</label>
+              <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
               <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
               <Input
                 value={localSettings[field.key] || ""}
                 onChange={(e) => updateLocal(field.key, e.target.value)}
                 placeholder={field.placeholder}
-                className="bg-white/5 border-white/10 text-white font-mono text-sm"
+                className="bg-muted/30 border-border text-foreground font-mono text-sm"
                 data-testid={`input-setting-${field.key}`}
               />
             </CardContent>
@@ -337,15 +337,15 @@ function SettingsTab({ token }: { token: string }) {
           <Settings className="w-4 h-4" /> General Settings
         </h3>
         {settingsFields.slice(5).map((field) => (
-          <Card key={field.key} className="bg-white/5 border-white/10">
+          <Card key={field.key} className="bg-muted/30 border-border">
             <CardContent className="p-4">
-              <label className="text-sm font-medium text-white block mb-1">{field.label}</label>
+              <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
               <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
               <Input
                 value={localSettings[field.key] || ""}
                 onChange={(e) => updateLocal(field.key, e.target.value)}
                 placeholder={field.placeholder}
-                className="bg-white/5 border-white/10 text-white font-mono text-sm"
+                className="bg-muted/30 border-border text-foreground font-mono text-sm"
                 type={field.key === "admin_password" ? "password" : "text"}
                 data-testid={`input-setting-${field.key}`}
               />
@@ -455,7 +455,7 @@ function ContentTab({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="font-display text-lg font-bold text-white" data-testid="text-content-title">Content Moderation</h2>
+      <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-content-title">Content Moderation</h2>
 
       {(hiddenArticles || []).length > 0 && (
         <Card className="bg-red-500/5 border-red-500/20">
@@ -465,8 +465,8 @@ function ContentTab({ token }: { token: string }) {
             </h3>
             <div className="space-y-2">
               {hiddenArticles.map((article: any) => (
-                <div key={article.articleId} className="flex items-center justify-between gap-3 bg-white/5 rounded-lg p-3" data-testid={`hidden-article-${article.articleId}`}>
-                  <span className="text-sm text-white truncate flex-1">{article.title}</span>
+                <div key={article.articleId} className="flex items-center justify-between gap-3 bg-muted/30 rounded-lg p-3" data-testid={`hidden-article-${article.articleId}`}>
+                  <span className="text-sm text-foreground truncate flex-1">{article.title}</span>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -483,9 +483,9 @@ function ContentTab({ token }: { token: string }) {
         </Card>
       )}
 
-      <Card className="bg-white/5 border-white/10">
+      <Card className="bg-muted/30 border-border">
         <CardContent className="p-5">
-          <h3 className="font-display text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <h3 className="font-display text-sm font-bold text-foreground mb-4 flex items-center gap-2">
             <Newspaper className="w-4 h-4 text-primary" /> Current News Articles
           </h3>
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
@@ -493,9 +493,9 @@ function ContentTab({ token }: { token: string }) {
               const id = String(article.id);
               const isPinned = pinnedIds.has(id);
               return (
-                <div key={id} className={`flex items-center gap-3 rounded-lg p-3 ${isPinned ? "bg-primary/10 border border-primary/20" : "bg-white/5"}`} data-testid={`news-article-${id}`}>
+                <div key={id} className={`flex items-center gap-3 rounded-lg p-3 ${isPinned ? "bg-primary/10 border border-primary/20" : "bg-muted/30"}`} data-testid={`news-article-${id}`}>
                   {isPinned && <Pin className="w-4 h-4 text-primary shrink-0" />}
-                  <span className="text-sm text-white truncate flex-1">{article.title}</span>
+                  <span className="text-sm text-foreground truncate flex-1">{article.title}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     {isPinned ? (
                       <Button
@@ -582,7 +582,7 @@ export default function AdminPage() {
 
   if (authLoading && token) {
     return (
-      <div className="min-h-screen bg-[#060a10] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <RefreshCw className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
@@ -593,14 +593,14 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#060a10] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0" style={{
           background: "radial-gradient(ellipse at 50% 0%, rgba(0,200,255,0.08) 0%, transparent 70%)",
         }} />
       </div>
 
-      <nav className="relative z-20 border-b border-white/5 px-4 md:px-6 py-3 backdrop-blur-xl bg-[#060a10]/80">
+      <nav className="relative z-20 border-b border-border px-4 md:px-6 py-3 backdrop-blur-xl bg-background/80">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
@@ -610,7 +610,7 @@ export default function AdminPage() {
             <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-0 text-xs">Connected</Badge>
           </div>
           <div className="flex items-center gap-2">
-            <a href="/" className="text-sm text-muted-foreground hover:text-white transition-colors mr-3" data-testid="link-back-to-site">
+            <a href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors mr-3" data-testid="link-back-to-site">
               Back to site
             </a>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-400 hover:text-red-300" data-testid="button-admin-logout">
@@ -622,7 +622,7 @@ export default function AdminPage() {
 
       <main className="relative z-10 max-w-6xl mx-auto px-4 md:px-6 py-8">
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="bg-white/5 border border-white/10">
+          <TabsList className="bg-muted/30 border border-border">
             <TabsTrigger value="analytics" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-analytics">
               <BarChart3 className="w-4 h-4 mr-2" /> Analytics
             </TabsTrigger>
