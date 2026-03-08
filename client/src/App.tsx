@@ -10,12 +10,14 @@ import NewsPage from "@/pages/news";
 import MasternodesPage from "@/pages/masternodes";
 import WatchlistPage from "@/pages/watchlist";
 import XrpExplorerPage from "@/pages/xrp-explorer";
+import ExplorerPage from "@/pages/explorer";
 import AdminPage from "@/pages/admin";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard}/>
+      <Route path="/explorer" component={ExplorerPage}/>
       <Route path="/prices" component={PricesPage}/>
       <Route path="/watchlist" component={WatchlistPage}/>
       <Route path="/xrp" component={XrpExplorerPage}/>

@@ -750,6 +750,177 @@ export async function registerRoutes(
     }
   });
 
+  const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
+
+  async function solanaRpcRequest(method: string, params: any[]) {
+    const response = await fetch(SOLANA_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      }),
+    });
+    if (!response.ok) throw new Error(`Solana RPC error: ${response.status}`);
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message || "Solana RPC error");
+    }
+    return data.result;
+  }
+
+  app.get("/api/sol/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 32 || address.length > 44) {
+        return res.status(400).json({ error: "Invalid Solana address" });
+      }
+
+      const result = await solanaRpcRequest("getBalance", [address]);
+
+      const lamports = result.value;
+      const sol = lamports / 1e9;
+
+      res.json({
+        address,
+        lamports,
+        balance: sol.toFixed(9),
+        slot: result.context?.slot || null,
+      });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch Solana account";
+      if (msg.includes("Invalid param") || msg.includes("invalid")) return res.status(400).json({ error: "Invalid Solana address format" });
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/sol/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 32 || address.length > 44) {
+        return res.status(400).json({ error: "Invalid Solana address" });
+      }
+
+      const signatures = await solanaRpcRequest("getSignaturesForAddress", [
+        address,
+        { limit: 15 },
+      ]);
+
+      const transactions = (signatures || []).map((sig: any) => ({
+        signature: sig.signature,
+        slot: sig.slot,
+        blockTime: sig.blockTime,
+        confirmationStatus: sig.confirmationStatus,
+        err: sig.err,
+        memo: sig.memo || null,
+      }));
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch Solana transactions";
+      if (msg.includes("Invalid param") || msg.includes("invalid")) return res.status(400).json({ error: "Invalid Solana address format" });
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  const BLOCKSTREAM_BASE = "https://blockstream.info/api";
+
+  app.get("/api/btc/address/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 26 || address.length > 62) {
+        return res.status(400).json({ error: "Invalid Bitcoin address" });
+      }
+
+      const response = await fetch(`${BLOCKSTREAM_BASE}/address/${address}`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Bitcoin address" });
+        throw new Error(`Blockstream API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const funded = data.chain_stats.funded_txo_sum + (data.mempool_stats?.funded_txo_sum || 0);
+      const spent = data.chain_stats.spent_txo_sum + (data.mempool_stats?.spent_txo_sum || 0);
+      const balanceSats = funded - spent;
+      const txCount = data.chain_stats.tx_count + (data.mempool_stats?.tx_count || 0);
+
+      res.json({
+        address: data.address,
+        balance: (balanceSats / 100000000).toFixed(8),
+        balanceSats,
+        txCount,
+        funded: (funded / 100000000).toFixed(8),
+        spent: (spent / 100000000).toFixed(8),
+        fundedSats: funded,
+        spentSats: spent,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/btc/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 26 || address.length > 62) {
+        return res.status(400).json({ error: "Invalid Bitcoin address" });
+      }
+
+      const response = await fetch(`${BLOCKSTREAM_BASE}/address/${address}/txs`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Bitcoin address" });
+        throw new Error(`Blockstream API error: ${response.status}`);
+      }
+      const txs = await response.json();
+
+      const transactions = txs.slice(0, 15).map((tx: any) => {
+        let totalInput = 0;
+        let totalOutput = 0;
+        let fromAddresses: string[] = [];
+        let toAddresses: string[] = [];
+
+        for (const vin of tx.vin || []) {
+          if (vin.prevout) {
+            totalInput += vin.prevout.value;
+            if (vin.prevout.scriptpubkey_address) {
+              fromAddresses.push(vin.prevout.scriptpubkey_address);
+            }
+          }
+        }
+
+        for (const vout of tx.vout || []) {
+          totalOutput += vout.value;
+          if (vout.scriptpubkey_address) {
+            toAddresses.push(vout.scriptpubkey_address);
+          }
+        }
+
+        const fee = totalInput > 0 ? Math.max(0, totalInput - totalOutput) : 0;
+
+        return {
+          txid: tx.txid,
+          confirmed: tx.status?.confirmed || false,
+          blockHeight: tx.status?.block_height || null,
+          blockTime: tx.status?.block_time || null,
+          fee: (fee / 100000000).toFixed(8),
+          feeSats: fee,
+          totalInput: (totalInput / 100000000).toFixed(8),
+          totalOutput: (totalOutput / 100000000).toFixed(8),
+          from: Array.from(new Set(fromAddresses)).slice(0, 5),
+          to: Array.from(new Set(toAddresses)).slice(0, 5),
+          size: tx.size || null,
+          weight: tx.weight || null,
+        };
+      });
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/masternodes", async (_req, res) => {
     try {
       if (masternodeCache && Date.now() - masternodeCache.timestamp < MASTERNODE_CACHE_TTL) {

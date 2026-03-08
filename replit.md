@@ -13,6 +13,10 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 ## Key Features
 - Wallet address lookup with real-time balance display
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
+- Multi-Chain Explorer hub at `/explorer` — organized by "Top Chains" (ETH, BTC, SOL, XRP) and "Other EVM Chains" (BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
+- Bitcoin Explorer — address balance + recent transactions via Blockstream API (free, no key)
+- Solana Explorer — account balance + recent transaction signatures via Solana public RPC (free, no key)
+- XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
 - Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist
@@ -20,7 +24,6 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - News feed with three tabs: Crypto (CryptoCompare), World (BBC, Al Jazeera, Sky News RSS), USA (BBC US, ABC News, NPR RSS)
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
 - World and USA news auto-refreshed from RSS feeds, cached 10 minutes server-side
-- XRP Explorer page at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
 - Masternode tracker with collateral/ROI data
 - Admin panel at `/admin` with:
   - Site analytics (page views, tracked wallets, top chains)
@@ -55,6 +58,10 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/xrpl/tokens/:address` - XRP trust lines / token holdings
 - `GET /api/xrpl/nfts/:address` - XRP NFTs owned by address
 - `GET /api/xrpl/server` - XRP Ledger network stats (cached 30s)
+- `GET /api/btc/address/:address` - Bitcoin address info (balance, tx count, funded/spent) via Blockstream
+- `GET /api/btc/transactions/:address` - Bitcoin recent transactions (last 15) via Blockstream
+- `GET /api/sol/account/:address` - Solana account balance (SOL + lamports) via public RPC
+- `GET /api/sol/transactions/:address` - Solana recent transaction signatures (last 15) via public RPC
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data
@@ -92,6 +99,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `client/src/pages/masternodes.tsx` - Masternode tracker page
 - `client/src/pages/watchlist.tsx` - Watchlist page (localStorage-persisted)
 - `client/src/hooks/use-watchlist.ts` - Watchlist hook (add/remove/toggle/isWatched)
+- `client/src/pages/explorer.tsx` - Multi-Chain Explorer hub (BTC, SOL inline; links to ETH/XRP)
 - `client/src/pages/xrp-explorer.tsx` - XRP Ledger explorer (account, txs, tokens, NFTs)
 - `client/src/pages/admin.tsx` - Admin panel (login + tabs)
 - `client/src/components/Navbar.tsx` - Shared navigation

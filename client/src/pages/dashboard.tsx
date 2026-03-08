@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import {
   Wallet,
   Activity,
@@ -53,12 +54,24 @@ function isValidAddress(address: string): boolean {
 }
 
 export default function Dashboard() {
+  const searchString = useSearch();
   const [walletInput, setWalletInput] = useState("");
   const [trackedAddress, setTrackedAddress] = useState("");
   const [selectedChainId, setSelectedChainId] = useState(1);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [showChainSelector, setShowChainSelector] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const chainParam = params.get("chain");
+    if (chainParam) {
+      const chainId = parseInt(chainParam, 10);
+      if (CHAIN_OPTIONS.some((c) => c.id === chainId)) {
+        setSelectedChainId(chainId);
+      }
+    }
+  }, []);
 
   const selectedChain = CHAIN_OPTIONS.find((c) => c.id === selectedChainId) || CHAIN_OPTIONS[0];
 
