@@ -583,7 +583,7 @@ export default function Dashboard() {
                 </div>
                 {ethPriceQuery.data?.result?.ethbtc && (
                   <div className="text-xs text-muted-foreground font-mono mt-1">
-                    {ethPriceQuery.data.result.ethbtc} BTC
+                    {parseFloat(ethPriceQuery.data.result.ethbtc).toFixed(6)} BTC
                   </div>
                 )}
               </CardContent>
@@ -607,17 +607,17 @@ export default function Dashboard() {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="text-center p-3 rounded-xl bg-green-500/5 border border-green-500/10">
                     <div className="text-[10px] text-green-400 mb-1 uppercase font-medium">Slow</div>
-                    <div className="text-lg font-bold text-foreground font-mono">{gasData.SafeGasPrice || "—"}</div>
+                    <div className="text-lg font-bold text-foreground font-mono">{gasData.SafeGasPrice ? parseFloat(gasData.SafeGasPrice).toFixed(2) : "—"}</div>
                     <div className="text-[10px] text-muted-foreground">Gwei</div>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
                     <div className="text-[10px] text-yellow-400 mb-1 uppercase font-medium">Avg</div>
-                    <div className="text-lg font-bold text-foreground font-mono">{gasData.ProposeGasPrice || "—"}</div>
+                    <div className="text-lg font-bold text-foreground font-mono">{gasData.ProposeGasPrice ? parseFloat(gasData.ProposeGasPrice).toFixed(2) : "—"}</div>
                     <div className="text-[10px] text-muted-foreground">Gwei</div>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-red-500/5 border border-red-500/10">
                     <div className="text-[10px] text-red-400 mb-1 uppercase font-medium">Fast</div>
-                    <div className="text-lg font-bold text-foreground font-mono">{gasData.FastGasPrice || "—"}</div>
+                    <div className="text-lg font-bold text-foreground font-mono">{gasData.FastGasPrice ? parseFloat(gasData.FastGasPrice).toFixed(2) : "—"}</div>
                     <div className="text-[10px] text-muted-foreground">Gwei</div>
                   </div>
                 </div>
