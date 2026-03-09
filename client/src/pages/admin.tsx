@@ -35,6 +35,9 @@ import {
   Wand2,
   Sparkles,
   Monitor,
+  Image,
+  Copy,
+  Code,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2213,6 +2216,336 @@ function ChatModerationTab({ token }: { token: string }) {
   );
 }
 
+const BANNER_SIZES = [
+  { id: "728x90", label: "Leaderboard", width: 728, height: 90, desc: "Desktop header/footer" },
+  { id: "300x250", label: "Medium Rectangle", width: 300, height: 250, desc: "Sidebar, in-content" },
+  { id: "320x50", label: "Mobile Leaderboard", width: 320, height: 50, desc: "Mobile top/bottom" },
+  { id: "160x600", label: "Wide Skyscraper", width: 160, height: 600, desc: "Sidebar vertical" },
+  { id: "300x600", label: "Half-Page Ad", width: 300, height: 600, desc: "Sidebar large" },
+] as const;
+
+const BANNER_PRESETS = [
+  { name: "TradingView", url: "https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true", color: "#00C8FF", bg: "#0a1929" },
+  { name: "Coinbase", url: "https://coinbase.com/join/NC7ZTX4?src=ios-link", color: "#0052FF", bg: "#0a1020" },
+  { name: "Pineify", url: "https://pineify.app/?via=Tokenaltcoin", color: "#22C55E", bg: "#0a1f0a" },
+  { name: "Good Crypto", url: "https://click.goodcrypto.app/b9EC/ie88jiew?ref=rET1nQ", color: "#A855F7", bg: "#150a2e" },
+  { name: "GoMining", url: "https://gomining.com/?ref=8H3M22H", color: "#F97316", bg: "#1f0f00" },
+  { name: "TokenAltcoin", url: "https://tokenaltcoin.com", color: "#00C8FF", bg: "#0a0f1a" },
+];
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function generateBannerHtml(config: {
+  size: typeof BANNER_SIZES[number];
+  title: string;
+  tagline: string;
+  ctaText: string;
+  url: string;
+  accentColor: string;
+  bgColor: string;
+  animated: boolean;
+}): string {
+  const { size, accentColor, bgColor, animated } = config;
+  const title = escHtml(config.title);
+  const tagline = escHtml(config.tagline);
+  const ctaText = escHtml(config.ctaText);
+  const url = escHtml(config.url);
+  const w = size.width;
+  const h = size.height;
+  const isHorizontal = w > h * 2;
+  const isMobile = w === 320 && h === 50;
+  const isTall = h > w;
+
+  const animCss = animated ? `
+    @keyframes bannerPulse { 0%,100% { box-shadow: 0 0 10px ${accentColor}33; } 50% { box-shadow: 0 0 20px ${accentColor}55; } }
+    @keyframes bannerShine { 0% { left: -100%; } 100% { left: 200%; } }
+    .ta-banner:hover .ta-shine { animation: bannerShine 0.8s ease; }
+    .ta-banner { animation: bannerPulse 3s ease-in-out infinite; }
+    .ta-cta:hover { transform: scale(1.05); filter: brightness(1.2); }` : '';
+
+  if (isMobile) {
+    return `<!-- TokenAltcoin Banner ${w}x${h} -->
+<a href="${url}" target="_blank" rel="noopener noreferrer" class="ta-banner" style="display:flex;align-items:center;width:${w}px;height:${h}px;background:${bgColor};border:1px solid ${accentColor}33;border-radius:8px;text-decoration:none;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:relative;">
+  <style>${animCss}</style>
+  <div style="width:32px;height:32px;margin:0 8px;border-radius:6px;background:${accentColor}22;border:1px solid ${accentColor}44;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+    <span style="color:${accentColor};font-size:14px;font-weight:800;">⚡</span>
+  </div>
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:11px;font-weight:700;color:${accentColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
+    <div style="font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tagline}</div>
+  </div>
+  <div class="ta-cta" style="margin:0 8px;padding:4px 10px;background:${accentColor}22;border:1px solid ${accentColor}44;border-radius:4px;font-size:10px;font-weight:600;color:${accentColor};white-space:nowrap;transition:all 0.2s;">${ctaText}</div>
+  ${animated ? `<div class="ta-shine" style="position:absolute;top:0;width:40px;height:100%;background:linear-gradient(90deg,transparent,${accentColor}11,transparent);"></div>` : ''}
+</a>`;
+  }
+
+  if (isHorizontal) {
+    return `<!-- TokenAltcoin Banner ${w}x${h} -->
+<a href="${url}" target="_blank" rel="noopener noreferrer" class="ta-banner" style="display:flex;align-items:center;width:${w}px;height:${h}px;background:${bgColor};border:1px solid ${accentColor}33;border-radius:12px;text-decoration:none;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:relative;">
+  <style>${animCss}</style>
+  <div style="width:52px;height:52px;margin:0 16px;border-radius:10px;background:${accentColor}22;border:1px solid ${accentColor}44;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+    <span style="color:${accentColor};font-size:22px;font-weight:800;">⚡</span>
+  </div>
+  <div style="flex:1;min-width:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;font-weight:700;color:${accentColor};">${title}</span>
+      <span style="font-size:9px;color:#666;background:#ffffff11;padding:2px 6px;border-radius:4px;">Sponsored</span>
+    </div>
+    <div style="font-size:12px;color:#aaa;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tagline}</div>
+  </div>
+  <div class="ta-cta" style="margin:0 16px;padding:8px 20px;background:${accentColor}22;border:1px solid ${accentColor}44;border-radius:8px;font-size:12px;font-weight:600;color:${accentColor};white-space:nowrap;transition:all 0.2s;display:flex;align-items:center;gap:6px;">${ctaText} →</div>
+  ${animated ? `<div class="ta-shine" style="position:absolute;top:0;width:60px;height:100%;background:linear-gradient(90deg,transparent,${accentColor}11,transparent);"></div>` : ''}
+</a>`;
+  }
+
+  if (isTall) {
+    return `<!-- TokenAltcoin Banner ${w}x${h} -->
+<a href="${url}" target="_blank" rel="noopener noreferrer" class="ta-banner" style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;width:${w}px;height:${h}px;background:${bgColor};border:1px solid ${accentColor}33;border-radius:12px;text-decoration:none;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:${h > 400 ? '32px 16px' : '20px 12px'};box-sizing:border-box;text-align:center;position:relative;">
+  <style>${animCss}</style>
+  <span style="font-size:8px;color:#555;">Sponsored</span>
+  <div>
+    <div style="width:${h > 400 ? 56 : 44}px;height:${h > 400 ? 56 : 44}px;margin:0 auto ${h > 400 ? 16 : 8}px;border-radius:12px;background:${accentColor}22;border:1px solid ${accentColor}44;display:flex;align-items:center;justify-content:center;">
+      <span style="color:${accentColor};font-size:${h > 400 ? 24 : 18}px;font-weight:800;">⚡</span>
+    </div>
+    <div style="font-size:${h > 400 ? 16 : 13}px;font-weight:700;color:${accentColor};">${title}</div>
+    <div style="font-size:${h > 400 ? 11 : 9}px;color:#888;margin-top:4px;">${tagline}</div>
+  </div>
+  <div style="font-size:${h > 400 ? 11 : 9}px;color:#aaa;line-height:1.5;padding:0 ${h > 400 ? 8 : 4}px;">${tagline}</div>
+  <div class="ta-cta" style="width:80%;padding:${h > 400 ? '10px' : '6px'};background:${accentColor}22;border:1px solid ${accentColor}44;border-radius:8px;font-size:${h > 400 ? 12 : 10}px;font-weight:600;color:${accentColor};transition:all 0.2s;">${ctaText} →</div>
+  ${animated ? `<div class="ta-shine" style="position:absolute;top:0;left:-100%;width:60px;height:100%;background:linear-gradient(90deg,transparent,${accentColor}11,transparent);"></div>` : ''}
+</a>`;
+  }
+
+  return `<!-- TokenAltcoin Banner ${w}x${h} -->
+<a href="${url}" target="_blank" rel="noopener noreferrer" class="ta-banner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:${w}px;height:${h}px;background:${bgColor};border:1px solid ${accentColor}33;border-radius:12px;text-decoration:none;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-align:center;position:relative;padding:20px;box-sizing:border-box;">
+  <style>${animCss}</style>
+  <div style="width:48px;height:48px;margin-bottom:12px;border-radius:10px;background:${accentColor}22;border:1px solid ${accentColor}44;display:flex;align-items:center;justify-content:center;">
+    <span style="color:${accentColor};font-size:20px;font-weight:800;">⚡</span>
+  </div>
+  <div style="font-size:15px;font-weight:700;color:${accentColor};">${title}</div>
+  <div style="font-size:10px;color:#888;margin-top:2px;">${tagline}</div>
+  <div style="font-size:11px;color:#aaa;margin-top:8px;line-height:1.4;">${tagline}</div>
+  <div class="ta-cta" style="margin-top:12px;padding:8px 24px;background:${accentColor}22;border:1px solid ${accentColor}44;border-radius:8px;font-size:12px;font-weight:600;color:${accentColor};transition:all 0.2s;">${ctaText} →</div>
+  <span style="font-size:7px;color:#555;margin-top:8px;">Sponsored</span>
+  ${animated ? `<div class="ta-shine" style="position:absolute;top:0;left:-100%;width:60px;height:100%;background:linear-gradient(90deg,transparent,${accentColor}11,transparent);"></div>` : ''}
+</a>`;
+}
+
+function BannersTab() {
+  const { toast } = useToast();
+  const [selectedSize, setSelectedSize] = useState<typeof BANNER_SIZES[number]>(BANNER_SIZES[0]);
+  const [title, setTitle] = useState("TokenAltcoin");
+  const [tagline, setTagline] = useState("Free Multi-Chain Crypto Platform");
+  const [ctaText, setCtaText] = useState("Visit Now");
+  const [url, setUrl] = useState("https://tokenaltcoin.com");
+  const [accentColor, setAccentColor] = useState("#00C8FF");
+  const [bgColor, setBgColor] = useState("#0a0f1a");
+  const [animated, setAnimated] = useState(true);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const applyPreset = (preset: typeof BANNER_PRESETS[number]) => {
+    setTitle(preset.name);
+    setUrl(preset.url);
+    setAccentColor(preset.color);
+    setBgColor(preset.bg);
+  };
+
+  const currentHtml = generateBannerHtml({ size: selectedSize, title, tagline, ctaText, url, accentColor, bgColor, animated });
+
+  const copyCode = (code: string, label: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(label);
+      toast({ title: `${label} copied!` });
+      setTimeout(() => setCopied(null), 2000);
+    }).catch(() => {
+      toast({ title: "Copy failed", description: "Please select and copy the code manually", variant: "destructive" });
+    });
+  };
+
+  const allBannersHtml = BANNER_SIZES.map(s =>
+    generateBannerHtml({ size: s, title, tagline, ctaText, url, accentColor, bgColor, animated })
+  ).join("\n\n");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+            <Image className="w-5 h-5 text-primary" /> Banner Generator
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">Create affiliate banners with embed codes for external websites</p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => copyCode(allBannersHtml, "All banners")}
+          className="bg-primary hover:bg-primary/90"
+          data-testid="button-copy-all-banners"
+        >
+          <Code className="w-4 h-4 mr-1" /> Copy All Sizes
+        </Button>
+      </div>
+
+      <div className="glass-panel rounded-xl p-4 border border-border">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Presets</h3>
+        <div className="flex gap-2 flex-wrap">
+          {BANNER_PRESETS.map(preset => (
+            <button
+              key={preset.name}
+              onClick={() => applyPreset(preset)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:border-primary/40 bg-muted/20 hover:bg-muted/40 transition-all text-xs"
+              data-testid={`button-preset-${preset.name.toLowerCase().replace(/\s/g, "-")}`}
+            >
+              <span className="w-3 h-3 rounded-full" style={{ background: preset.color }} />
+              {preset.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="glass-panel rounded-xl p-4 border border-border space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Banner Content</h3>
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Title</label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-title" />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Tagline / Description</label>
+              <Input value={tagline} onChange={(e) => setTagline(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-tagline" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">CTA Button Text</label>
+                <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-cta" />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Link URL</label>
+                <Input value={url} onChange={(e) => setUrl(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-url" />
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-xl p-4 border border-border space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Styling</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Accent Color</label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" data-testid="input-banner-accent" />
+                  <Input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="bg-muted/30 border-border text-sm flex-1 font-mono" data-testid="input-banner-accent-hex" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Background Color</label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" data-testid="input-banner-bg" />
+                  <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="bg-muted/30 border-border text-sm flex-1 font-mono" data-testid="input-banner-bg-hex" />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAnimated(!animated)}
+                className={`w-10 h-5 rounded-full transition-colors ${animated ? "bg-primary" : "bg-muted/50"} relative`}
+                data-testid="toggle-banner-animated"
+              >
+                <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${animated ? "left-5" : "left-0.5"}`} />
+              </button>
+              <span className="text-xs text-foreground">Animated (pulse glow + hover shine)</span>
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-xl p-4 border border-border space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Banner Size</h3>
+            <div className="grid grid-cols-1 gap-2">
+              {BANNER_SIZES.map(size => (
+                <button
+                  key={size.id}
+                  onClick={() => setSelectedSize(size)}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-left ${
+                    selectedSize.id === size.id
+                      ? "border-primary/50 bg-primary/10"
+                      : "border-border bg-muted/10 hover:bg-muted/20"
+                  }`}
+                  data-testid={`button-size-${size.id}`}
+                >
+                  <div>
+                    <span className="text-xs font-semibold text-foreground">{size.label}</span>
+                    <span className="text-[10px] text-muted-foreground ml-2">{size.desc}</span>
+                  </div>
+                  <Badge variant="outline" className={`text-[10px] ${selectedSize.id === size.id ? "border-primary/50 text-primary" : "border-border"}`}>
+                    {size.id}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="glass-panel rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Live Preview — {selectedSize.label} ({selectedSize.id})</h3>
+              <Badge variant="outline" className="text-[10px]">{selectedSize.width}×{selectedSize.height}px</Badge>
+            </div>
+            <div className="flex justify-center overflow-auto p-4 bg-[#111] rounded-lg border border-border min-h-[120px]">
+              <div dangerouslySetInnerHTML={{ __html: currentHtml }} />
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Embed Code</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copyCode(currentHtml, selectedSize.label)}
+                className="text-xs"
+                data-testid="button-copy-embed"
+              >
+                {copied === selectedSize.label ? <Check className="w-3 h-3 mr-1 text-green-400" /> : <Copy className="w-3 h-3 mr-1" />}
+                {copied === selectedSize.label ? "Copied!" : "Copy Code"}
+              </Button>
+            </div>
+            <pre className="text-[10px] text-muted-foreground bg-muted/20 rounded-lg p-3 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono border border-border" data-testid="code-embed-preview">
+              {currentHtml}
+            </pre>
+          </div>
+
+          <div className="glass-panel rounded-xl p-4 border border-border">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">All Sizes Preview</h3>
+            <div className="space-y-4">
+              {BANNER_SIZES.map(size => {
+                const html = generateBannerHtml({ size, title, tagline, ctaText, url, accentColor, bgColor, animated });
+                return (
+                  <div key={size.id}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] text-muted-foreground">{size.label} ({size.id})</span>
+                      <button
+                        onClick={() => copyCode(html, size.label)}
+                        className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                        data-testid={`button-copy-${size.id}`}
+                      >
+                        {copied === size.label ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy</>}
+                      </button>
+                    </div>
+                    <div className="flex justify-center overflow-auto p-3 bg-[#111] rounded-lg border border-border" style={{ maxHeight: Math.min(size.height + 40, 300) }}>
+                      <div style={{ transform: size.width > 400 ? "scale(0.6)" : "scale(0.85)", transformOrigin: "top center" }} dangerouslySetInnerHTML={{ __html: html }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminTabs({ token }: { token: string }) {
   const { data: messages } = useQuery({
     queryKey: ["admin-messages"],
@@ -2247,6 +2580,7 @@ function AdminTabs({ token }: { token: string }) {
     { value: "airdrops", label: "Airdrops", icon: Gift, badge: pendingAirdropCount > 0 ? pendingAirdropCount : undefined },
     { value: "blog", label: "Blog", icon: FileText },
     { value: "seo", label: "SEO", icon: Search },
+    { value: "banners", label: "Banners", icon: Image },
     { value: "security", label: "Security", icon: Shield },
     { value: "chat", label: "Chat", icon: Users },
   ];
@@ -2331,6 +2665,7 @@ function AdminTabs({ token }: { token: string }) {
       {activeTab === "airdrops" && <AirdropsTab token={token} />}
       {activeTab === "blog" && <BlogTab token={token} />}
       {activeTab === "seo" && <SeoTab token={token} />}
+      {activeTab === "banners" && <BannersTab />}
       {activeTab === "security" && <SecurityTab token={token} />}
       {activeTab === "chat" && <ChatModerationTab token={token} />}
     </div>

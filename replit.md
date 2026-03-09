@@ -65,6 +65,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - **SEO tab** — page-level SEO meta management (title, description, keywords, OG tags, canonical) for all pages; SEO score checker (title length, description length, keyword analysis); robots.txt editor
   - **Security tab** — login attempts log (IP, time, success/fail), blocked IPs list with manual block/unblock, auto-block status
   - **Chat tab** — chat message moderation, flagged messages view, flag/delete messages
+  - **Banners tab** — admin-only banner generator for creating affiliate embed codes; 5 standard ad sizes (728x90, 300x250, 320x50, 160x600, 300x600); quick presets for TradingView, Coinbase, Pineify, Good Crypto, GoMining, TokenAltcoin; live preview, color pickers, animation toggle, copy individual or all banner HTML for external website placement
 - Crypto Swap at `/swap` — full custom swap UI powered by ChangeNOW API (CHANGENOW_API_KEY env var), 900+ coins, real-time rate estimates, 3-step exchange flow (select pair → enter address → send & receive), exchange status tracking, revenue earned per transaction through API key
 - **Swap Widget on Home Page** — compact ChangeNOW exchange widget on explorer/home page with currency selectors, amount input, live estimate, and "Exchange Now" button linking to full swap flow
 - Live Validator Stats on `/masternodes` — real-time validator counts, total staked amounts, and staking APY for 8 major PoS chains (ETH, SOL, ATOM, ADA, DOT, AVAX, NEAR, TRX) from free public APIs, cached 5 minutes
