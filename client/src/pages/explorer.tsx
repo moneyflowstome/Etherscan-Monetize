@@ -60,7 +60,7 @@ const ALL_CHAINS: ChainInfo[] = [
   { id: "trx", name: "TRON", symbol: "TRX", icon: "⟁", color: "from-red-500/20 to-red-600/10 border-red-500/30", description: "High-throughput blockchain network", coingeckoId: "tron", hasAddressLookup: true, apiPrefix: "trx", addressPlaceholder: "Enter TRON address (T...)", explorerUrl: "https://tronscan.org" },
   { id: "avax", name: "Avalanche", symbol: "AVAX", icon: "🔺", color: "from-red-600/20 to-red-700/10 border-red-600/30", description: "High-speed smart contracts", coingeckoId: "avalanche-2", hasAddressLookup: false, isEvm: true, evmChainId: 43114, internalRoute: "/" },
   { id: "ton", name: "Toncoin", symbol: "TON", icon: "💎", color: "from-sky-500/20 to-sky-600/10 border-sky-500/30", description: "Telegram's blockchain ecosystem", coingeckoId: "the-open-network", hasAddressLookup: false },
-  { id: "dot", name: "Polkadot", symbol: "DOT", icon: "●", color: "from-pink-500/20 to-pink-600/10 border-pink-500/30", description: "Multi-chain interoperability", coingeckoId: "polkadot", hasAddressLookup: false },
+  { id: "dot", name: "Polkadot", symbol: "DOT", icon: "●", color: "from-pink-500/20 to-pink-600/10 border-pink-500/30", description: "Multi-chain interoperability", coingeckoId: "polkadot", hasAddressLookup: true, apiPrefix: "dot", addressPlaceholder: "Enter Polkadot address (1... or 5...)", explorerUrl: "https://subscan.io" },
   { id: "link", name: "Chainlink", symbol: "LINK", icon: "⬡", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Decentralized oracle network (ERC-20)", coingeckoId: "chainlink", hasAddressLookup: false, isEvm: true, internalRoute: "/" },
   { id: "ltc", name: "Litecoin", symbol: "LTC", icon: "Ł", color: "from-gray-400/20 to-gray-500/10 border-gray-400/30", description: "Digital silver peer-to-peer payments", coingeckoId: "litecoin", hasAddressLookup: true, apiPrefix: "ltc", addressPlaceholder: "Enter Litecoin address (L..., M..., ltc1...)", explorerUrl: "https://litecoinspace.org" },
   { id: "shib", name: "Shiba Inu", symbol: "SHIB", icon: "🐕", color: "from-orange-400/20 to-orange-500/10 border-orange-400/30", description: "Community-driven memecoin (ERC-20)", coingeckoId: "shiba-inu", hasAddressLookup: false, isEvm: true, internalRoute: "/" },
@@ -558,6 +558,78 @@ function NeoExplorer({ chain }: { chain: ChainInfo }) {
   );
 }
 
+function DotExplorer({ chain }: { chain: ChainInfo }) {
+  const [input, setInput] = useState("");
+  const [address, setAddress] = useState("");
+
+  const { data: accountData, isLoading, error } = useQuery({
+    queryKey: ["dot-account", address],
+    queryFn: async () => { const res = await fetch(`/api/dot/account/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const { data: txData } = useQuery({
+    queryKey: ["dot-transactions", address],
+    queryFn: async () => { const res = await fetch(`/api/dot/transactions/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input placeholder="Enter Polkadot address (1... or 5...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-dot-address" />
+        <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-dot-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
+      </div>
+      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
+      {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-dot-error">{(error as Error).message}</div>}
+      {accountData && (
+        <Card className="glass-panel border-pink-500/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-pink-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-pink-400" data-testid="text-dot-balance">{accountData.balance} DOT</p></div>
+              <div><p className="text-xs text-muted-foreground">Locked</p><p className="font-mono text-sm" data-testid="text-dot-locked">{accountData.locked} DOT</p></div>
+              <div><p className="text-xs text-muted-foreground">Reserved</p><p className="font-mono text-sm" data-testid="text-dot-reserved">{accountData.reserved} DOT</p></div>
+              <div><p className="text-xs text-muted-foreground">Bonded (Staked)</p><p className="font-mono text-sm text-green-400" data-testid="text-dot-bonded">{accountData.bonded} DOT</p></div>
+              <div><p className="text-xs text-muted-foreground">Unbonding</p><p className="font-mono text-sm text-yellow-400" data-testid="text-dot-unbonding">{accountData.unbonding} DOT</p></div>
+              {accountData.price && <div><p className="text-xs text-muted-foreground">DOT Price</p><p className="font-mono text-sm" data-testid="text-dot-price">${accountData.price}</p></div>}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-mono" data-testid="text-dot-addr">{truncateHash(accountData.address)}</span>
+              <CopyButton text={accountData.address} id="dot-addr" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {txData?.transactions?.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-pink-400" /><h3 className="font-display font-semibold text-sm">Recent Transfers</h3><Badge variant="secondary" className="text-xs">{txData.count} total</Badge></div>
+          {txData.transactions.map((tx: any, i: number) => (
+            <Card key={tx.hash || i} className="glass-panel border-border/50" data-testid={`card-dot-tx-${i}`}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.hash)}</span><CopyButton text={tx.hash} id={`dot-tx-${i}`} /></div>
+                  <div className="flex items-center gap-1">
+                    {tx.success ? (<Badge variant="outline" className="text-green-400 border-green-400/30 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />OK</Badge>) : (<Badge variant="outline" className="text-red-400 border-red-400/30 text-[10px]"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>)}
+                    <Badge variant="outline" className={`text-[10px] ${tx.direction === "received" ? "text-green-400 border-green-400/30" : "text-red-400 border-red-400/30"}`}>{tx.direction === "received" ? "IN" : "OUT"}</Badge>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-mono">{tx.amount} {tx.symbol}</span></div>
+                  <div><span className="text-muted-foreground">Block:</span> <span className="font-mono">{tx.blockNumber?.toLocaleString() || "—"}</span></div>
+                  <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(tx.timestamp) : "—"}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NeoGasCalculator() {
   const [neoAmount, setNeoAmount] = useState("100");
   const [duration, setDuration] = useState("365");
@@ -715,6 +787,7 @@ function ChainExplorerView({ chainId }: { chainId: ChainId }) {
       case "xlm": return <XlmExplorer chain={chain} />;
       case "xem": return <XemExplorer chain={chain} />;
       case "neo": return <NeoExplorer chain={chain} />;
+      case "dot": return <DotExplorer chain={chain} />;
       case "btc": return <BlockcypherExplorer chain={chain} symbol="BTC" addressApiPrefix="btc" txApiPrefix="btc" explorerBaseUrl="https://blockstream.info" />;
       case "doge": return <BlockcypherExplorer chain={chain} symbol="DOGE" addressApiPrefix="doge" txApiPrefix="doge" explorerBaseUrl="https://dogechain.info" />;
       case "ltc": return <BlockcypherExplorer chain={chain} symbol="LTC" addressApiPrefix="ltc" txApiPrefix="ltc" explorerBaseUrl="https://litecoinspace.org" />;

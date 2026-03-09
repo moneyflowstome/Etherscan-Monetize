@@ -1573,6 +1573,78 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/dot/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 46 || address.length > 48) {
+        return res.status(400).json({ error: "Invalid Polkadot address. Must be a valid SS58 address (46-48 characters)." });
+      }
+
+      const response = await fetch("https://polkadot.api.subscan.io/api/scan/account/tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      if (!response.ok) throw new Error(`Subscan API error: ${response.status}`);
+      const data = await response.json();
+      if (data.code !== 0) throw new Error(data.message || "Subscan API error");
+
+      const native = data.data?.native?.[0];
+      if (!native) {
+        return res.status(404).json({ error: "Polkadot address not found or has no activity." });
+      }
+
+      res.json({
+        address,
+        balance: native.balance || "0",
+        locked: native.lock || "0",
+        reserved: native.reserved || "0",
+        bonded: native.bonded || "0",
+        unbonding: native.unbonding || "0",
+        symbol: native.symbol || "DOT",
+        decimals: native.decimals || 10,
+        price: native.price || null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch Polkadot account" });
+    }
+  });
+
+  app.get("/api/dot/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 46 || address.length > 48) {
+        return res.status(400).json({ error: "Invalid Polkadot address" });
+      }
+
+      const response = await fetch("https://polkadot.api.subscan.io/api/v2/scan/transfers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, row: 15, page: 0 }),
+      });
+      if (!response.ok) throw new Error(`Subscan API error: ${response.status}`);
+      const data = await response.json();
+      if (data.code !== 0) throw new Error(data.message || "Subscan API error");
+
+      const transfers = (data.data?.transfers || []).map((t: any) => ({
+        hash: t.hash,
+        from: t.from,
+        to: t.to,
+        amount: t.amount || "0",
+        symbol: t.asset_symbol || "DOT",
+        success: t.success,
+        blockNumber: t.block_num,
+        timestamp: t.block_timestamp,
+        fee: t.fee,
+        direction: t.from === address ? "sent" : "received",
+      }));
+
+      res.json({ address, count: data.data?.count || 0, transactions: transfers });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch Polkadot transactions" });
+    }
+  });
+
   app.get("/api/masternodes", async (_req, res) => {
     try {
       if (masternodeCache && Date.now() - masternodeCache.timestamp < MASTERNODE_CACHE_TTL) {

@@ -16,7 +16,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Multi-Chain Explorer hub at `/explorer` — 24+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
 - Every chain shows live CoinGecko coin info (price, market cap, volume, ATH, supply, description) via `/api/coin/:id`
 - Address lookup built-in for: BTC (Blockstream), SOL (Solana RPC), DOGE/LTC/BCH (Blockcypher), TRX (TronGrid), XLM (Stellar Horizon), XEM (NEM NIS), NEO (NEO N3 RPC)
-- Chains without address APIs (ADA, DOT, TON, ATOM, NEAR) show full coin info; ERC-20 tokens (LINK, SHIB) link to Wallet Tracker
+- Chains without address APIs (ADA, TON, ATOM, NEAR) show full coin info; ERC-20 tokens (LINK, SHIB) link to Wallet Tracker
+- Polkadot (DOT) address lookup via Subscan API (free, no key) — balance, locked, reserved, bonded, unbonding + transfer history
 - XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
 - Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration
 - Transaction history + token transfer tracking
