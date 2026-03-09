@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import { insertHiddenNewsSchema, insertPinnedNewsSchema, insertContactMessageSchema, insertBlogPostSchema, insertSeoMetaSchema } from "@shared/schema";
+import { insertHiddenNewsSchema, insertPinnedNewsSchema, insertContactMessageSchema, insertBlogPostSchema, insertSeoMetaSchema, insertAirdropSchema } from "@shared/schema";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { XMLParser } from "fast-xml-parser";
@@ -2840,11 +2840,133 @@ export async function registerRoutes(
     }
   });
 
+  // ── Airdrops (Public) ──
+  app.get("/api/airdrops", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const data = await storage.getAirdrops({ status: "approved", limit, offset });
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/airdrops/:slug", async (req, res) => {
+    try {
+      const airdrop = await storage.getAirdropBySlug(req.params.slug);
+      if (!airdrop || airdrop.status !== "approved") {
+        return res.status(404).json({ error: "Airdrop not found" });
+      }
+      res.json(airdrop);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/airdrops/submit", async (req, res) => {
+    try {
+      const name = (req.body.name || "").trim();
+      if (!name) return res.status(400).json({ error: "Name is required" });
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      if (!slug) return res.status(400).json({ error: "Invalid name" });
+      const existing = await storage.getAirdropBySlug(slug);
+      if (existing) return res.status(400).json({ error: "An airdrop with this name already exists" });
+
+      const validRewardTypes = ["Task", "Signup", "Hold", "Social", "Testnet", "Other"];
+      const rewardType = validRewardTypes.includes(req.body.rewardType) ? req.body.rewardType : "Task";
+      const validBlockchains = ["Ethereum", "BSC", "Polygon", "Solana", "Arbitrum", "Optimism", "Base", "Avalanche", "Fantom", "Cosmos", "Sui", "Aptos", "Other"];
+      const blockchain = validBlockchains.includes(req.body.blockchain) ? req.body.blockchain : "Ethereum";
+
+      const website = typeof req.body.website === "string" && req.body.website.startsWith("http") ? req.body.website : null;
+      const steps = Array.isArray(req.body.steps) ? req.body.steps.filter((s: any) => typeof s === "string" && s.trim()).map((s: string) => s.trim()) : null;
+
+      const airdrop = await storage.createAirdrop({
+        name,
+        slug,
+        logo: typeof req.body.logo === "string" ? req.body.logo : null,
+        website,
+        description: typeof req.body.description === "string" ? req.body.description.slice(0, 2000) : null,
+        tokenSymbol: typeof req.body.tokenSymbol === "string" ? req.body.tokenSymbol.slice(0, 20) : null,
+        rewardType,
+        rewardAmount: typeof req.body.rewardAmount === "string" ? req.body.rewardAmount.slice(0, 100) : null,
+        referralReward: typeof req.body.referralReward === "string" ? req.body.referralReward.slice(0, 100) : null,
+        blockchain,
+        startDate: typeof req.body.startDate === "string" ? req.body.startDate.slice(0, 20) : null,
+        endDate: typeof req.body.endDate === "string" ? req.body.endDate.slice(0, 20) : null,
+        steps,
+        requirements: typeof req.body.requirements === "string" ? req.body.requirements.slice(0, 1000) : null,
+        status: "pending",
+        featured: false,
+        submitterEmail: typeof req.body.submitterEmail === "string" ? req.body.submitterEmail.slice(0, 200) : null,
+        submitterName: typeof req.body.submitterName === "string" ? req.body.submitterName.slice(0, 100) : null,
+      });
+      res.status(201).json(airdrop);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Airdrops (Admin) ──
+  app.get("/api/admin/airdrops", requireAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const data = await storage.getAirdrops(status ? { status } : {});
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/airdrops/pending-count", requireAdmin, async (_req, res) => {
+    try {
+      const count = await storage.getPendingAirdropCount();
+      res.json({ count });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/airdrops/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const allowedFields: Record<string, boolean> = {
+        name: true, slug: true, logo: true, website: true, description: true,
+        tokenSymbol: true, rewardType: true, rewardAmount: true, referralReward: true,
+        blockchain: true, startDate: true, endDate: true, steps: true, requirements: true,
+        status: true, featured: true,
+      };
+      const validStatuses = ["pending", "approved", "rejected"];
+      const data: any = {};
+      for (const [key, val] of Object.entries(req.body)) {
+        if (allowedFields[key]) {
+          if (key === "status" && !validStatuses.includes(val as string)) continue;
+          data[key] = val;
+        }
+      }
+      const updated = await storage.updateAirdrop(id, data);
+      if (!updated) return res.status(404).json({ error: "Not found" });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/airdrops/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteAirdrop(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Sitemap.xml ──
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       const baseUrl = "https://tokenaltcoin.com";
-      const staticPages = ["/", "/wallet", "/prices", "/watchlist", "/exchanges", "/swap", "/xrp", "/staking", "/news", "/masternodes", "/blog", "/contact", "/privacy", "/terms"];
+      const staticPages = ["/", "/wallet", "/prices", "/watchlist", "/exchanges", "/swap", "/xrp", "/staking", "/news", "/masternodes", "/blog", "/airdrops", "/contact", "/privacy", "/terms"];
       const posts = await storage.getPosts({ published: true });
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;

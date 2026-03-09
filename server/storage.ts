@@ -11,8 +11,9 @@ import {
   type ContactMessage, type InsertContactMessage,
   type BlogPost, type InsertBlogPost,
   type SeoMeta, type InsertSeoMeta,
+  type Airdrop, type InsertAirdrop,
   users, siteSettings, pageViews, hiddenNews, pinnedNews, exchanges,
-  contactMessages, blogPosts, seoMeta,
+  contactMessages, blogPosts, seoMeta, airdrops,
 } from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -75,6 +76,14 @@ export interface IStorage {
   setSeoMeta(meta: InsertSeoMeta): Promise<SeoMeta>;
   getAllSeoMeta(): Promise<SeoMeta[]>;
   deleteSeoMeta(pagePath: string): Promise<void>;
+
+  getAirdrops(opts?: { status?: string; featured?: boolean; limit?: number; offset?: number }): Promise<Airdrop[]>;
+  getAirdrop(id: number): Promise<Airdrop | undefined>;
+  getAirdropBySlug(slug: string): Promise<Airdrop | undefined>;
+  createAirdrop(airdrop: InsertAirdrop): Promise<Airdrop>;
+  updateAirdrop(id: number, data: Partial<InsertAirdrop>): Promise<Airdrop | undefined>;
+  deleteAirdrop(id: number): Promise<void>;
+  getPendingAirdropCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -311,6 +320,50 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSeoMeta(pagePath: string): Promise<void> {
     await db.delete(seoMeta).where(eq(seoMeta.pagePath, pagePath));
+  }
+
+  async getAirdrops(opts: { status?: string; featured?: boolean; limit?: number; offset?: number } = {}): Promise<Airdrop[]> {
+    const conditions: any[] = [];
+    if (opts.status) conditions.push(eq(airdrops.status, opts.status));
+    if (opts.featured !== undefined) conditions.push(eq(airdrops.featured, opts.featured));
+
+    let query = db.select().from(airdrops);
+    if (conditions.length > 0) {
+      query = query.where(sql`${sql.join(conditions, sql` AND `)}`) as any;
+    }
+    query = query.orderBy(desc(airdrops.createdAt)) as any;
+    if (opts.limit) query = query.limit(opts.limit) as any;
+    if (opts.offset) query = query.offset(opts.offset) as any;
+    return query;
+  }
+
+  async getAirdrop(id: number): Promise<Airdrop | undefined> {
+    const [airdrop] = await db.select().from(airdrops).where(eq(airdrops.id, id));
+    return airdrop;
+  }
+
+  async getAirdropBySlug(slug: string): Promise<Airdrop | undefined> {
+    const [airdrop] = await db.select().from(airdrops).where(eq(airdrops.slug, slug));
+    return airdrop;
+  }
+
+  async createAirdrop(airdrop: InsertAirdrop): Promise<Airdrop> {
+    const [created] = await db.insert(airdrops).values(airdrop).returning();
+    return created;
+  }
+
+  async updateAirdrop(id: number, data: Partial<InsertAirdrop>): Promise<Airdrop | undefined> {
+    const [updated] = await db.update(airdrops).set(data).where(eq(airdrops.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAirdrop(id: number): Promise<void> {
+    await db.delete(airdrops).where(eq(airdrops.id, id));
+  }
+
+  async getPendingAirdropCount(): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(airdrops).where(eq(airdrops.status, "pending"));
+    return result?.count || 0;
   }
 }
 

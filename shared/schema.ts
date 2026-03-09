@@ -139,3 +139,30 @@ export const seoMeta = pgTable("seo_meta", {
 export const insertSeoMetaSchema = createInsertSchema(seoMeta).omit({ id: true });
 export type InsertSeoMeta = z.infer<typeof insertSeoMetaSchema>;
 export type SeoMeta = typeof seoMeta.$inferSelect;
+
+export const airdrops = pgTable("airdrops", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  website: text("website"),
+  description: text("description"),
+  tokenSymbol: text("token_symbol"),
+  rewardType: text("reward_type").notNull().default("Task"),
+  rewardAmount: text("reward_amount"),
+  referralReward: text("referral_reward"),
+  blockchain: text("blockchain").notNull().default("Ethereum"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  steps: text("steps").array(),
+  requirements: text("requirements"),
+  status: text("status").notNull().default("pending"),
+  featured: boolean("featured").default(false),
+  submitterEmail: text("submitter_email"),
+  submitterName: text("submitter_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAirdropSchema = createInsertSchema(airdrops).omit({ id: true, createdAt: true });
+export type InsertAirdrop = z.infer<typeof insertAirdropSchema>;
+export type Airdrop = typeof airdrops.$inferSelect;

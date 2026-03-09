@@ -31,6 +31,7 @@ import {
   Search,
   Menu,
   ChevronDown,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1451,6 +1452,187 @@ function SeoTab({ token }: { token: string }) {
   );
 }
 
+function AirdropsTab({ token }: { token: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const { data: allAirdrops = [], isLoading } = useQuery({
+    queryKey: ["admin-airdrops", statusFilter],
+    queryFn: async () => {
+      const url = statusFilter === "all" ? "/api/admin/airdrops" : `/api/admin/airdrops?status=${statusFilter}`;
+      const res = await fetch(url, { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await fetch(`/api/admin/airdrops/${id}`, {
+        method: "PATCH",
+        headers: apiHeaders(token),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-airdrops"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-airdrops-pending-count"] });
+      toast({ title: "Airdrop updated" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/airdrops/${id}`, {
+        method: "DELETE",
+        headers: apiHeaders(token),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-airdrops"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-airdrops-pending-count"] });
+      toast({ title: "Airdrop deleted" });
+    },
+  });
+
+  const statusColors: Record<string, string> = {
+    pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    approved: "bg-green-500/20 text-green-400 border-green-500/30",
+    rejected: "bg-red-500/20 text-red-400 border-red-500/30",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {["all", "pending", "approved", "rejected"].map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant={statusFilter === s ? "default" : "outline"}
+            onClick={() => setStatusFilter(s)}
+            className="text-xs capitalize"
+            data-testid={`button-filter-${s}`}
+          >
+            {s} {s !== "all" && `(${allAirdrops.filter((a: any) => s === "all" || a.status === s).length})`}
+          </Button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      ) : allAirdrops.length === 0 ? (
+        <Card className="bg-muted/20 border-border/50">
+          <CardContent className="p-8 text-center">
+            <Gift className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No airdrops found</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {allAirdrops.map((airdrop: any) => (
+            <Card key={airdrop.id} className="bg-card/50 border-border/50" data-testid={`admin-airdrop-${airdrop.id}`}>
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-muted/50 border border-border/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {airdrop.logo ? (
+                        <img src={airdrop.logo} alt={airdrop.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <Gift className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-foreground">{airdrop.name}</span>
+                        {airdrop.tokenSymbol && <span className="text-xs text-muted-foreground font-mono">${airdrop.tokenSymbol}</span>}
+                        <Badge variant="outline" className={`text-[10px] ${statusColors[airdrop.status] || ""}`}>
+                          {airdrop.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-0.5">
+                        <span>{airdrop.blockchain}</span>
+                        <span>•</span>
+                        <span>{airdrop.rewardType}</span>
+                        {airdrop.submitterEmail && (
+                          <>
+                            <span>•</span>
+                            <span>by {airdrop.submitterName || airdrop.submitterEmail}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {airdrop.status === "pending" && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => updateMutation.mutate({ id: airdrop.id, data: { status: "approved" } })}
+                          className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                          data-testid={`button-approve-${airdrop.id}`}
+                        >
+                          <Check className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateMutation.mutate({ id: airdrop.id, data: { status: "rejected" } })}
+                          className="text-red-400 border-red-400/30 hover:bg-red-500/10 text-xs"
+                          data-testid={`button-reject-${airdrop.id}`}
+                        >
+                          <X className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </>
+                    )}
+                    {airdrop.status === "approved" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateMutation.mutate({ id: airdrop.id, data: { featured: !airdrop.featured } })}
+                        className={`text-xs ${airdrop.featured ? "text-yellow-400 border-yellow-400/30" : ""}`}
+                        data-testid={`button-feature-${airdrop.id}`}
+                      >
+                        <Star className={`w-3 h-3 mr-1 ${airdrop.featured ? "fill-yellow-400" : ""}`} />
+                        {airdrop.featured ? "Unfeature" : "Feature"}
+                      </Button>
+                    )}
+                    {airdrop.status === "rejected" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateMutation.mutate({ id: airdrop.id, data: { status: "approved" } })}
+                        className="text-green-400 border-green-400/30 hover:bg-green-500/10 text-xs"
+                        data-testid={`button-reapprove-${airdrop.id}`}
+                      >
+                        <Check className="w-3 h-3 mr-1" /> Approve
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { if (confirm("Delete this airdrop?")) deleteMutation.mutate(airdrop.id); }}
+                      className="text-red-400 hover:bg-red-500/10 text-xs"
+                      data-testid={`button-delete-airdrop-${airdrop.id}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminTabs({ token }: { token: string }) {
   const { data: messages } = useQuery({
     queryKey: ["admin-messages"],
@@ -1463,6 +1645,16 @@ function AdminTabs({ token }: { token: string }) {
 
   const unreadCount = (messages || []).filter((m: any) => !m.read).length;
 
+  const { data: pendingAirdrops } = useQuery({
+    queryKey: ["admin-airdrops-pending-count"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/airdrops/pending-count", { headers: apiHeaders(token) });
+      if (!res.ok) return { count: 0 };
+      return res.json();
+    },
+  });
+  const pendingAirdropCount = pendingAirdrops?.count || 0;
+
   const [activeTab, setActiveTab] = useState("analytics");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -1472,6 +1664,7 @@ function AdminTabs({ token }: { token: string }) {
     { value: "content", label: "Content", icon: Newspaper },
     { value: "exchanges", label: "Exchanges", icon: Building2 },
     { value: "messages", label: "Messages", icon: Mail, badge: unreadCount > 0 ? unreadCount : undefined },
+    { value: "airdrops", label: "Airdrops", icon: Gift, badge: pendingAirdropCount > 0 ? pendingAirdropCount : undefined },
     { value: "blog", label: "Blog", icon: FileText },
     { value: "seo", label: "SEO", icon: Search },
   ];
@@ -1553,6 +1746,7 @@ function AdminTabs({ token }: { token: string }) {
       {activeTab === "content" && <ContentTab token={token} />}
       {activeTab === "exchanges" && <ExchangesTab token={token} />}
       {activeTab === "messages" && <MessagesTab token={token} />}
+      {activeTab === "airdrops" && <AirdropsTab token={token} />}
       {activeTab === "blog" && <BlogTab token={token} />}
       {activeTab === "seo" && <SeoTab token={token} />}
     </div>

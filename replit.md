@@ -27,6 +27,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Market Overview widget on prices page — total market cap, 24h volume, BTC dominance bar, BTC/ETH live prices
 - Price Alerts at `/alerts` — search any coin, set upper/lower price thresholds, stored in localStorage, polls every 60s, toast notifications when triggered, active/triggered sections
 - Compare Coins at `/compare` — side-by-side analysis of up to 4 cryptocurrencies, comparing price, market cap, rank, volume, 24h change, ATH, ATL, supply; crown icon highlights best value per metric; mobile-friendly card layout; quick-add suggestion buttons
+- Free Airdrops directory at `/airdrops` — verified airdrop listings with card grid, search, blockchain/reward type filters, expandable details (steps, requirements, dates), FAQ section; user submission form (auto-creates pending airdrop for admin approval); similar to freeairdrop.io
 - Portfolio Tracker at `/portfolio` — search any of 10,000+ coins via CoinGecko search API, add holdings (quantity + purchase price), live P&L tracking, allocation pie chart (Recharts), total value/cost/return summary, localStorage persistence
 - News Sentiment Analysis on `/news` — keyword-based bullish/bearish/neutral scoring, sentiment badges on each article, sentiment filter buttons, market sentiment summary bar at top
 - Customizable Dashboard at `/dashboard` — 7 widgets (Market Overview, Fear & Greed, Portfolio Summary, Price Alerts, Watchlist, Trending, News Headlines), show/hide and reorder, drag-and-drop support, localStorage persistence
@@ -48,6 +49,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - General settings (toggle features, change admin password, home page selector, ChangeNOW affiliate ID)
   - **Home Page setting** — admin can choose which page loads as `/` (Explorer, Prices, Dashboard, News, Swap, Portfolio)
   - **Messages tab** — view all contact form submissions, mark read/unread, delete, unread count badge
+  - **Airdrops tab** — manage submitted airdrops (approve/reject with one click, feature/unfeature, delete), filter by status, pending count badge
   - **Blog tab** — full CRUD for blog posts (title, slug, content, excerpt, category, tags, cover image, meta fields, publish/draft, featured toggle)
   - **SEO tab** — page-level SEO meta management (title, description, keywords, OG tags, canonical) for all pages; SEO score checker (title length, description length, keyword analysis); robots.txt editor
 - Crypto Swap at `/swap` — full custom swap UI powered by ChangeNOW API (CHANGENOW_API_KEY env var), 900+ coins, real-time rate estimates, 3-step exchange flow (select pair → enter address → send & receive), exchange status tracking, revenue earned per transaction through API key

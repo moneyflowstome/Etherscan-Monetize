@@ -26,6 +26,7 @@ import AlertsPage from "@/pages/alerts";
 import PortfolioPage from "@/pages/portfolio";
 import CustomDashboardPage from "@/pages/custom-dashboard";
 import ComparePage from "@/pages/compare";
+import AirdropsPage from "@/pages/airdrops";
 
 const HOME_PAGE_MAP: Record<string, React.ComponentType> = {
   explorer: ExplorerPage,
@@ -64,6 +65,7 @@ function Router() {
       <Route path="/swap" component={SwapPage}/>
       <Route path="/xrp" component={XrpExplorerPage}/>
       <Route path="/compare" component={ComparePage}/>
+      <Route path="/airdrops" component={AirdropsPage}/>
       <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>
       <Route path="/masternodes" component={MasternodesPage}/>
