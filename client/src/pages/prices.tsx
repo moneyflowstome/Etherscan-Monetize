@@ -9,10 +9,13 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Gauge,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AdBanner } from "@/components/AdBanner";
@@ -50,6 +53,231 @@ function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function getFgiColor(value: number): string {
+  if (value <= 20) return "#ea3943";
+  if (value <= 40) return "#ea8c00";
+  if (value <= 60) return "#f5d100";
+  if (value <= 80) return "#93d900";
+  return "#16c784";
+}
+
+function getFgiLabel(value: number): string {
+  if (value <= 20) return "Extreme Fear";
+  if (value <= 40) return "Fear";
+  if (value <= 60) return "Neutral";
+  if (value <= 80) return "Greed";
+  return "Extreme Greed";
+}
+
+function FearGreedGauge({ value, size = 160 }: { value: number; size?: number }) {
+  const center = size / 2;
+  const radius = (size / 2) - 12;
+  const startAngle = 180;
+  const endAngle = 0;
+  const totalArc = 180;
+
+  const segments = [
+    { from: 0, to: 20, color: "#ea3943" },
+    { from: 20, to: 40, color: "#ea8c00" },
+    { from: 40, to: 60, color: "#f5d100" },
+    { from: 60, to: 80, color: "#93d900" },
+    { from: 80, to: 100, color: "#16c784" },
+  ];
+
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+  const arcPath = (startPct: number, endPct: number) => {
+    const s = startAngle - (startPct / 100) * totalArc;
+    const e = startAngle - (endPct / 100) * totalArc;
+    const x1 = center + radius * Math.cos(toRad(s));
+    const y1 = center - radius * Math.sin(toRad(s));
+    const x2 = center + radius * Math.cos(toRad(e));
+    const y2 = center - radius * Math.sin(toRad(e));
+    const largeArc = Math.abs(e - s) > 180 ? 1 : 0;
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 0 ${x2} ${y2}`;
+  };
+
+  const needleAngle = startAngle - (value / 100) * totalArc;
+  const needleLen = radius - 20;
+  const nx = center + needleLen * Math.cos(toRad(needleAngle));
+  const ny = center - needleLen * Math.sin(toRad(needleAngle));
+
+  return (
+    <svg width={size} height={size * 0.65} viewBox={`0 0 ${size} ${size * 0.65}`} data-testid="svg-fgi-gauge">
+      {segments.map((seg, i) => (
+        <path
+          key={i}
+          d={arcPath(seg.from, seg.to)}
+          fill="none"
+          stroke={seg.color}
+          strokeWidth={10}
+          strokeLinecap="round"
+          opacity={0.85}
+        />
+      ))}
+      <line
+        x1={center}
+        y1={center}
+        x2={nx}
+        y2={ny}
+        stroke={getFgiColor(value)}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+      />
+      <circle cx={center} cy={center} r={4} fill={getFgiColor(value)} />
+      <text x={center} y={center - 16} textAnchor="middle" className="text-3xl font-bold" fill="currentColor" fontSize={size * 0.2}>
+        {value}
+      </text>
+      <text x={center} y={center + 2} textAnchor="middle" fill={getFgiColor(value)} fontSize={size * 0.07} fontWeight="600">
+        {getFgiLabel(value)}
+      </text>
+    </svg>
+  );
+}
+
+function FearGreedWidget() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["fear-greed"],
+    queryFn: async () => {
+      const res = await fetch("/api/fear-greed");
+      if (!res.ok) throw new Error("Failed to fetch Fear & Greed Index");
+      return res.json();
+    },
+    staleTime: 300000,
+    retry: 2,
+  });
+
+  const current = data?.current;
+  const history = data?.history?.slice(0, 7) || [];
+
+  return (
+    <Card className="glass-panel border-border" data-testid="card-fear-greed">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Gauge className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground" data-testid="text-fgi-title">Fear & Greed Index</h3>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : current ? (
+          <div className="flex flex-col items-center">
+            <FearGreedGauge value={current.value} size={180} />
+            <div className="w-full mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>7-Day History</span>
+              </div>
+              <div className="flex gap-1 items-end h-8">
+                {history.map((h: any, i: number) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                    <div
+                      className="w-full rounded-sm min-h-[4px]"
+                      style={{
+                        height: `${(h.value / 100) * 28}px`,
+                        backgroundColor: getFgiColor(h.value),
+                        opacity: i === 0 ? 1 : 0.5 + (1 - i / history.length) * 0.5,
+                      }}
+                      title={`${h.value} - ${h.classification}`}
+                      data-testid={`bar-fgi-history-${i}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Today</span>
+                <span>7d ago</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground py-4 text-center">Unable to load index</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MarketOverview() {
+  const { data: prices } = useQuery({
+    queryKey: ["prices", 1],
+    queryFn: async () => {
+      const res = await fetch("/api/prices?page=1&per_page=50");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const totalMcap = prices?.reduce((sum: number, c: any) => sum + (c.market_cap || 0), 0) || 0;
+  const totalVol = prices?.reduce((sum: number, c: any) => sum + (c.total_volume || 0), 0) || 0;
+  const btc = prices?.find((c: any) => c.id === "bitcoin");
+  const eth = prices?.find((c: any) => c.id === "ethereum");
+
+  const btcDom = totalMcap > 0 && btc ? ((btc.market_cap / totalMcap) * 100).toFixed(1) : null;
+
+  return (
+    <Card className="glass-panel border-border" data-testid="card-market-overview">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground" data-testid="text-market-overview-title">Market Overview</h3>
+        </div>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Total Market Cap</span>
+            <span className="text-sm font-mono font-semibold text-foreground" data-testid="text-total-mcap">{formatMarketCap(totalMcap)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">24h Volume</span>
+            <span className="text-sm font-mono font-semibold text-foreground" data-testid="text-total-vol">{formatMarketCap(totalVol)}</span>
+          </div>
+          {btcDom && (
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-xs text-muted-foreground">BTC Dominance</span>
+                <span className="text-sm font-mono font-semibold text-foreground" data-testid="text-btc-dom">{btcDom}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-muted/50 overflow-hidden">
+                <div className="h-full rounded-full bg-orange-500" style={{ width: `${btcDom}%` }} />
+              </div>
+            </div>
+          )}
+          {btc && (
+            <div className="flex justify-between items-center pt-1">
+              <div className="flex items-center gap-2">
+                <img src={btc.image} alt="BTC" className="w-5 h-5 rounded-full" />
+                <span className="text-xs text-muted-foreground">Bitcoin</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-mono font-semibold text-foreground" data-testid="text-btc-price">${btc.current_price?.toLocaleString()}</span>
+                <span className={`text-xs ml-2 ${(btc.price_change_percentage_24h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {(btc.price_change_percentage_24h || 0) >= 0 ? "+" : ""}{btc.price_change_percentage_24h?.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          )}
+          {eth && (
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <img src={eth.image} alt="ETH" className="w-5 h-5 rounded-full" />
+                <span className="text-xs text-muted-foreground">Ethereum</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-mono font-semibold text-foreground" data-testid="text-eth-price">${eth.current_price?.toLocaleString()}</span>
+                <span className={`text-xs ml-2 ${(eth.price_change_percentage_24h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {(eth.price_change_percentage_24h || 0) >= 0 ? "+" : ""}{eth.price_change_percentage_24h?.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -119,6 +347,11 @@ export default function PricesPage() {
               data-testid="input-search-prices"
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <FearGreedWidget />
+          <MarketOverview />
         </div>
 
         {trending.length > 0 && (

@@ -116,6 +116,101 @@ function CopyButton({ text, id }: { text: string; id: string }) {
   );
 }
 
+function getFgiColor(value: number): string {
+  if (value <= 20) return "#ea3943";
+  if (value <= 40) return "#ea8c00";
+  if (value <= 60) return "#f5d100";
+  if (value <= 80) return "#93d900";
+  return "#16c784";
+}
+
+function getFgiLabel(value: number): string {
+  if (value <= 20) return "Extreme Fear";
+  if (value <= 40) return "Fear";
+  if (value <= 60) return "Neutral";
+  if (value <= 80) return "Greed";
+  return "Extreme Greed";
+}
+
+function FearGreedCompact() {
+  const [, navigate] = useLocation();
+  const { data, isLoading } = useQuery({
+    queryKey: ["fear-greed"],
+    queryFn: async () => {
+      const res = await fetch("/api/fear-greed");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 300000,
+    retry: 2,
+  });
+
+  const current = data?.current;
+
+  const size = 140;
+  const center = size / 2;
+  const radius = (size / 2) - 10;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const arcPath = (startPct: number, endPct: number) => {
+    const s = 180 - (startPct / 100) * 180;
+    const e = 180 - (endPct / 100) * 180;
+    const x1 = center + radius * Math.cos(toRad(s));
+    const y1 = center - radius * Math.sin(toRad(s));
+    const x2 = center + radius * Math.cos(toRad(e));
+    const y2 = center - radius * Math.sin(toRad(e));
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 0 0 ${x2} ${y2}`;
+  };
+
+  const segments = [
+    { from: 0, to: 20, color: "#ea3943" },
+    { from: 20, to: 40, color: "#ea8c00" },
+    { from: 40, to: 60, color: "#f5d100" },
+    { from: 60, to: 80, color: "#93d900" },
+    { from: 80, to: 100, color: "#16c784" },
+  ];
+
+  return (
+    <button onClick={() => navigate("/prices")} className="w-full text-left group" data-testid="card-fear-greed-compact">
+      <Card className="glass-panel border-border hover:border-primary/30 transition-all duration-300 group-hover:scale-[1.01] h-full">
+        <CardContent className="p-5 flex flex-col items-center justify-center h-full">
+          <div className="flex items-center gap-2 mb-2 self-start">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" data-testid="text-fgi-compact-label">Fear & Greed Index</span>
+          </div>
+          {isLoading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-primary my-4" />
+          ) : current ? (
+            <>
+              <svg width={size} height={size * 0.6} viewBox={`0 0 ${size} ${size * 0.6}`} data-testid="svg-fgi-compact-gauge">
+                {segments.map((seg, i) => (
+                  <path key={i} d={arcPath(seg.from, seg.to)} fill="none" stroke={seg.color} strokeWidth={8} strokeLinecap="round" opacity={0.8} />
+                ))}
+                {(() => {
+                  const needleAngle = 180 - (current.value / 100) * 180;
+                  const needleLen = radius - 18;
+                  const nx = center + needleLen * Math.cos(toRad(needleAngle));
+                  const ny = center - needleLen * Math.sin(toRad(needleAngle));
+                  return (
+                    <>
+                      <line x1={center} y1={center} x2={nx} y2={ny} stroke={getFgiColor(current.value)} strokeWidth={2} strokeLinecap="round" />
+                      <circle cx={center} cy={center} r={3} fill={getFgiColor(current.value)} />
+                    </>
+                  );
+                })()}
+                <text x={center} y={center - 14} textAnchor="middle" fill="currentColor" fontSize={28} fontWeight="bold">{current.value}</text>
+                <text x={center} y={center + 4} textAnchor="middle" fill={getFgiColor(current.value)} fontSize={10} fontWeight="600">{getFgiLabel(current.value)}</text>
+              </svg>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground py-4">Unavailable</div>
+          )}
+        </CardContent>
+      </Card>
+    </button>
+  );
+}
+
 function CoinOfTheDay({ onChainClick }: { onChainClick: (chain: ChainInfo) => void }) {
   const [, navigate] = useLocation();
 
@@ -1316,7 +1411,12 @@ export default function ExplorerPage() {
 
         {view === "overview" && (
           <>
-            <CoinOfTheDay onChainClick={handleChainClick} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <CoinOfTheDay onChainClick={handleChainClick} />
+              </div>
+              <FearGreedCompact />
+            </div>
             {visibleSections.map((section, idx) => (
               <div key={section.id}>
                 {renderSection(section)}

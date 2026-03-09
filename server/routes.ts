@@ -337,6 +337,36 @@ export async function registerRoutes(
     }
   });
 
+  let fgiCache: { data: any; timestamp: number } | null = null;
+  const FGI_CACHE_TTL = 600000;
+
+  app.get("/api/fear-greed", async (_req, res) => {
+    try {
+      if (fgiCache && Date.now() - fgiCache.timestamp < FGI_CACHE_TTL) {
+        return res.json(fgiCache.data);
+      }
+      const response = await fetch("https://api.alternative.me/fng/?limit=30&format=json");
+      if (!response.ok) throw new Error(`Fear & Greed API error: ${response.status}`);
+      const raw = await response.json();
+      const result = {
+        current: raw.data?.[0] ? {
+          value: parseInt(raw.data[0].value),
+          classification: raw.data[0].value_classification,
+          timestamp: parseInt(raw.data[0].timestamp) * 1000,
+        } : null,
+        history: (raw.data || []).map((d: any) => ({
+          value: parseInt(d.value),
+          classification: d.value_classification,
+          timestamp: parseInt(d.timestamp) * 1000,
+        })),
+      };
+      fgiCache = { data: result, timestamp: Date.now() };
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/coin-of-the-day", async (req, res) => {
     try {
       let topCoins: any[] = [];
