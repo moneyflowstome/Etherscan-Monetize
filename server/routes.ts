@@ -1035,7 +1035,7 @@ export async function registerRoutes(
         circulating_supply: md.circulating_supply ?? null,
         total_supply: md.total_supply ?? null,
         max_supply: md.max_supply ?? null,
-        description: desc.substring(0, 300),
+        description: desc.substring(0, 1000),
         links: {
           homepage: raw.links?.homepage?.filter(Boolean) || [],
           blockchain_site: raw.links?.blockchain_site?.filter(Boolean) || [],

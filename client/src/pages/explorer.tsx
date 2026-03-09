@@ -16,6 +16,8 @@ import {
   TrendingDown,
   BarChart3,
   Info,
+  Zap,
+  Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -159,7 +161,7 @@ function CoinInfoPanel({ coingeckoId, chainName }: { coingeckoId: string; chainN
           </div>
         </div>
         {data.description && (
-          <p className="text-xs text-muted-foreground mt-4 leading-relaxed line-clamp-3">{data.description.replace(/<[^>]*>/g, '')}</p>
+          <p className="text-xs text-muted-foreground mt-4 leading-relaxed">{data.description.replace(/<[^>]*>/g, '')}</p>
         )}
       </CardContent>
     </Card>
@@ -556,6 +558,128 @@ function NeoExplorer({ chain }: { chain: ChainInfo }) {
   );
 }
 
+function NeoGasCalculator() {
+  const [neoAmount, setNeoAmount] = useState("100");
+  const [duration, setDuration] = useState("365");
+
+  const { data: gasPrice } = useQuery({
+    queryKey: ["coin-info", "gas"],
+    queryFn: async () => {
+      const res = await fetch("/api/coin/gas");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const { data: neoPrice } = useQuery({
+    queryKey: ["coin-info", "neo"],
+    queryFn: async () => {
+      const res = await fetch("/api/coin/neo");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const TOTAL_NEO = 100_000_000;
+  const GAS_PER_BLOCK = 5;
+  const BLOCKS_PER_DAY = 5760;
+
+  const neo = parseFloat(neoAmount) || 0;
+  const days = parseFloat(duration) || 0;
+  const dailyGas = (neo / TOTAL_NEO) * GAS_PER_BLOCK * BLOCKS_PER_DAY;
+  const totalGas = dailyGas * days;
+  const gasUsdPrice = gasPrice?.current_price || 0;
+  const neoUsdPrice = neoPrice?.current_price || 0;
+  const totalGasUsd = totalGas * gasUsdPrice;
+  const neoHoldingUsd = neo * neoUsdPrice;
+  const apr = neoHoldingUsd > 0 ? ((dailyGas * 365 * gasUsdPrice) / neoHoldingUsd) * 100 : 0;
+
+  return (
+    <Card className="glass-panel border-green-500/20">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Zap className="w-5 h-5 text-green-400" />
+          <h3 className="font-display font-semibold text-lg">NEO GAS Staking Calculator</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          NEO holders automatically generate GAS tokens just by holding NEO in a wallet. No locking or active staking required. {GAS_PER_BLOCK} GAS are distributed per block across all {TOTAL_NEO.toLocaleString()} NEO tokens. Vote in Neo Council governance for bonus GAS rewards.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">NEO Holdings</label>
+            <Input
+              type="number"
+              min="1"
+              max="100000000"
+              value={neoAmount}
+              onChange={(e) => setNeoAmount(e.target.value)}
+              className="bg-card border-border font-mono"
+              data-testid="input-neo-staking-amount"
+            />
+            {neoUsdPrice > 0 && <p className="text-[10px] text-muted-foreground mt-1">≈ ${(neo * neoUsdPrice).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD</p>}
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Duration (days)</label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min="1"
+                max="3650"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="bg-card border-border font-mono"
+                data-testid="input-neo-staking-duration"
+              />
+              <div className="flex gap-1">
+                {[30, 90, 365].map(d => (
+                  <Button key={d} variant={duration === String(d) ? "default" : "outline"} size="sm" onClick={() => setDuration(String(d))} className="text-xs px-2" data-testid={`button-neo-duration-${d}`}>
+                    {d === 365 ? "1Y" : `${d}D`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="glass-panel p-3 rounded-lg">
+            <p className="text-muted-foreground mb-1">Daily GAS</p>
+            <p className="font-mono font-semibold text-green-400" data-testid="text-neo-daily-gas">{dailyGas.toFixed(6)}</p>
+            {gasUsdPrice > 0 && <p className="text-[10px] text-muted-foreground">≈ ${(dailyGas * gasUsdPrice).toFixed(4)}</p>}
+          </div>
+          <div className="glass-panel p-3 rounded-lg">
+            <p className="text-muted-foreground mb-1">Total GAS ({days}d)</p>
+            <p className="font-mono font-semibold text-green-400" data-testid="text-neo-total-gas">{totalGas.toFixed(4)}</p>
+            {gasUsdPrice > 0 && <p className="text-[10px] text-muted-foreground">≈ ${totalGasUsd.toFixed(2)}</p>}
+          </div>
+          <div className="glass-panel p-3 rounded-lg">
+            <p className="text-muted-foreground mb-1">Est. APR</p>
+            <p className="font-mono font-semibold text-primary" data-testid="text-neo-apr">{apr.toFixed(2)}%</p>
+            <p className="text-[10px] text-muted-foreground">base rate</p>
+          </div>
+          <div className="glass-panel p-3 rounded-lg">
+            <p className="text-muted-foreground mb-1">GAS Price</p>
+            <p className="font-mono font-semibold" data-testid="text-gas-price">${gasUsdPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+            <p className="text-[10px] text-muted-foreground">live</p>
+          </div>
+        </div>
+        <div className="mt-4 glass-panel p-3 rounded-lg">
+          <h4 className="text-xs font-semibold mb-2 flex items-center gap-1"><Calculator className="w-3.5 h-3.5 text-primary" /> How NEO GAS Generation Works</h4>
+          <ul className="text-[11px] text-muted-foreground space-y-1">
+            <li>• Hold NEO in a personal wallet (not on an exchange) to earn GAS automatically</li>
+            <li>• {GAS_PER_BLOCK} GAS distributed per block (~{BLOCKS_PER_DAY.toLocaleString()} blocks/day at 15s intervals)</li>
+            <li>• Your share: (Your NEO ÷ {TOTAL_NEO.toLocaleString()}) × {GAS_PER_BLOCK} GAS per block</li>
+            <li>• Claim GAS by sending a transaction to yourself or using your wallet's "Claim GAS" button</li>
+            <li>• Vote in Neo Council governance for additional bonus GAS rewards</li>
+            <li>• NEO is indivisible — you must hold whole NEO tokens (1, 2, 3...)</li>
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChainExplorerView({ chainId }: { chainId: ChainId }) {
   const chain = getChain(chainId);
   const [, navigate] = useLocation();
@@ -610,6 +734,7 @@ function ChainExplorerView({ chainId }: { chainId: ChainId }) {
       </div>
       <CoinInfoPanel coingeckoId={chain.coingeckoId} chainName={chain.name} />
       <AdBanner slot={`explorer-${chainId}`} className="my-4" />
+      {chainId === "neo" && <NeoGasCalculator />}
       {renderAddressExplorer()}
     </div>
   );
