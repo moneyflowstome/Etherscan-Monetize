@@ -3071,6 +3071,113 @@ export async function registerRoutes(
     }
   });
 
+  // ── DexScreener API Proxy ──
+  const DEXSCREENER_BASE = "https://api.dexscreener.com";
+  const dexCache: Record<string, { data: any; timestamp: number }> = {};
+  const DEX_CACHE_SHORT = 30_000;
+  const DEX_CACHE_MEDIUM = 60_000;
+  const DEX_CACHE_LONG = 120_000;
+
+  function getDexCache(key: string, ttl: number) {
+    const c = dexCache[key];
+    if (c && Date.now() - c.timestamp < ttl) return c.data;
+    return null;
+  }
+
+  app.get("/api/dex/trending", async (_req, res) => {
+    try {
+      const cached = getDexCache("dex-trending", DEX_CACHE_MEDIUM);
+      if (cached) return res.json(cached);
+      const response = await fetch(`${DEXSCREENER_BASE}/token-boosts/top/v1`);
+      if (!response.ok) throw new Error(`DexScreener error: ${response.status}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        dexCache["dex-trending"] = { data, timestamp: Date.now() };
+      }
+      res.json(data);
+    } catch (e: any) {
+      const cached = getDexCache("dex-trending", DEX_CACHE_LONG * 5);
+      if (cached) return res.json(cached);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/dex/profiles", async (_req, res) => {
+    try {
+      const cached = getDexCache("dex-profiles", DEX_CACHE_MEDIUM);
+      if (cached) return res.json(cached);
+      const response = await fetch(`${DEXSCREENER_BASE}/token-profiles/latest/v1`);
+      if (!response.ok) throw new Error(`DexScreener error: ${response.status}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        dexCache["dex-profiles"] = { data, timestamp: Date.now() };
+      }
+      res.json(data);
+    } catch (e: any) {
+      const cached = getDexCache("dex-profiles", DEX_CACHE_LONG * 5);
+      if (cached) return res.json(cached);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/dex/search", async (req, res) => {
+    try {
+      const q = String(req.query.q || "").trim().slice(0, 100);
+      if (!q || q.length < 2) return res.json({ pairs: [] });
+      const cacheKey = `dex-search-${q.toLowerCase()}`;
+      const cached = getDexCache(cacheKey, DEX_CACHE_SHORT);
+      if (cached) return res.json(cached);
+      const searchKeys = Object.keys(dexCache).filter(k => k.startsWith("dex-search-"));
+      if (searchKeys.length > 200) {
+        const sorted = searchKeys.map(k => ({ k, ts: dexCache[k].timestamp })).sort((a, b) => a.ts - b.ts);
+        sorted.slice(0, 100).forEach(({ k }) => delete dexCache[k]);
+      }
+      const response = await fetch(`${DEXSCREENER_BASE}/latest/dex/search?q=${encodeURIComponent(q)}`);
+      if (!response.ok) throw new Error(`DexScreener error: ${response.status}`);
+      const data = await response.json();
+      dexCache[cacheKey] = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/dex/pairs/:chainId/:pairAddress", async (req, res) => {
+    try {
+      const { chainId, pairAddress } = req.params;
+      if (!chainId || !pairAddress) return res.status(400).json({ error: "Missing params" });
+      const cacheKey = `dex-pair-${chainId}-${pairAddress}`;
+      const cached = getDexCache(cacheKey, DEX_CACHE_SHORT);
+      if (cached) return res.json(cached);
+      const response = await fetch(`${DEXSCREENER_BASE}/latest/dex/pairs/${encodeURIComponent(chainId)}/${encodeURIComponent(pairAddress)}`);
+      if (!response.ok) throw new Error(`DexScreener error: ${response.status}`);
+      const data = await response.json();
+      dexCache[cacheKey] = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/dex/token/:chainId/:tokenAddress", async (req, res) => {
+    try {
+      const { chainId, tokenAddress } = req.params;
+      if (!chainId || !tokenAddress) return res.status(400).json({ error: "Missing params" });
+      const cacheKey = `dex-token-${chainId}-${tokenAddress}`;
+      const cached = getDexCache(cacheKey, DEX_CACHE_LONG);
+      if (cached) return res.json(cached);
+      const response = await fetch(`${DEXSCREENER_BASE}/token-pairs/v1/${encodeURIComponent(chainId)}/${encodeURIComponent(tokenAddress)}`);
+      if (!response.ok) throw new Error(`DexScreener error: ${response.status}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        dexCache[cacheKey] = { data, timestamp: Date.now() };
+      }
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // ── Robots.txt ──
   app.get("/robots.txt", async (_req, res) => {
     try {

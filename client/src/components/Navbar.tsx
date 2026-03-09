@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { path: "/", label: "Explorer" },
   { path: "/wallet", label: "Wallet Tracker" },
   { path: "/prices", label: "Prices" },
+  { path: "/dex", label: "DEX Screener" },
   { path: "/exchanges", label: "Exchanges" },
   { path: "/swap", label: "Swap" },
   { path: "/watchlist", label: "Watchlist" },
