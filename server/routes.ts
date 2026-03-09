@@ -719,7 +719,8 @@ export async function registerRoutes(
       let articles: any[] = [];
       let source = "brave";
 
-      const braveKey = process.env.BRAVE_API_KEY;
+      let braveKey = process.env.BRAVE_API_KEY;
+      if (braveKey && !braveKey.endsWith("-")) braveKey = braveKey + "-";
       if (braveKey) {
         try {
           const response = await fetch(
