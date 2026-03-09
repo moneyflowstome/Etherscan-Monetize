@@ -745,7 +745,7 @@ export default function SwapPage() {
                 </div>
 
                 <p className="text-sm text-muted-foreground">
-                  Enter your ChangeNOW transaction ID to check the status of your swap.
+                  Enter your transaction ID to check the status of your swap. You can find this ID in your swap confirmation or email receipt from ChangeNOW.
                 </p>
 
                 <div className="flex gap-2">

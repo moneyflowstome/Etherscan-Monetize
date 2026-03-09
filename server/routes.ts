@@ -3120,18 +3120,28 @@ export async function registerRoutes(
   app.get("/api/swap/status/:id", async (req, res) => {
     try {
       const id = req.params.id;
-      if (!id || !/^[a-zA-Z0-9]{10,64}$/.test(id)) {
-        return res.status(400).json({ error: "Invalid exchange ID" });
+      if (!id || !/^[a-zA-Z0-9_-]{6,128}$/.test(id)) {
+        return res.status(400).json({ error: "Invalid exchange ID format" });
       }
-      const resp = await fetch(`${CN_API}/exchange/by-id/${encodeURIComponent(id)}`, {
+
+      const v2Resp = await fetch(`${CN_API}/exchange/by-id/${encodeURIComponent(id)}`, {
         headers: { "x-changenow-api-key": CN_KEY },
       });
-      if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({}));
-        return res.status(resp.status).json({ error: errBody.message || errBody.error || `Status check failed (${resp.status})` });
+      if (v2Resp.ok) {
+        const data = await v2Resp.json();
+        return res.json(data);
       }
-      const data = await resp.json();
-      res.json(data);
+
+      const v1Resp = await fetch(`https://api.changenow.io/v1/transactions/${encodeURIComponent(id)}/${CN_KEY}`);
+      if (v1Resp.ok) {
+        const data = await v1Resp.json();
+        return res.json(data);
+      }
+
+      const errBody = await v2Resp.json().catch(() => ({}));
+      return res.status(404).json({
+        error: errBody.message || "Transaction not found. Please verify your transaction ID is correct. Note: only transactions created through TokenAltcoin or ChangeNOW can be tracked here."
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
