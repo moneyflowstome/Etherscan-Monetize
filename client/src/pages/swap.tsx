@@ -495,8 +495,8 @@ export default function SwapPage() {
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display font-bold text-foreground" data-testid="text-status-title">Exchange Created</h3>
-                  <Badge variant="outline" className={`${getStatusColor(exchangeStatus?.status || exchange.status)} border-current/30`} data-testid="badge-exchange-status">
-                    {(exchangeStatus?.status || exchange.status).toUpperCase()}
+                  <Badge variant="outline" className={`${getStatusColor(exchangeStatus?.status || exchange?.status || "waiting")} border-current/30`} data-testid="badge-exchange-status">
+                    {(exchangeStatus?.status || exchange?.status || "waiting").toUpperCase()}
                   </Badge>
                 </div>
 
