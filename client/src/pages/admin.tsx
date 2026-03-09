@@ -29,12 +29,13 @@ import {
   Mail,
   FileText,
   Search,
+  Menu,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
 function apiHeaders(token: string) {
@@ -1462,61 +1463,99 @@ function AdminTabs({ token }: { token: string }) {
 
   const unreadCount = (messages || []).filter((m: any) => !m.read).length;
 
+  const [activeTab, setActiveTab] = useState("analytics");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const adminTabs = [
+    { value: "analytics", label: "Analytics", icon: BarChart3 },
+    { value: "adsense", label: "Settings", icon: Zap },
+    { value: "content", label: "Content", icon: Newspaper },
+    { value: "exchanges", label: "Exchanges", icon: Building2 },
+    { value: "messages", label: "Messages", icon: Mail, badge: unreadCount > 0 ? unreadCount : undefined },
+    { value: "blog", label: "Blog", icon: FileText },
+    { value: "seo", label: "SEO", icon: Search },
+  ];
+
+  const currentTab = adminTabs.find(t => t.value === activeTab) || adminTabs[0];
+
   return (
-    <Tabs defaultValue="analytics" className="space-y-6">
-      <div className="overflow-x-auto">
-        <TabsList className="bg-muted/30 border border-border w-max min-w-full">
-          <TabsTrigger value="analytics" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-analytics">
-            <BarChart3 className="w-4 h-4 mr-2" /> Analytics
-          </TabsTrigger>
-          <TabsTrigger value="adsense" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-adsense">
-            <Zap className="w-4 h-4 mr-2" /> Settings
-          </TabsTrigger>
-          <TabsTrigger value="content" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-content">
-            <Newspaper className="w-4 h-4 mr-2" /> Content
-          </TabsTrigger>
-          <TabsTrigger value="exchanges" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-exchanges">
-            <Building2 className="w-4 h-4 mr-2" /> Exchanges
-          </TabsTrigger>
-          <TabsTrigger value="messages" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-messages">
-            <Mail className="w-4 h-4 mr-2" /> Messages
-            {unreadCount > 0 && (
-              <Badge className="ml-1 bg-red-500 text-white border-0 text-[9px] px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center" data-testid="badge-unread-messages">
-                {unreadCount}
+    <div className="space-y-6">
+      <div className="md:hidden relative">
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="w-full flex items-center justify-between bg-muted/30 border border-border rounded-lg px-4 py-3 text-sm font-medium text-foreground"
+          data-testid="button-admin-mobile-menu"
+        >
+          <span className="flex items-center gap-2">
+            <currentTab.icon className="w-4 h-4 text-primary" />
+            {currentTab.label}
+            {currentTab.badge && (
+              <Badge className="bg-red-500 text-white border-0 text-[9px] px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center">
+                {currentTab.badge}
               </Badge>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="blog" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-blog">
-            <FileText className="w-4 h-4 mr-2" /> Blog
-          </TabsTrigger>
-          <TabsTrigger value="seo" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-seo">
-            <Search className="w-4 h-4 mr-2" /> SEO
-          </TabsTrigger>
-        </TabsList>
+          </span>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${mobileMenuOpen ? "rotate-180" : ""}`} />
+        </button>
+        {mobileMenuOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+            {adminTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => { setActiveTab(tab.value); setMobileMenuOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                  activeTab === tab.value
+                    ? "bg-primary/10 text-primary border-l-2 border-primary"
+                    : "text-foreground hover:bg-muted/30"
+                }`}
+                data-testid={`tab-mobile-${tab.value}`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+                {tab.badge && (
+                  <Badge className="ml-auto bg-red-500 text-white border-0 text-[9px] px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center">
+                    {tab.badge}
+                  </Badge>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <TabsContent value="analytics">
-        <AnalyticsTab token={token} />
-      </TabsContent>
-      <TabsContent value="adsense">
-        <SettingsTab token={token} />
-      </TabsContent>
-      <TabsContent value="content">
-        <ContentTab token={token} />
-      </TabsContent>
-      <TabsContent value="exchanges">
-        <ExchangesTab token={token} />
-      </TabsContent>
-      <TabsContent value="messages">
-        <MessagesTab token={token} />
-      </TabsContent>
-      <TabsContent value="blog">
-        <BlogTab token={token} />
-      </TabsContent>
-      <TabsContent value="seo">
-        <SeoTab token={token} />
-      </TabsContent>
-    </Tabs>
+      <div className="hidden md:block overflow-x-auto">
+        <div className="bg-muted/30 border border-border rounded-lg p-1 flex gap-1 w-max min-w-full">
+          {adminTabs.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === tab.value
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+              }`}
+              data-testid={`tab-${tab.value}`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+              {tab.badge && (
+                <Badge className="bg-red-500 text-white border-0 text-[9px] px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center" data-testid="badge-unread-messages">
+                  {tab.badge}
+                </Badge>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "analytics" && <AnalyticsTab token={token} />}
+      {activeTab === "adsense" && <SettingsTab token={token} />}
+      {activeTab === "content" && <ContentTab token={token} />}
+      {activeTab === "exchanges" && <ExchangesTab token={token} />}
+      {activeTab === "messages" && <MessagesTab token={token} />}
+      {activeTab === "blog" && <BlogTab token={token} />}
+      {activeTab === "seo" && <SeoTab token={token} />}
+    </div>
   );
 }
 
