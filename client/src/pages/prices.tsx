@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -15,6 +15,14 @@ import {
   ExternalLink,
   X,
   Shield,
+  Globe,
+  MessageCircle,
+  Github,
+  ChevronDown,
+  ChevronUp,
+  Tag,
+  Calendar,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,27 +314,60 @@ function formatPrice(price: number | null | undefined): string {
   return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
-function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
-  const change1h = coin.price_change_percentage_1h_in_currency;
-  const change24h = coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h;
-  const change7d = coin.price_change_percentage_7d_in_currency;
-  const priceUp = (change24h || 0) >= 0;
+function safeUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.protocol === "http:" || u.protocol === "https:") return url;
+    return null;
+  } catch {
+    return null;
+  }
+}
 
-  const lowHighRange = coin.low_24h && coin.high_24h
-    ? ((coin.current_price - coin.low_24h) / (coin.high_24h - coin.low_24h)) * 100
+function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
+  const [showAbout, setShowAbout] = useState(false);
+
+  const { data: fullData, isLoading: fullLoading } = useQuery({
+    queryKey: ["/api/coin", coin.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/coin/${coin.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 300000,
+    enabled: !!coin.id,
+  });
+
+  const d = fullData || coin;
+  const change1h = d.price_change_percentage_1h ?? coin.price_change_percentage_1h_in_currency;
+  const change24h = d.price_change_percentage_24h ?? coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h;
+  const change7d = d.price_change_percentage_7d ?? coin.price_change_percentage_7d_in_currency;
+  const change30d = d.price_change_percentage_30d;
+  const priceUp = (change24h || 0) >= 0;
+  const price = d.current_price ?? coin.current_price;
+  const low24 = d.low_24h ?? coin.low_24h;
+  const high24 = d.high_24h ?? coin.high_24h;
+  const img = d.image ?? coin.image;
+
+  const lowHighRange = low24 && high24
+    ? ((price - low24) / (high24 - low24)) * 100
     : 50;
+
+  const descriptionText = d.description ? d.description.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ") : "";
+  const links = d.links || {};
+  const hasLinks = links.homepage?.length > 0 || links.subreddit_url || links.twitter_screen_name || links.telegram_channel_identifier || links.repos_url?.github?.length > 0 || links.blockchain_site?.length > 0;
 
   return (
     <Card className="glass-panel border-primary/30 mb-4" data-testid={`panel-coin-detail-${coin.id}`}>
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <img src={coin.image} alt="" className="w-10 h-10 rounded-full" />
+            {img && <img src={img} alt="" className="w-10 h-10 rounded-full" />}
             <div>
-              <h3 className="font-display font-bold text-lg text-foreground">{coin.name}</h3>
+              <h3 className="font-display font-bold text-lg text-foreground">{d.name || coin.name}</h3>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground uppercase">{coin.symbol}</span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/30">#{coin.market_cap_rank}</Badge>
+                <span className="text-xs text-muted-foreground uppercase">{d.symbol || coin.symbol}</span>
+                {(d.market_cap_rank || coin.market_cap_rank) && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/30">#{d.market_cap_rank || coin.market_cap_rank}</Badge>}
               </div>
             </div>
           </div>
@@ -335,9 +376,15 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
           </button>
         </div>
 
+        {fullLoading && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading detailed info...
+          </div>
+        )}
+
         <div className="flex items-baseline gap-3 mb-4">
           <p className="font-mono text-2xl md:text-3xl font-bold text-foreground" data-testid="text-detail-price">
-            {formatPrice(coin.current_price)}
+            {formatPrice(price)}
           </p>
           <span className={`text-sm font-mono font-semibold ${priceUp ? "text-green-400" : "text-red-400"}`} data-testid="text-detail-change">
             {priceUp ? "+" : ""}{(change24h || 0).toFixed(2)}%
@@ -346,9 +393,10 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
 
         <div className="flex gap-3 mb-5 flex-wrap">
           {[
+            { label: "1h", val: change1h },
             { label: "24h", val: change24h },
             { label: "7d", val: change7d },
-            { label: "1h", val: change1h },
+            { label: "30d", val: change30d },
           ].filter(x => x.val != null).map(({ label, val }) => (
             <div key={label} className="text-center">
               <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
@@ -359,20 +407,20 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
           ))}
         </div>
 
-        {coin.low_24h && coin.high_24h && (
+        {low24 && high24 && (
           <div className="mb-5">
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-muted-foreground">Low / High <span className="text-foreground font-medium ml-1">24h</span></span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-mono text-foreground whitespace-nowrap">{formatPrice(coin.low_24h)}</span>
+              <span className="text-xs font-mono text-foreground whitespace-nowrap">{formatPrice(low24)}</span>
               <div className="flex-1 h-2 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 relative overflow-hidden">
                 <div
                   className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-foreground border-2 border-background shadow-md"
                   style={{ left: `calc(${Math.min(100, Math.max(0, lowHighRange))}% - 6px)` }}
                 />
               </div>
-              <span className="text-xs font-mono text-foreground whitespace-nowrap">{formatPrice(coin.high_24h)}</span>
+              <span className="text-xs font-mono text-foreground whitespace-nowrap">{formatPrice(high24)}</span>
             </div>
           </div>
         )}
@@ -389,30 +437,30 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
             <div className="flex flex-col">
               <span className="text-[11px] text-muted-foreground">Market Cap</span>
-              <span className="font-mono text-sm font-semibold text-foreground">{coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{(d.market_cap || coin.market_cap) ? formatMarketCap(d.market_cap || coin.market_cap) : "—"}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-muted-foreground">Fully Diluted Market Cap</span>
-              <span className="font-mono text-sm font-semibold text-foreground">{coin.fully_diluted_valuation ? formatMarketCap(coin.fully_diluted_valuation) : "—"}</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{(d.fully_diluted_valuation || coin.fully_diluted_valuation) ? formatMarketCap(d.fully_diluted_valuation || coin.fully_diluted_valuation) : "—"}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-muted-foreground">Volume 24h</span>
-              <span className="font-mono text-sm font-semibold text-foreground">{coin.total_volume ? formatMarketCap(coin.total_volume) : "—"}</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{(d.total_volume || coin.total_volume) ? formatMarketCap(d.total_volume || coin.total_volume) : "—"}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-muted-foreground">Circulating Supply</span>
-              <span className="font-mono text-sm font-semibold text-foreground">{coin.circulating_supply ? formatSupply(coin.circulating_supply, coin.symbol) : "—"}</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{(d.circulating_supply || coin.circulating_supply) ? formatSupply(d.circulating_supply || coin.circulating_supply, d.symbol || coin.symbol) : "—"}</span>
             </div>
-            {coin.max_supply && (
+            {(d.max_supply || coin.max_supply) && (
               <div className="flex flex-col">
                 <span className="text-[11px] text-muted-foreground">Max Supply</span>
-                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(coin.max_supply, coin.symbol)}</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(d.max_supply || coin.max_supply, d.symbol || coin.symbol)}</span>
               </div>
             )}
-            {coin.total_supply && (
+            {(d.total_supply || coin.total_supply) && (
               <div className="flex flex-col">
                 <span className="text-[11px] text-muted-foreground">Total Supply</span>
-                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(coin.total_supply, coin.symbol)}</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(d.total_supply || coin.total_supply, d.symbol || coin.symbol)}</span>
               </div>
             )}
           </div>
@@ -420,38 +468,174 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
 
         <div className="border-t border-border pt-4 mt-4">
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            {coin.ath != null && (
+            {(d.ath ?? coin.ath) != null && (
               <div className="flex flex-col">
                 <span className="text-[11px] text-muted-foreground">All Time High</span>
-                <span className="font-mono text-sm font-semibold text-foreground">{formatPrice(coin.ath)}</span>
-                {coin.ath_change_percentage != null && (
-                  <span className="text-[10px] font-mono text-red-400">{coin.ath_change_percentage.toFixed(1)}%</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{formatPrice(d.ath ?? coin.ath)}</span>
+                {(d.ath_change_percentage ?? coin.ath_change_percentage) != null && (
+                  <span className="text-[10px] font-mono text-red-400">{(d.ath_change_percentage ?? coin.ath_change_percentage).toFixed(1)}%</span>
                 )}
+                {d.ath_date && <span className="text-[9px] text-muted-foreground">{new Date(d.ath_date).toLocaleDateString()}</span>}
               </div>
             )}
-            {coin.atl != null && (
+            {(d.atl ?? coin.atl) != null && (
               <div className="flex flex-col">
                 <span className="text-[11px] text-muted-foreground">All Time Low</span>
-                <span className="font-mono text-sm font-semibold text-foreground" data-testid="text-detail-atl">{formatPrice(coin.atl)}</span>
-                {coin.atl_change_percentage != null && (
-                  <span className="text-[10px] font-mono text-green-400" data-testid="text-detail-atl-change">+{coin.atl_change_percentage.toFixed(1)}%</span>
+                <span className="font-mono text-sm font-semibold text-foreground" data-testid="text-detail-atl">{formatPrice(d.atl ?? coin.atl)}</span>
+                {(d.atl_change_percentage ?? coin.atl_change_percentage) != null && (
+                  <span className="text-[10px] font-mono text-green-400" data-testid="text-detail-atl-change">+{(d.atl_change_percentage ?? coin.atl_change_percentage).toFixed(1)}%</span>
                 )}
+                {d.atl_date && <span className="text-[9px] text-muted-foreground">{new Date(d.atl_date).toLocaleDateString()}</span>}
               </div>
             )}
             <div className="flex flex-col">
               <span className="text-[11px] text-muted-foreground">Rank</span>
-              <span className="font-mono text-sm font-semibold text-foreground">#{coin.market_cap_rank || "—"}</span>
+              <span className="font-mono text-sm font-semibold text-foreground">#{d.market_cap_rank || coin.market_cap_rank || "—"}</span>
             </div>
-            {coin.market_cap && coin.circulating_supply && coin.total_supply && (
+            {d.hashing_algorithm && (
               <div className="flex flex-col">
-                <span className="text-[11px] text-muted-foreground">Market Dominance</span>
-                <span className="font-mono text-sm font-semibold text-foreground">
-                  {((coin.circulating_supply / (coin.total_supply || coin.circulating_supply)) * 100).toFixed(2)}%
-                </span>
+                <span className="text-[11px] text-muted-foreground">Algorithm</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{d.hashing_algorithm}</span>
+              </div>
+            )}
+            {d.genesis_date && (
+              <div className="flex flex-col">
+                <span className="text-[11px] text-muted-foreground">Launch Date</span>
+                <span className="font-mono text-sm font-semibold text-foreground flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(d.genesis_date).toLocaleDateString()}</span>
               </div>
             )}
           </div>
         </div>
+
+        {d.categories && d.categories.length > 0 && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Tag className="w-3 h-3" /> Categories</h4>
+            <div className="flex flex-wrap gap-1.5">
+              {d.categories.map((cat: string) => (
+                <Badge key={cat} variant="outline" className="text-[10px] border-primary/30 text-primary">{cat}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {descriptionText && (
+          <div className="border-t border-border pt-4 mt-4">
+            <button
+              onClick={() => setShowAbout(!showAbout)}
+              className="flex items-center justify-between w-full text-left"
+              data-testid="button-toggle-about"
+            >
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">About {d.name || coin.name}</h4>
+              {showAbout ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+            {showAbout && (
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed" data-testid="text-coin-description">
+                {descriptionText.length > 500 ? descriptionText.substring(0, 500) + "..." : descriptionText}
+              </p>
+            )}
+          </div>
+        )}
+
+        {hasLinks && (
+          <div className="border-t border-border pt-4 mt-4 space-y-3">
+            {links.homepage?.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Globe className="w-3 h-3" /> Official Links</h4>
+                <div className="flex flex-wrap gap-2">
+                  {links.homepage.map((url: string) => {
+                    const safe = safeUrl(url);
+                    if (!safe) return null;
+                    return (
+                      <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-homepage">
+                        <Globe className="w-3 h-3 text-primary" /> Website
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {(links.subreddit_url || links.twitter_screen_name || links.telegram_channel_identifier || links.facebook_username) && (
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><MessageCircle className="w-3 h-3" /> Socials</h4>
+                <div className="flex flex-wrap gap-2">
+                  {links.twitter_screen_name && (
+                    <a href={`https://twitter.com/${links.twitter_screen_name}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-twitter">
+                      <span className="text-primary">𝕏</span> Twitter
+                    </a>
+                  )}
+                  {links.subreddit_url && safeUrl(links.subreddit_url) && (
+                    <a href={safeUrl(links.subreddit_url)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-reddit">
+                      <span className="text-orange-500">●</span> Reddit
+                    </a>
+                  )}
+                  {links.telegram_channel_identifier && (
+                    <a href={`https://t.me/${links.telegram_channel_identifier}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-telegram">
+                      <span className="text-blue-400">✈</span> Telegram
+                    </a>
+                  )}
+                  {links.facebook_username && (
+                    <a href={`https://facebook.com/${links.facebook_username}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-facebook">
+                      <span className="text-blue-500">f</span> Facebook
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {links.blockchain_site?.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Search className="w-3 h-3" /> Chain Explorers</h4>
+                <div className="flex flex-wrap gap-2">
+                  {links.blockchain_site.slice(0, 5).map((url: string) => {
+                    const safe = safeUrl(url);
+                    if (!safe) return null;
+                    let host = "";
+                    try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                    return (
+                      <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid={`link-explorer-${host}`}>
+                        <ExternalLink className="w-3 h-3 text-primary" /> {host || "Explorer"}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {(links.repos_url?.github?.length > 0 || links.repos_url?.bitbucket?.length > 0) && (
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Github className="w-3 h-3" /> Source Code</h4>
+                <div className="flex flex-wrap gap-2">
+                  {links.repos_url.github.map((url: string) => {
+                    const safe = safeUrl(url);
+                    if (!safe) return null;
+                    const parts = safe.split("/");
+                    const repoName = parts[parts.length - 1] || parts[parts.length - 2] || "GitHub";
+                    return (
+                      <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid={`link-github-${repoName}`}>
+                        <Github className="w-3 h-3 text-primary" /> {repoName}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {d.platforms && Object.keys(d.platforms).length > 0 && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Hash className="w-3 h-3" /> Contract Addresses</h4>
+            <div className="space-y-1.5">
+              {Object.entries(d.platforms).filter(([, addr]) => addr).slice(0, 5).map(([platform, address]) => (
+                <div key={platform} className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground capitalize whitespace-nowrap">{platform.replace(/-/g, " ")}:</span>
+                  <span className="font-mono text-foreground truncate">{String(address)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -635,10 +819,57 @@ function MemeCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void 
 
 export default function PricesPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const { toggleWatchlist, isWatched } = useWatchlist();
   const { toast } = useToast();
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const searchQuery = useQuery({
+    queryKey: ["/api/search/coins", debouncedSearch],
+    queryFn: async () => {
+      if (!debouncedSearch || debouncedSearch.length < 2) return [];
+      const res = await fetch(`/api/search/coins?q=${encodeURIComponent(debouncedSearch)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: debouncedSearch.length >= 2,
+    staleTime: 300000,
+  });
+
+  const handleSearchSelect = useCallback(async (result: any) => {
+    setShowSearchResults(false);
+    setSearchTerm("");
+    try {
+      const res = await fetch(`/api/coin/${result.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedCoin({ ...data, id: result.id, image: data.image || result.large || result.thumb });
+      } else {
+        setSelectedCoin({ id: result.id, name: result.name, symbol: result.symbol, image: result.large || result.thumb, market_cap_rank: result.market_cap_rank });
+      }
+    } catch {
+      setSelectedCoin({ id: result.id, name: result.name, symbol: result.symbol, image: result.large || result.thumb, market_cap_rank: result.market_cap_rank });
+    }
+  }, []);
 
   const pricesQuery = useQuery({
     queryKey: ["/api/prices", page],
@@ -663,11 +894,7 @@ export default function PricesPage() {
   });
 
   const coins = pricesQuery.data && Array.isArray(pricesQuery.data)
-    ? pricesQuery.data.filter((c: any) =>
-        !searchTerm ||
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? pricesQuery.data
     : [];
 
   const trending = trendingQuery.data?.coins?.slice(0, 6) || [];
@@ -690,15 +917,45 @@ export default function PricesPage() {
             <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-page-title">Crypto Prices</h1>
             <p className="text-muted-foreground text-sm mt-1">Live prices for top cryptocurrencies by market cap</p>
           </div>
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full md:w-72" ref={searchRef}>
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
             <Input
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search coins..."
+              onChange={(e) => { setSearchTerm(e.target.value); setShowSearchResults(true); }}
+              onFocus={() => { if (searchTerm.length >= 2) setShowSearchResults(true); }}
+              placeholder="Search any cryptocurrency..."
               className="bg-muted/30 border-border pl-10 h-10 text-sm"
               data-testid="input-search-prices"
             />
+            {showSearchResults && searchTerm.length >= 2 && (
+              <div className="absolute top-full left-0 right-0 mt-1 glass-panel rounded-xl border border-border shadow-xl max-h-80 overflow-y-auto z-50" data-testid="search-results-dropdown">
+                {searchQuery.isLoading ? (
+                  <div className="p-4 text-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary mx-auto" />
+                  </div>
+                ) : searchQuery.data && searchQuery.data.length > 0 ? (
+                  searchQuery.data.map((result: any) => (
+                    <button
+                      key={result.id}
+                      onClick={() => handleSearchSelect(result)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors text-left"
+                      data-testid={`search-result-${result.id}`}
+                    >
+                      {(result.thumb || result.large) && <img src={result.large || result.thumb} alt="" className="w-7 h-7 rounded-full" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{result.name}</p>
+                        <p className="text-xs text-muted-foreground uppercase">{result.symbol}</p>
+                      </div>
+                      {result.market_cap_rank && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/30 shrink-0">#{result.market_cap_rank}</Badge>
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">No coins found</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

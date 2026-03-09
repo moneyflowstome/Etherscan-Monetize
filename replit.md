@@ -34,7 +34,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks, Next-Gen L1s) via settings panel, preferences persisted in localStorage
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
-- Crypto prices page — 2,500+ coins browsable via pagination (100/page, 25 pages), mobile-friendly card layout, clickable coins with detail panel, desktop table preserved, Fear & Greed + Market Overview widgets at top, Meme Coins and Privacy Coins highlight sections with live prices
+- Crypto prices page — 2,500+ coins browsable via pagination (100/page, 25 pages), mobile-friendly card layout, clickable coins with detail panel, desktop table preserved, Fear & Greed + Market Overview widgets at top, Meme Coins and Privacy Coins highlight sections with live prices, API-powered search across all CoinGecko coins with dropdown results
+- Coin detail panel — full CoinMarketCap-style info: About (collapsible), Official Links, Socials (Twitter/Reddit/Telegram/Facebook), Chain Explorers, Source Code (GitHub), Contract Addresses, Categories, Launch Date, Algorithm, 1h/24h/7d/30d changes, ATH/ATL with dates and percentages
 - Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
 - News feed with three tabs: Crypto (CryptoCompare), World (BBC, Al Jazeera, Sky News RSS), USA (BBC US, ABC News, NPR RSS)
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
