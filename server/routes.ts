@@ -468,6 +468,102 @@ export async function registerRoutes(
     }
   });
 
+  const simplePriceCache: Record<string, { data: any; timestamp: number }> = {};
+  const SIMPLE_PRICE_CACHE_TTL = 60000;
+  const SIMPLE_PRICE_CACHE_MAX = 20;
+
+  const COINGECKO_TO_CMC_SLUG: Record<string, string> = {
+    bitcoin: "bitcoin", ethereum: "ethereum", solana: "solana", ripple: "xrp",
+    binancecoin: "bnb", dogecoin: "dogecoin", cardano: "cardano", polkadot: "polkadot-new",
+    "avalanche-2": "avalanche", chainlink: "chainlink", tron: "tron", litecoin: "litecoin",
+  };
+
+  const APPROX_FIAT_FROM_USD: Record<string, number> = {
+    eur: 0.92, gbp: 0.79, jpy: 149.5, cad: 1.36, aud: 1.55, chf: 0.88, inr: 83.1,
+  };
+
+  async function fetchCmcFallbackPrices(geckoIds: string[], vsCurrencies: string[]): Promise<Record<string, any> | null> {
+    if (!CMC_API_KEY) return null;
+    try {
+      const slugs = geckoIds.map(id => COINGECKO_TO_CMC_SLUG[id]).filter(Boolean);
+      if (slugs.length === 0) return null;
+      const cmcUrl = `${CMC_BASE}/v2/cryptocurrency/quotes/latest?slug=${slugs.join(",")}&convert=USD`;
+      const cmcRes = await fetch(cmcUrl, {
+        headers: { "X-CMC_PRO_API_KEY": CMC_API_KEY, "Accept": "application/json" },
+      });
+      if (!cmcRes.ok) return null;
+      const cmcData = await cmcRes.json();
+      if (!cmcData?.data) return null;
+      const result: Record<string, any> = {};
+      const slugToGecko: Record<string, string> = {};
+      for (const [gId, slug] of Object.entries(COINGECKO_TO_CMC_SLUG)) {
+        slugToGecko[slug] = gId;
+      }
+      for (const coinData of Object.values(cmcData.data) as any[]) {
+        const slug = coinData.slug;
+        const geckoId = slugToGecko[slug];
+        if (!geckoId || !geckoIds.includes(geckoId)) continue;
+        const usdPrice = coinData.quote?.USD?.price;
+        if (!usdPrice) continue;
+        const priceObj: Record<string, number> = {};
+        for (const cur of vsCurrencies) {
+          if (cur === "usd") {
+            priceObj.usd = usdPrice;
+          } else {
+            const rate = APPROX_FIAT_FROM_USD[cur];
+            if (rate) priceObj[cur] = usdPrice * rate;
+          }
+        }
+        if (Object.keys(priceObj).length > 0) result[geckoId] = priceObj;
+      }
+      return Object.keys(result).length > 0 ? result : null;
+    } catch {
+      return null;
+    }
+  }
+
+  app.get("/api/prices/simple", async (req, res) => {
+    try {
+      const ids = (req.query.ids as string || "").split(",").map(s => s.trim()).filter(Boolean).slice(0, 30);
+      const vs = (req.query.vs_currencies as string || "usd").split(",").map(s => s.trim()).filter(Boolean);
+      if (ids.length === 0) return res.json({});
+
+      const cacheKey = `${ids.sort().join(",")}|${vs.sort().join(",")}`;
+      const cached = simplePriceCache[cacheKey];
+      if (cached && Date.now() - cached.timestamp < SIMPLE_PRICE_CACHE_TTL) {
+        return res.json(cached.data);
+      }
+
+      const url = `${COINGECKO_BASE}/simple/price?ids=${ids.join(",")}&vs_currencies=${vs.join(",")}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
+      const data = await response.json();
+      if (data && typeof data === "object" && !data.error) {
+        if (Object.keys(simplePriceCache).length >= SIMPLE_PRICE_CACHE_MAX) {
+          const oldest = Object.entries(simplePriceCache).sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
+          if (oldest) delete simplePriceCache[oldest[0]];
+        }
+        simplePriceCache[cacheKey] = { data, timestamp: Date.now() };
+        return res.json(data);
+      }
+      throw new Error("Invalid CoinGecko response");
+    } catch (err: any) {
+      const ids = (req.query.ids as string || "").split(",").map(s => s.trim()).filter(Boolean);
+      const vs = (req.query.vs_currencies as string || "usd").split(",").map(s => s.trim()).filter(Boolean);
+      const cacheKey = `${ids.sort().join(",")}|${vs.sort().join(",")}`;
+      const stale = simplePriceCache[cacheKey];
+      if (stale) return res.json(stale.data);
+
+      const cmcData = await fetchCmcFallbackPrices(ids, vs);
+      if (cmcData) {
+        simplePriceCache[cacheKey] = { data: cmcData, timestamp: Date.now() };
+        return res.json(cmcData);
+      }
+
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   let searchCache: { query: string; data: any; timestamp: number } | null = null;
   const SEARCH_CACHE_TTL = 300000;
 

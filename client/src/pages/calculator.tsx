@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AdBanner } from "@/components/AdBanner";
@@ -21,15 +21,17 @@ const POPULAR_CRYPTOS = [
 ];
 
 const FIAT_CURRENCIES = [
-  { id: "usd", symbol: "USD", name: "US Dollar", flag: "🇺🇸" },
-  { id: "eur", symbol: "EUR", name: "Euro", flag: "🇪🇺" },
-  { id: "gbp", symbol: "GBP", name: "British Pound", flag: "🇬🇧" },
-  { id: "jpy", symbol: "JPY", name: "Japanese Yen", flag: "🇯🇵" },
-  { id: "cad", symbol: "CAD", name: "Canadian Dollar", flag: "🇨🇦" },
-  { id: "aud", symbol: "AUD", name: "Australian Dollar", flag: "🇦🇺" },
-  { id: "chf", symbol: "CHF", name: "Swiss Franc", flag: "🇨🇭" },
-  { id: "inr", symbol: "INR", name: "Indian Rupee", flag: "🇮🇳" },
+  { id: "usd", symbol: "USD", name: "US Dollar", flag: "\u{1F1FA}\u{1F1F8}" },
+  { id: "eur", symbol: "EUR", name: "Euro", flag: "\u{1F1EA}\u{1F1FA}" },
+  { id: "gbp", symbol: "GBP", name: "British Pound", flag: "\u{1F1EC}\u{1F1E7}" },
+  { id: "jpy", symbol: "JPY", name: "Japanese Yen", flag: "\u{1F1EF}\u{1F1F5}" },
+  { id: "cad", symbol: "CAD", name: "Canadian Dollar", flag: "\u{1F1E8}\u{1F1E6}" },
+  { id: "aud", symbol: "AUD", name: "Australian Dollar", flag: "\u{1F1E6}\u{1F1FA}" },
+  { id: "chf", symbol: "CHF", name: "Swiss Franc", flag: "\u{1F1E8}\u{1F1ED}" },
+  { id: "inr", symbol: "INR", name: "Indian Rupee", flag: "\u{1F1EE}\u{1F1F3}" },
 ];
+
+const CALC_CACHE_KEY = "tokenaltcoin_calc_prices";
 
 type AssetOption = {
   id: string;
@@ -59,6 +61,25 @@ function buildOptions(): AssetOption[] {
 }
 
 const ALL_OPTIONS = buildOptions();
+
+function loadCachedPrices(): Record<string, any> {
+  try {
+    const raw = localStorage.getItem(CALC_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && parsed.data) {
+        return parsed.data;
+      }
+    }
+  } catch {}
+  return {};
+}
+
+function saveCachedPrices(data: Record<string, any>) {
+  try {
+    localStorage.setItem(CALC_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {}
+}
 
 function AssetSelector({
   value,
@@ -118,45 +139,39 @@ function formatResult(value: number): string {
   return value.toExponential(6);
 }
 
+const ALL_CRYPTO_IDS = POPULAR_CRYPTOS.map((c) => c.id);
+const ALL_FIAT_IDS = FIAT_CURRENCIES.map((f) => f.id);
+
 export default function CalculatorPage() {
   const [fromAsset, setFromAsset] = useState("bitcoin");
   const [toAsset, setToAsset] = useState("usd");
   const [amount, setAmount] = useState("1");
+  const [cachedPrices, setCachedPrices] = useState<Record<string, any>>(() => loadCachedPrices());
 
-  const cryptoIds = useMemo(() => {
-    const ids = new Set<string>();
-    const from = ALL_OPTIONS.find((o) => o.id === fromAsset);
-    const to = ALL_OPTIONS.find((o) => o.id === toAsset);
-    if (from?.type === "crypto") ids.add(from.id);
-    if (to?.type === "crypto") ids.add(to.id);
-    return Array.from(ids);
-  }, [fromAsset, toAsset]);
-
-  const vsCurrencies = useMemo(() => {
-    const currencies = new Set<string>();
-    const from = ALL_OPTIONS.find((o) => o.id === fromAsset);
-    const to = ALL_OPTIONS.find((o) => o.id === toAsset);
-    if (from?.type === "fiat") currencies.add(from.id);
-    if (to?.type === "fiat") currencies.add(to.id);
-    currencies.add("usd");
-    return Array.from(currencies);
-  }, [fromAsset, toAsset]);
-
-  const pricesQuery = useQuery({
-    queryKey: ["calculator-prices", cryptoIds.join(","), vsCurrencies.join(",")],
+  const allPricesQuery = useQuery({
+    queryKey: ["calculator-all-prices"],
     queryFn: async () => {
-      if (cryptoIds.length === 0) return {};
-      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${cryptoIds.join(",")}&vs_currencies=${vsCurrencies.join(",")}`;
+      const url = `/api/prices/simple?ids=${ALL_CRYPTO_IDS.join(",")}&vs_currencies=${ALL_FIAT_IDS.join(",")}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch prices");
-      return res.json();
+      if (!res.ok) throw new Error(`Price fetch failed: ${res.status}`);
+      const data = await res.json();
+      if (data && typeof data === "object" && !data.error) {
+        saveCachedPrices(data);
+        setCachedPrices(data);
+        return data;
+      }
+      throw new Error("Invalid price data received");
     },
     staleTime: 30000,
     refetchInterval: 60000,
-    enabled: cryptoIds.length > 0,
+    retry: 2,
+    retryDelay: 5000,
+    placeholderData: keepPreviousData,
   });
 
-  const prices = pricesQuery.data || {};
+  const prices = allPricesQuery.data || cachedPrices;
+  const hasPrices = Object.keys(prices).length > 0;
+  const isUsingCached = !allPricesQuery.data && Object.keys(cachedPrices).length > 0;
 
   const convertedValue = useMemo(() => {
     const num = parseFloat(amount) || 0;
@@ -167,6 +182,10 @@ export default function CalculatorPage() {
     if (!fromOpt || !toOpt) return 0;
 
     if (fromOpt.type === "fiat" && toOpt.type === "fiat") {
+      if (fromOpt.id === toOpt.id) return num;
+      const btcFrom = prices["bitcoin"]?.[fromOpt.id];
+      const btcTo = prices["bitcoin"]?.[toOpt.id];
+      if (btcFrom && btcTo) return (num / btcFrom) * btcTo;
       return num;
     }
 
@@ -210,7 +229,7 @@ export default function CalculatorPage() {
             style={{ fontFamily: "'Orbitron', sans-serif" }}
             data-testid="heading-calculator"
           >
-            <span className="text-primary text-3xl">⟐</span>
+            <span className="text-primary text-3xl">{"\u27D0"}</span>
             Crypto Calculator
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -262,17 +281,25 @@ export default function CalculatorPage() {
             </div>
 
             <div className="mt-6 p-5 bg-primary/5 border border-primary/20 rounded-xl" data-testid="conversion-result">
-              {pricesQuery.isLoading ? (
+              {allPricesQuery.isLoading && !hasPrices ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
-              ) : pricesQuery.isError ? (
+              ) : allPricesQuery.isError && !hasPrices ? (
                 <div className="text-sm text-red-400 text-center py-4" data-testid="text-error">
                   Failed to fetch prices. Please try again.
                 </div>
               ) : (
                 <div>
-                  <div className="text-xs text-muted-foreground mb-2">Result</div>
+                  <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+                    <span>Result</span>
+                    {isUsingCached && (
+                      <span className="text-yellow-400/80 text-[10px] bg-yellow-500/10 px-1.5 py-0.5 rounded">cached</span>
+                    )}
+                    {allPricesQuery.isFetching && hasPrices && (
+                      <Loader2 className="w-3 h-3 animate-spin text-primary/60" />
+                    )}
+                  </div>
                   <div
                     className="text-2xl md:text-3xl font-bold text-foreground"
                     style={{ fontFamily: "'Orbitron', sans-serif" }}
@@ -286,7 +313,7 @@ export default function CalculatorPage() {
                   {fromOpt?.type === "crypto" && (
                     <div className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" />
-                      Live rate from CoinGecko
+                      {isUsingCached ? "Using cached prices - updating soon" : "Live rate via CoinGecko"}
                     </div>
                   )}
                 </div>
@@ -299,14 +326,14 @@ export default function CalculatorPage() {
           <h3 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-4">Quick Conversions</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { from: "bitcoin", to: "usd", label: "BTC → USD" },
-              { from: "ethereum", to: "usd", label: "ETH → USD" },
-              { from: "solana", to: "usd", label: "SOL → USD" },
-              { from: "ripple", to: "usd", label: "XRP → USD" },
-              { from: "bitcoin", to: "ethereum", label: "BTC → ETH" },
-              { from: "ethereum", to: "solana", label: "ETH → SOL" },
-              { from: "dogecoin", to: "usd", label: "DOGE → USD" },
-              { from: "cardano", to: "usd", label: "ADA → USD" },
+              { from: "bitcoin", to: "usd", label: "BTC \u2192 USD" },
+              { from: "ethereum", to: "usd", label: "ETH \u2192 USD" },
+              { from: "solana", to: "usd", label: "SOL \u2192 USD" },
+              { from: "ripple", to: "usd", label: "XRP \u2192 USD" },
+              { from: "bitcoin", to: "ethereum", label: "BTC \u2192 ETH" },
+              { from: "ethereum", to: "solana", label: "ETH \u2192 SOL" },
+              { from: "dogecoin", to: "usd", label: "DOGE \u2192 USD" },
+              { from: "cardano", to: "usd", label: "ADA \u2192 USD" },
             ].map((q) => (
               <button
                 key={q.label}
@@ -326,7 +353,7 @@ export default function CalculatorPage() {
 
         <div className="mt-6 glass-panel rounded-xl p-5" data-testid="popular-rates">
           <h3 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-4">Popular Rates</h3>
-          {pricesQuery.isLoading ? (
+          {allPricesQuery.isLoading && !hasPrices ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
