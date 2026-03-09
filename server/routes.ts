@@ -89,8 +89,8 @@ export async function registerRoutes(
     if (req.path.startsWith("/api/admin") || req.path.startsWith("/api/track")) {
       return next();
     }
-    const page = req.path === "/" ? "dashboard" : req.path.replace("/", "");
-    if (["dashboard", "prices", "news", "masternodes"].includes(page) || req.path === "/") {
+    const page = req.path === "/" ? "explorer" : req.path === "/wallet" ? "dashboard" : req.path.replace("/", "");
+    if (["explorer", "dashboard", "prices", "news", "masternodes", "wallet"].includes(page) || req.path === "/") {
       storage.recordPageView({
         page,
         userAgent: req.headers["user-agent"] || null,
@@ -1570,6 +1570,261 @@ export async function registerRoutes(
         return res.status(404).json({ error: "NEO address not found or not active on N3 network." });
       }
       res.status(500).json({ error: msg });
+    }
+  });
+
+  // Cardano (ADA) via Koios API
+  app.get("/api/ada/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address.startsWith("addr1") || address.length < 50) {
+        return res.status(400).json({ error: "Invalid Cardano address. Must start with addr1." });
+      }
+
+      const response = await fetch("https://api.koios.rest/api/v1/address_info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _addresses: [address] }),
+      });
+      if (!response.ok) throw new Error(`Koios API error: ${response.status}`);
+      const data = await response.json();
+
+      if (!data || data.length === 0) {
+        return res.json({
+          address,
+          balance: "0",
+          stakeAddress: null,
+          utxoCount: 0,
+        });
+      }
+
+      const info = data[0];
+      const balanceAda = (parseInt(info.balance || "0") / 1_000_000).toFixed(6);
+
+      res.json({
+        address: info.address,
+        balance: balanceAda,
+        stakeAddress: info.stake_address || null,
+        utxoCount: info.utxo_set?.length || 0,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch Cardano account" });
+    }
+  });
+
+  app.get("/api/ada/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address.startsWith("addr1") || address.length < 50) {
+        return res.status(400).json({ error: "Invalid Cardano address" });
+      }
+
+      const response = await fetch("https://api.koios.rest/api/v1/address_txs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _addresses: [address], _after_block_height: 0 }),
+      });
+      if (!response.ok) throw new Error(`Koios API error: ${response.status}`);
+      const data = await response.json();
+
+      const transactions = (data || []).slice(0, 15).map((tx: any) => ({
+        hash: tx.tx_hash,
+        blockHeight: tx.block_height,
+        blockTime: tx.block_time,
+        epoch: tx.epoch_no,
+      }));
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch Cardano transactions" });
+    }
+  });
+
+  // TON via Toncenter API
+  app.get("/api/ton/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 30) {
+        return res.status(400).json({ error: "Invalid TON address." });
+      }
+
+      const response = await fetch(`https://toncenter.com/api/v2/getAddressInformation?address=${encodeURIComponent(address)}`);
+      if (!response.ok) throw new Error(`Toncenter API error: ${response.status}`);
+      const data = await response.json();
+
+      if (!data.ok) {
+        return res.status(400).json({ error: data.error || "Invalid TON address" });
+      }
+
+      const r = data.result;
+      const balanceTon = (parseInt(r.balance || "0") / 1_000_000_000).toFixed(9);
+
+      res.json({
+        address,
+        balance: balanceTon,
+        state: r.state || "unknown",
+        lastTransactionLt: r.last_transaction_id?.lt || null,
+        lastTransactionHash: r.last_transaction_id?.hash || null,
+        frozenHash: r.frozen_hash || null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch TON account" });
+    }
+  });
+
+  app.get("/api/ton/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 30) {
+        return res.status(400).json({ error: "Invalid TON address" });
+      }
+
+      const response = await fetch(`https://toncenter.com/api/v2/getTransactions?address=${encodeURIComponent(address)}&limit=15`);
+      if (!response.ok) throw new Error(`Toncenter API error: ${response.status}`);
+      const data = await response.json();
+
+      if (!data.ok) {
+        return res.status(400).json({ error: data.error || "Failed to fetch transactions" });
+      }
+
+      const transactions = (data.result || []).map((tx: any) => ({
+        hash: tx.transaction_id?.hash || "",
+        lt: tx.transaction_id?.lt || "",
+        timestamp: tx.utime,
+        fee: (parseInt(tx.fee || "0") / 1_000_000_000).toFixed(9),
+        inMsg: tx.in_msg ? {
+          source: tx.in_msg.source || "",
+          value: (parseInt(tx.in_msg.value || "0") / 1_000_000_000).toFixed(9),
+        } : null,
+        outMsgCount: tx.out_msgs?.length || 0,
+      }));
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch TON transactions" });
+    }
+  });
+
+  // Cosmos (ATOM) via public LCD REST API
+  app.get("/api/atom/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address.startsWith("cosmos1") || address.length < 39) {
+        return res.status(400).json({ error: "Invalid Cosmos address. Must start with cosmos1." });
+      }
+
+      const response = await fetch(`https://cosmos-rest.publicnode.com/cosmos/bank/v1beta1/balances/${address}`);
+      if (!response.ok) {
+        if (response.status === 400 || response.status === 500) {
+          return res.status(400).json({ error: "Invalid Cosmos address or address not found." });
+        }
+        throw new Error(`Cosmos LCD error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const balances = (data.balances || []).map((b: any) => {
+        if (b.denom === "uatom") {
+          return { denom: "ATOM", amount: (parseInt(b.amount) / 1_000_000).toFixed(6) };
+        }
+        return { denom: b.denom, amount: b.amount };
+      });
+
+      const atomBal = balances.find((b: any) => b.denom === "ATOM");
+
+      // Also fetch staking delegations
+      let stakedAmount = "0";
+      try {
+        const stakingRes = await fetch(`https://cosmos-rest.publicnode.com/cosmos/staking/v1beta1/delegations/${address}`);
+        if (stakingRes.ok) {
+          const stakingData = await stakingRes.json();
+          const totalStaked = (stakingData.delegation_responses || []).reduce((sum: number, d: any) => {
+            return sum + parseInt(d.balance?.amount || "0");
+          }, 0);
+          stakedAmount = (totalStaked / 1_000_000).toFixed(6);
+        }
+      } catch {}
+
+      res.json({
+        address,
+        balance: atomBal?.amount || "0",
+        staked: stakedAmount,
+        balances,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch Cosmos account" });
+    }
+  });
+
+  app.get("/api/atom/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address.startsWith("cosmos1") || address.length < 39) {
+        return res.status(400).json({ error: "Invalid Cosmos address" });
+      }
+
+      const response = await fetch(`https://cosmos-rest.publicnode.com/cosmos/tx/v1beta1/txs?events=message.sender%3D%27${address}%27&order_by=ORDER_BY_DESC&pagination.limit=15`);
+      if (!response.ok) throw new Error(`Cosmos LCD error: ${response.status}`);
+      const data = await response.json();
+
+      const transactions = (data.tx_responses || []).map((tx: any) => ({
+        hash: tx.txhash,
+        height: parseInt(tx.height),
+        timestamp: tx.timestamp,
+        gasUsed: tx.gas_used,
+        gasWanted: tx.gas_wanted,
+        success: tx.code === 0,
+        memo: tx.tx?.body?.memo || "",
+      }));
+
+      res.json({ address, total: parseInt(data.pagination?.total || "0"), transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch Cosmos transactions" });
+    }
+  });
+
+  // NEAR via public RPC
+  app.get("/api/near/account/:accountId", async (req, res) => {
+    try {
+      const { accountId } = req.params;
+      if (!accountId || accountId.length < 2 || accountId.length > 64) {
+        return res.status(400).json({ error: "Invalid NEAR account ID." });
+      }
+
+      const response = await fetch("https://rpc.mainnet.near.org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0", id: 1, method: "query",
+          params: { request_type: "view_account", finality: "final", account_id: accountId },
+        }),
+      });
+      if (!response.ok) throw new Error(`NEAR RPC error: ${response.status}`);
+      const data = await response.json();
+
+      if (data.error) {
+        if (data.error.cause?.name === "UNKNOWN_ACCOUNT") {
+          return res.status(404).json({ error: `NEAR account "${accountId}" not found.` });
+        }
+        throw new Error(data.error.message || data.error.cause?.name || "NEAR RPC error");
+      }
+
+      const r = data.result;
+      const balanceYocto = BigInt(r.amount || "0");
+      const balanceNear = Number(balanceYocto / BigInt(10 ** 18)) / 1_000_000;
+      const lockedYocto = BigInt(r.locked || "0");
+      const lockedNear = Number(lockedYocto / BigInt(10 ** 18)) / 1_000_000;
+
+      res.json({
+        accountId,
+        balance: balanceNear.toFixed(6),
+        locked: lockedNear.toFixed(6),
+        storageUsage: r.storage_usage,
+        blockHeight: r.block_height,
+        codeHash: r.code_hash,
+        hasContract: r.code_hash !== "11111111111111111111111111111111",
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch NEAR account" });
     }
   });
 

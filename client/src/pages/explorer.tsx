@@ -51,29 +51,29 @@ interface ChainInfo {
 
 const ALL_CHAINS: ChainInfo[] = [
   { id: "btc", name: "Bitcoin", symbol: "BTC", icon: "₿", color: "from-orange-500/20 to-orange-600/10 border-orange-500/30", description: "Address balance & transaction explorer", coingeckoId: "bitcoin", hasAddressLookup: true, apiPrefix: "btc", addressPlaceholder: "Enter Bitcoin address (bc1q...)", explorerUrl: "https://blockstream.info" },
-  { id: "eth", name: "Ethereum", symbol: "ETH", icon: "⟠", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30", description: "EVM wallet tracker with multi-chain support", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, internalRoute: "/" },
+  { id: "eth", name: "Ethereum", symbol: "ETH", icon: "⟠", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30", description: "EVM wallet tracker with multi-chain support", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
   { id: "sol", name: "Solana", symbol: "SOL", icon: "◎", color: "from-purple-500/20 to-purple-600/10 border-purple-500/30", description: "Account balance & recent transactions", coingeckoId: "solana", hasAddressLookup: true, apiPrefix: "sol", addressPlaceholder: "Enter Solana address (7v91N...)", explorerUrl: "https://solscan.io" },
   { id: "xrp", name: "XRP Ledger", symbol: "XRP", icon: "✕", color: "from-gray-400/20 to-gray-500/10 border-gray-400/30", description: "Full account, tokens, NFTs & transactions", coingeckoId: "ripple", hasAddressLookup: false, internalRoute: "/xrp" },
-  { id: "bnb", name: "BNB Chain", symbol: "BNB", icon: "◆", color: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30", description: "BEP-20 tokens & DeFi ecosystem", coingeckoId: "binancecoin", hasAddressLookup: false, isEvm: true, evmChainId: 56, internalRoute: "/" },
+  { id: "bnb", name: "BNB Chain", symbol: "BNB", icon: "◆", color: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30", description: "BEP-20 tokens & DeFi ecosystem", coingeckoId: "binancecoin", hasAddressLookup: false, isEvm: true, evmChainId: 56, internalRoute: "/wallet" },
   { id: "doge", name: "Dogecoin", symbol: "DOGE", icon: "Ð", color: "from-amber-500/20 to-amber-600/10 border-amber-500/30", description: "Address balance & transaction explorer", coingeckoId: "dogecoin", hasAddressLookup: true, apiPrefix: "doge", addressPlaceholder: "Enter Dogecoin address (D...)", explorerUrl: "https://dogechain.info" },
-  { id: "ada", name: "Cardano", symbol: "ADA", icon: "₳", color: "from-blue-600/20 to-blue-700/10 border-blue-600/30", description: "Proof-of-stake smart contract platform", coingeckoId: "cardano", hasAddressLookup: false },
+  { id: "ada", name: "Cardano", symbol: "ADA", icon: "₳", color: "from-blue-600/20 to-blue-700/10 border-blue-600/30", description: "Proof-of-stake smart contract platform", coingeckoId: "cardano", hasAddressLookup: true, apiPrefix: "ada", addressPlaceholder: "Enter Cardano address (addr1q...)" },
   { id: "trx", name: "TRON", symbol: "TRX", icon: "⟁", color: "from-red-500/20 to-red-600/10 border-red-500/30", description: "High-throughput blockchain network", coingeckoId: "tron", hasAddressLookup: true, apiPrefix: "trx", addressPlaceholder: "Enter TRON address (T...)", explorerUrl: "https://tronscan.org" },
-  { id: "avax", name: "Avalanche", symbol: "AVAX", icon: "🔺", color: "from-red-600/20 to-red-700/10 border-red-600/30", description: "High-speed smart contracts", coingeckoId: "avalanche-2", hasAddressLookup: false, isEvm: true, evmChainId: 43114, internalRoute: "/" },
-  { id: "ton", name: "Toncoin", symbol: "TON", icon: "💎", color: "from-sky-500/20 to-sky-600/10 border-sky-500/30", description: "Telegram's blockchain ecosystem", coingeckoId: "the-open-network", hasAddressLookup: false },
+  { id: "avax", name: "Avalanche", symbol: "AVAX", icon: "🔺", color: "from-red-600/20 to-red-700/10 border-red-600/30", description: "High-speed smart contracts", coingeckoId: "avalanche-2", hasAddressLookup: false, isEvm: true, evmChainId: 43114, internalRoute: "/wallet" },
+  { id: "ton", name: "Toncoin", symbol: "TON", icon: "💎", color: "from-sky-500/20 to-sky-600/10 border-sky-500/30", description: "Telegram's blockchain ecosystem", coingeckoId: "the-open-network", hasAddressLookup: true, apiPrefix: "ton", addressPlaceholder: "Enter TON address (EQ... or UQ...)" },
   { id: "dot", name: "Polkadot", symbol: "DOT", icon: "●", color: "from-pink-500/20 to-pink-600/10 border-pink-500/30", description: "Multi-chain interoperability", coingeckoId: "polkadot", hasAddressLookup: true, apiPrefix: "dot", addressPlaceholder: "Enter Polkadot address (1... or 5...)", explorerUrl: "https://subscan.io" },
-  { id: "link", name: "Chainlink", symbol: "LINK", icon: "⬡", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Decentralized oracle network (ERC-20)", coingeckoId: "chainlink", hasAddressLookup: false, isEvm: true, internalRoute: "/" },
+  { id: "link", name: "Chainlink", symbol: "LINK", icon: "⬡", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Decentralized oracle network (ERC-20)", coingeckoId: "chainlink", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
   { id: "ltc", name: "Litecoin", symbol: "LTC", icon: "Ł", color: "from-gray-400/20 to-gray-500/10 border-gray-400/30", description: "Digital silver peer-to-peer payments", coingeckoId: "litecoin", hasAddressLookup: true, apiPrefix: "ltc", addressPlaceholder: "Enter Litecoin address (L..., M..., ltc1...)", explorerUrl: "https://litecoinspace.org" },
-  { id: "shib", name: "Shiba Inu", symbol: "SHIB", icon: "🐕", color: "from-orange-400/20 to-orange-500/10 border-orange-400/30", description: "Community-driven memecoin (ERC-20)", coingeckoId: "shiba-inu", hasAddressLookup: false, isEvm: true, internalRoute: "/" },
+  { id: "shib", name: "Shiba Inu", symbol: "SHIB", icon: "🐕", color: "from-orange-400/20 to-orange-500/10 border-orange-400/30", description: "Community-driven memecoin (ERC-20)", coingeckoId: "shiba-inu", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
   { id: "bch", name: "Bitcoin Cash", symbol: "BCH", icon: "₿", color: "from-green-500/20 to-green-600/10 border-green-500/30", description: "Bitcoin fork for fast payments", coingeckoId: "bitcoin-cash", hasAddressLookup: true, apiPrefix: "bch", addressPlaceholder: "Enter BCH address (1..., q...)", explorerUrl: "https://blockchair.com/bitcoin-cash" },
   { id: "xem", name: "NEM", symbol: "XEM", icon: "✦", color: "from-teal-500/20 to-teal-600/10 border-teal-500/30", description: "Smart asset blockchain platform", coingeckoId: "nem", hasAddressLookup: true, apiPrefix: "xem", addressPlaceholder: "Enter NEM address (N...)", explorerUrl: "https://explorer.nemtool.com" },
   { id: "neo", name: "NEO", symbol: "NEO", icon: "◈", color: "from-green-400/20 to-green-500/10 border-green-400/30", description: "Smart economy blockchain (N3)", coingeckoId: "neo", hasAddressLookup: true, apiPrefix: "neo", addressPlaceholder: "Enter NEO address (N...)", explorerUrl: "https://dora.coz.io" },
   { id: "xlm", name: "Stellar", symbol: "XLM", icon: "✴", color: "from-violet-400/20 to-violet-500/10 border-violet-400/30", description: "Cross-border payment network", coingeckoId: "stellar", hasAddressLookup: true, apiPrefix: "xlm", addressPlaceholder: "Enter Stellar address (G...)", explorerUrl: "https://stellarchain.io" },
-  { id: "atom", name: "Cosmos", symbol: "ATOM", icon: "⚛", color: "from-indigo-500/20 to-indigo-600/10 border-indigo-500/30", description: "Internet of blockchains", coingeckoId: "cosmos", hasAddressLookup: false },
-  { id: "near", name: "NEAR Protocol", symbol: "NEAR", icon: "Ⓝ", color: "from-cyan-600/20 to-cyan-700/10 border-cyan-600/30", description: "Developer-friendly L1 platform", coingeckoId: "near", hasAddressLookup: false },
-  { id: "polygon", name: "Polygon", symbol: "MATIC", icon: "⬡", color: "from-purple-400/20 to-purple-500/10 border-purple-400/30", description: "Layer 2 scaling solution", coingeckoId: "matic-network", hasAddressLookup: false, isEvm: true, evmChainId: 137, internalRoute: "/" },
-  { id: "arbitrum", name: "Arbitrum", symbol: "ARB", icon: "🔵", color: "from-cyan-500/20 to-cyan-600/10 border-cyan-500/30", description: "Optimistic rollup L2", coingeckoId: "arbitrum", hasAddressLookup: false, isEvm: true, evmChainId: 42161, internalRoute: "/" },
-  { id: "optimism", name: "Optimism", symbol: "OP", icon: "🔴", color: "from-red-500/20 to-red-600/10 border-red-500/30", description: "OP Stack L2 network", coingeckoId: "optimism", hasAddressLookup: false, isEvm: true, evmChainId: 10, internalRoute: "/" },
-  { id: "base", name: "Base", symbol: "ETH", icon: "🔷", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Coinbase's L2 chain", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, evmChainId: 8453, internalRoute: "/" },
+  { id: "atom", name: "Cosmos", symbol: "ATOM", icon: "⚛", color: "from-indigo-500/20 to-indigo-600/10 border-indigo-500/30", description: "Internet of blockchains", coingeckoId: "cosmos", hasAddressLookup: true, apiPrefix: "atom", addressPlaceholder: "Enter Cosmos address (cosmos1...)" },
+  { id: "near", name: "NEAR Protocol", symbol: "NEAR", icon: "Ⓝ", color: "from-cyan-600/20 to-cyan-700/10 border-cyan-600/30", description: "Developer-friendly L1 platform", coingeckoId: "near", hasAddressLookup: true, apiPrefix: "near", addressPlaceholder: "Enter NEAR account (e.g. root.near)" },
+  { id: "polygon", name: "Polygon", symbol: "MATIC", icon: "⬡", color: "from-purple-400/20 to-purple-500/10 border-purple-400/30", description: "Layer 2 scaling solution", coingeckoId: "matic-network", hasAddressLookup: false, isEvm: true, evmChainId: 137, internalRoute: "/wallet" },
+  { id: "arbitrum", name: "Arbitrum", symbol: "ARB", icon: "🔵", color: "from-cyan-500/20 to-cyan-600/10 border-cyan-500/30", description: "Optimistic rollup L2", coingeckoId: "arbitrum", hasAddressLookup: false, isEvm: true, evmChainId: 42161, internalRoute: "/wallet" },
+  { id: "optimism", name: "Optimism", symbol: "OP", icon: "🔴", color: "from-red-500/20 to-red-600/10 border-red-500/30", description: "OP Stack L2 network", coingeckoId: "optimism", hasAddressLookup: false, isEvm: true, evmChainId: 10, internalRoute: "/wallet" },
+  { id: "base", name: "Base", symbol: "ETH", icon: "🔷", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Coinbase's L2 chain", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, evmChainId: 8453, internalRoute: "/wallet" },
 ];
 
 const TOP_CHAIN_IDS: ChainId[] = ["btc", "eth", "sol", "xrp", "bnb", "doge", "ada", "trx", "avax", "ton"];
@@ -558,6 +558,237 @@ function NeoExplorer({ chain }: { chain: ChainInfo }) {
   );
 }
 
+function AdaExplorer({ chain }: { chain: ChainInfo }) {
+  const [input, setInput] = useState("");
+  const [address, setAddress] = useState("");
+
+  const { data: accountData, isLoading, error } = useQuery({
+    queryKey: ["ada-account", address],
+    queryFn: async () => { const res = await fetch(`/api/ada/account/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const { data: txData } = useQuery({
+    queryKey: ["ada-transactions", address],
+    queryFn: async () => { const res = await fetch(`/api/ada/transactions/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input placeholder="Enter Cardano address (addr1q...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-ada-address" />
+        <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-ada-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
+      </div>
+      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
+      {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-ada-error">{(error as Error).message}</div>}
+      {accountData && (
+        <Card className="glass-panel border-blue-600/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-blue-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-blue-400" data-testid="text-ada-balance">{accountData.balance} ADA</p></div>
+              <div><p className="text-xs text-muted-foreground">UTXOs</p><p className="font-mono" data-testid="text-ada-utxos">{accountData.utxoCount}</p></div>
+              {accountData.stakeAddress && <div><p className="text-xs text-muted-foreground">Stake Address</p><p className="font-mono text-xs text-muted-foreground" data-testid="text-ada-stake">{truncateHash(accountData.stakeAddress)}</p></div>}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-mono" data-testid="text-ada-addr">{truncateHash(accountData.address)}</span>
+              <CopyButton text={accountData.address} id="ada-addr" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {txData?.transactions?.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-blue-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.transactions.length}</Badge></div>
+          {txData.transactions.map((tx: any, i: number) => (
+            <Card key={tx.hash || i} className="glass-panel border-border/50" data-testid={`card-ada-tx-${i}`}>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-1"><span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.hash)}</span><CopyButton text={tx.hash} id={`ada-tx-${i}`} /></div>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Block:</span> <span className="font-mono">{tx.blockHeight?.toLocaleString()}</span></div>
+                  <div><span className="text-muted-foreground">Epoch:</span> <span className="font-mono">{tx.epoch}</span></div>
+                  <div><span className="text-muted-foreground">Time:</span> <span>{tx.blockTime ? timeAgo(tx.blockTime) : "—"}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TonExplorer({ chain }: { chain: ChainInfo }) {
+  const [input, setInput] = useState("");
+  const [address, setAddress] = useState("");
+
+  const { data: accountData, isLoading, error } = useQuery({
+    queryKey: ["ton-account", address],
+    queryFn: async () => { const res = await fetch(`/api/ton/account/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const { data: txData } = useQuery({
+    queryKey: ["ton-transactions", address],
+    queryFn: async () => { const res = await fetch(`/api/ton/transactions/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input placeholder="Enter TON address (EQ... or UQ...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-ton-address" />
+        <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-ton-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
+      </div>
+      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
+      {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-ton-error">{(error as Error).message}</div>}
+      {accountData && (
+        <Card className="glass-panel border-sky-500/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-sky-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-sky-400" data-testid="text-ton-balance">{accountData.balance} TON</p></div>
+              <div><p className="text-xs text-muted-foreground">State</p><p className="font-mono" data-testid="text-ton-state"><Badge variant="outline" className={accountData.state === "active" ? "text-green-400 border-green-400/30" : "text-yellow-400 border-yellow-400/30"}>{accountData.state}</Badge></p></div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {txData?.transactions?.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-sky-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.transactions.length}</Badge></div>
+          {txData.transactions.map((tx: any, i: number) => (
+            <Card key={tx.lt || i} className="glass-panel border-border/50" data-testid={`card-ton-tx-${i}`}>
+              <CardContent className="p-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Value:</span> <span className="font-mono">{tx.inMsg?.value || "0"} TON</span></div>
+                  <div><span className="text-muted-foreground">Fee:</span> <span className="font-mono text-yellow-400">{tx.fee} TON</span></div>
+                  <div><span className="text-muted-foreground">Out msgs:</span> <span className="font-mono">{tx.outMsgCount}</span></div>
+                  <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(tx.timestamp) : "—"}</span></div>
+                </div>
+                {tx.inMsg?.source && <p className="text-[10px] text-muted-foreground mt-1">From: <span className="font-mono">{truncateHash(tx.inMsg.source)}</span></p>}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AtomExplorer({ chain }: { chain: ChainInfo }) {
+  const [input, setInput] = useState("");
+  const [address, setAddress] = useState("");
+
+  const { data: accountData, isLoading, error } = useQuery({
+    queryKey: ["atom-account", address],
+    queryFn: async () => { const res = await fetch(`/api/atom/account/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const { data: txData } = useQuery({
+    queryKey: ["atom-transactions", address],
+    queryFn: async () => { const res = await fetch(`/api/atom/transactions/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address,
+  });
+
+  const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input placeholder="Enter Cosmos address (cosmos1...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-atom-address" />
+        <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-atom-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
+      </div>
+      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
+      {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-atom-error">{(error as Error).message}</div>}
+      {accountData && (
+        <Card className="glass-panel border-indigo-500/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-indigo-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div><p className="text-xs text-muted-foreground">Available</p><p className="font-mono text-lg font-semibold text-indigo-400" data-testid="text-atom-balance">{accountData.balance} ATOM</p></div>
+              <div><p className="text-xs text-muted-foreground">Staked</p><p className="font-mono text-sm text-green-400" data-testid="text-atom-staked">{accountData.staked} ATOM</p></div>
+              {accountData.balances?.length > 1 && <div><p className="text-xs text-muted-foreground">Other Tokens</p><p className="font-mono text-sm">{accountData.balances.length - 1}</p></div>}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-mono" data-testid="text-atom-addr">{truncateHash(accountData.address)}</span>
+              <CopyButton text={accountData.address} id="atom-addr" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {txData?.transactions?.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-indigo-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.total} total</Badge></div>
+          {txData.transactions.map((tx: any, i: number) => (
+            <Card key={tx.hash || i} className="glass-panel border-border/50" data-testid={`card-atom-tx-${i}`}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.hash)}</span><CopyButton text={tx.hash} id={`atom-tx-${i}`} /></div>
+                  {tx.success ? (<Badge variant="outline" className="text-green-400 border-green-400/30 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />OK</Badge>) : (<Badge variant="outline" className="text-red-400 border-red-400/30 text-[10px]"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>)}
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Height:</span> <span className="font-mono">{tx.height?.toLocaleString()}</span></div>
+                  <div><span className="text-muted-foreground">Gas:</span> <span className="font-mono">{tx.gasUsed}/{tx.gasWanted}</span></div>
+                  <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(Math.floor(new Date(tx.timestamp).getTime() / 1000)) : "—"}</span></div>
+                </div>
+                {tx.memo && <p className="text-[10px] text-muted-foreground mt-1 truncate">Memo: {tx.memo}</p>}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NearExplorer({ chain }: { chain: ChainInfo }) {
+  const [input, setInput] = useState("");
+  const [accountId, setAccountId] = useState("");
+
+  const { data: accountData, isLoading, error } = useQuery({
+    queryKey: ["near-account", accountId],
+    queryFn: async () => { const res = await fetch(`/api/near/account/${accountId}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!accountId,
+  });
+
+  const handleSearch = () => { if (input.trim()) setAccountId(input.trim()); };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input placeholder="Enter NEAR account (e.g. root.near)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-near-address" />
+        <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-near-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
+      </div>
+      {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
+      {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-near-error">{(error as Error).message}</div>}
+      {accountData && (
+        <Card className="glass-panel border-cyan-600/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-cyan-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-cyan-400" data-testid="text-near-balance">{accountData.balance} NEAR</p></div>
+              <div><p className="text-xs text-muted-foreground">Locked</p><p className="font-mono text-sm" data-testid="text-near-locked">{accountData.locked} NEAR</p></div>
+              <div><p className="text-xs text-muted-foreground">Storage</p><p className="font-mono text-sm" data-testid="text-near-storage">{(accountData.storageUsage / 1024).toFixed(1)} KB</p></div>
+              <div><p className="text-xs text-muted-foreground">Block Height</p><p className="font-mono text-sm" data-testid="text-near-block">{accountData.blockHeight?.toLocaleString()}</p></div>
+              <div><p className="text-xs text-muted-foreground">Has Contract</p><p className="font-mono text-sm" data-testid="text-near-contract">{accountData.hasContract ? "Yes" : "No"}</p></div>
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-mono" data-testid="text-near-accountid">{accountData.accountId}</span>
+              <CopyButton text={accountData.accountId} id="near-account" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function DotExplorer({ chain }: { chain: ChainInfo }) {
   const [input, setInput] = useState("");
   const [address, setAddress] = useState("");
@@ -788,6 +1019,10 @@ function ChainExplorerView({ chainId }: { chainId: ChainId }) {
       case "xem": return <XemExplorer chain={chain} />;
       case "neo": return <NeoExplorer chain={chain} />;
       case "dot": return <DotExplorer chain={chain} />;
+      case "ada": return <AdaExplorer chain={chain} />;
+      case "ton": return <TonExplorer chain={chain} />;
+      case "atom": return <AtomExplorer chain={chain} />;
+      case "near": return <NearExplorer chain={chain} />;
       case "btc": return <BlockcypherExplorer chain={chain} symbol="BTC" addressApiPrefix="btc" txApiPrefix="btc" explorerBaseUrl="https://blockstream.info" />;
       case "doge": return <BlockcypherExplorer chain={chain} symbol="DOGE" addressApiPrefix="doge" txApiPrefix="doge" explorerBaseUrl="https://dogechain.info" />;
       case "ltc": return <BlockcypherExplorer chain={chain} symbol="LTC" addressApiPrefix="ltc" txApiPrefix="ltc" explorerBaseUrl="https://litecoinspace.org" />;

@@ -11,8 +11,8 @@ export function Footer() {
           <span className="text-xs text-muted-foreground ml-2">Free Multi-Chain Crypto Platform</span>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <Link href="/" className="hover:text-foreground transition-colors" data-testid="footer-link-tracker">Tracker</Link>
-          <Link href="/explorer" className="hover:text-foreground transition-colors" data-testid="footer-link-explorer">Explorer</Link>
+          <Link href="/" className="hover:text-foreground transition-colors" data-testid="footer-link-explorer">Explorer</Link>
+          <Link href="/wallet" className="hover:text-foreground transition-colors" data-testid="footer-link-tracker">Wallet Tracker</Link>
           <Link href="/prices" className="hover:text-foreground transition-colors" data-testid="footer-link-prices">Prices</Link>
           <Link href="/watchlist" className="hover:text-foreground transition-colors" data-testid="footer-link-watchlist">Watchlist</Link>
           <Link href="/staking" className="hover:text-foreground transition-colors" data-testid="footer-link-staking">Staking</Link>

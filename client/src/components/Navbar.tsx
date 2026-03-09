@@ -5,8 +5,8 @@ import { useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
 
 const NAV_LINKS = [
-  { path: "/", label: "Wallet Tracker" },
-  { path: "/explorer", label: "Explorer" },
+  { path: "/", label: "Explorer" },
+  { path: "/wallet", label: "Wallet Tracker" },
   { path: "/prices", label: "Prices" },
   { path: "/watchlist", label: "Watchlist" },
   { path: "/staking", label: "Staking" },

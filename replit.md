@@ -13,11 +13,12 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 ## Key Features
 - Wallet address lookup with real-time balance display
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
-- Multi-Chain Explorer hub at `/explorer` — 24+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
+- Multi-Chain Explorer hub at `/` (HOME PAGE) — 24+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
+- Wallet Tracker moved to `/wallet`
 - Every chain shows live CoinGecko coin info (price, market cap, volume, ATH, supply, description) via `/api/coin/:id`
-- Address lookup built-in for: BTC (Blockstream), SOL (Solana RPC), DOGE/LTC/BCH (Blockcypher), TRX (TronGrid), XLM (Stellar Horizon), XEM (NEM NIS), NEO (NEO N3 RPC)
-- Chains without address APIs (ADA, TON, ATOM, NEAR) show full coin info; ERC-20 tokens (LINK, SHIB) link to Wallet Tracker
+- Address lookup built-in for: BTC (Blockstream), SOL (Solana RPC), DOGE/LTC/BCH (Blockcypher), TRX (TronGrid), XLM (Stellar Horizon), XEM (NEM NIS), NEO (NEO N3 RPC), ADA (Koios), TON (Toncenter), ATOM (Cosmos LCD), NEAR (NEAR RPC)
 - Polkadot (DOT) address lookup via Subscan API (free, no key) — balance, locked, reserved, bonded, unbonding + transfer history
+- ERC-20 tokens (LINK, SHIB) link to Wallet Tracker at `/wallet`
 - XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
 - Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration
 - Transaction history + token transfer tracking
@@ -79,6 +80,15 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/xem/transactions/:address` - NEM recent transactions via NIS
 - `GET /api/neo/account/:address` - NEO N3 token balances (NEO, GAS) via RPC
 - `GET /api/neo/transactions/:address` - NEO N3 recent transfers via RPC
+- `GET /api/ada/account/:address` - Cardano address info (balance, UTXOs, stake address) via Koios
+- `GET /api/ada/transactions/:address` - Cardano recent transactions via Koios
+- `GET /api/ton/account/:address` - TON address info (balance, state) via Toncenter
+- `GET /api/ton/transactions/:address` - TON recent transactions via Toncenter
+- `GET /api/atom/account/:address` - Cosmos account balances + staking via LCD REST
+- `GET /api/atom/transactions/:address` - Cosmos recent transactions via LCD REST
+- `GET /api/near/account/:accountId` - NEAR account info (balance, locked, storage, contract) via RPC
+- `GET /api/dot/account/:address` - Polkadot address info via Subscan
+- `GET /api/dot/transactions/:address` - Polkadot recent transfers via Subscan
 - `GET /api/coin/:id` - Detailed coin info from CoinGecko (price, market cap, ATH, supply, description)
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)

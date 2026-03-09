@@ -17,8 +17,8 @@ import AdminPage from "@/pages/admin";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard}/>
-      <Route path="/explorer" component={ExplorerPage}/>
+      <Route path="/" component={ExplorerPage}/>
+      <Route path="/wallet" component={Dashboard}/>
       <Route path="/prices" component={PricesPage}/>
       <Route path="/watchlist" component={WatchlistPage}/>
       <Route path="/xrp" component={XrpExplorerPage}/>
