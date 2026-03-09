@@ -6,12 +6,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/use-theme";
 
 const NAV_LINKS = [
+  { path: "/dashboard", label: "Dashboard" },
   { path: "/", label: "Explorer" },
   { path: "/wallet", label: "Wallet Tracker" },
   { path: "/prices", label: "Prices" },
   { path: "/exchanges", label: "Exchanges" },
   { path: "/swap", label: "Swap" },
   { path: "/watchlist", label: "Watchlist" },
+  { path: "/alerts", label: "Alerts" },
+  { path: "/portfolio", label: "Portfolio" },
   { path: "/staking", label: "Staking" },
   { path: "/news", label: "News" },
   { path: "/masternodes", label: "Masternodes" },

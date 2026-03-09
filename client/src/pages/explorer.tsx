@@ -38,7 +38,8 @@ import { useToast } from "@/hooks/use-toast";
 
 type ChainId = "overview" | "btc" | "eth" | "sol" | "xrp" | "bnb" | "doge" | "ada" | "trx" | "avax" | "ton" |
   "dot" | "link" | "ltc" | "shib" | "bch" | "xem" | "neo" | "xlm" | "atom" | "near" |
-  "polygon" | "arbitrum" | "optimism" | "base";
+  "polygon" | "arbitrum" | "optimism" | "base" |
+  "ftm" | "cro" | "sui" | "apt" | "sei" | "inj" | "mnt" | "celo" | "kava" | "zk";
 
 interface ChainInfo {
   id: ChainId;
@@ -82,11 +83,22 @@ const ALL_CHAINS: ChainInfo[] = [
   { id: "arbitrum", name: "Arbitrum", symbol: "ARB", icon: "🔵", color: "from-cyan-500/20 to-cyan-600/10 border-cyan-500/30", description: "Optimistic rollup L2", coingeckoId: "arbitrum", hasAddressLookup: false, isEvm: true, evmChainId: 42161, internalRoute: "/wallet" },
   { id: "optimism", name: "Optimism", symbol: "OP", icon: "🔴", color: "from-red-500/20 to-red-600/10 border-red-500/30", description: "OP Stack L2 network", coingeckoId: "optimism", hasAddressLookup: false, isEvm: true, evmChainId: 10, internalRoute: "/wallet" },
   { id: "base", name: "Base", symbol: "ETH", icon: "🔷", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Coinbase's L2 chain", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, evmChainId: 8453, internalRoute: "/wallet" },
+  { id: "ftm", name: "Fantom", symbol: "FTM", icon: "👻", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30", description: "Fast DAG-based smart contract platform", coingeckoId: "fantom", hasAddressLookup: false, isEvm: true, evmChainId: 250, internalRoute: "/wallet" },
+  { id: "cro", name: "Cronos", symbol: "CRO", icon: "🔵", color: "from-indigo-400/20 to-indigo-500/10 border-indigo-400/30", description: "Crypto.com's EVM-compatible chain", coingeckoId: "crypto-com-chain", hasAddressLookup: false, isEvm: true, evmChainId: 25, internalRoute: "/wallet" },
+  { id: "sui", name: "Sui", symbol: "SUI", icon: "💧", color: "from-sky-400/20 to-sky-500/10 border-sky-400/30", description: "Move-based L1 with parallel execution", coingeckoId: "sui", hasAddressLookup: false },
+  { id: "apt", name: "Aptos", symbol: "APT", icon: "🌀", color: "from-emerald-400/20 to-emerald-500/10 border-emerald-400/30", description: "Move-based L1 from Meta's Diem team", coingeckoId: "aptos", hasAddressLookup: false },
+  { id: "sei", name: "Sei", symbol: "SEI", icon: "🌊", color: "from-rose-400/20 to-rose-500/10 border-rose-400/30", description: "Fastest L1 optimized for trading", coingeckoId: "sei-network", hasAddressLookup: false },
+  { id: "inj", name: "Injective", symbol: "INJ", icon: "💉", color: "from-cyan-400/20 to-cyan-500/10 border-cyan-400/30", description: "DeFi-focused interoperable L1 blockchain", coingeckoId: "injective-protocol", hasAddressLookup: false },
+  { id: "mnt", name: "Mantle", symbol: "MNT", icon: "🟢", color: "from-green-500/20 to-green-600/10 border-green-500/30", description: "Modular L2 with EigenDA integration", coingeckoId: "mantle", hasAddressLookup: false, isEvm: true, evmChainId: 5000, internalRoute: "/wallet" },
+  { id: "celo", name: "Celo", symbol: "CELO", icon: "🌿", color: "from-lime-400/20 to-lime-500/10 border-lime-400/30", description: "Mobile-first DeFi blockchain platform", coingeckoId: "celo", hasAddressLookup: false, isEvm: true, evmChainId: 42220, internalRoute: "/wallet" },
+  { id: "kava", name: "Kava", symbol: "KAVA", icon: "🔶", color: "from-orange-400/20 to-orange-500/10 border-orange-400/30", description: "Cosmos-Ethereum hybrid DeFi chain", coingeckoId: "kava", hasAddressLookup: false },
+  { id: "zk", name: "zkSync Era", symbol: "ETH", icon: "⚡", color: "from-violet-500/20 to-violet-600/10 border-violet-500/30", description: "ZK rollup L2 with account abstraction", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, evmChainId: 324, internalRoute: "/wallet" },
 ];
 
 const TOP_CHAIN_IDS: ChainId[] = ["btc", "eth", "sol", "xrp", "bnb", "doge", "ada", "trx", "avax", "ton"];
 const MORE_CHAIN_IDS: ChainId[] = ["dot", "link", "ltc", "shib", "bch", "xem", "neo", "xlm", "atom", "near"];
-const EVM_CHAIN_IDS: ChainId[] = ["polygon", "arbitrum", "optimism", "base"];
+const NEW_L1_IDS: ChainId[] = ["sui", "apt", "sei", "inj", "kava"];
+const EVM_CHAIN_IDS: ChainId[] = ["polygon", "arbitrum", "optimism", "base", "ftm", "cro", "mnt", "celo", "zk"];
 
 function getChain(id: ChainId): ChainInfo {
   return ALL_CHAINS.find(c => c.id === id)!;
@@ -1248,6 +1260,7 @@ interface SectionConfig {
 const DEFAULT_SECTIONS: SectionConfig[] = [
   { id: "top-chains", title: "Top Chains", subtitle: "Top cryptocurrencies by market cap — click to explore", chainIds: TOP_CHAIN_IDS, visible: true },
   { id: "more-chains", title: "More Chains", subtitle: "Additional blockchains with live market data and address lookup", chainIds: MORE_CHAIN_IDS, visible: true },
+  { id: "new-l1s", title: "Next-Gen L1s", subtitle: "Emerging Layer 1 blockchains — Sui, Aptos, Sei, and more", chainIds: NEW_L1_IDS, visible: true },
   { id: "evm-chains", title: "EVM Networks", subtitle: "Layer 2 and EVM-compatible chains — tracked via the Wallet Tracker", chainIds: EVM_CHAIN_IDS, visible: true },
 ];
 
@@ -1396,7 +1409,7 @@ export default function ExplorerPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-bold mb-2" data-testid="text-explorer-title">Multi-Chain Explorer</h1>
-            <p className="text-muted-foreground" data-testid="text-explorer-subtitle">Explore wallets and transactions across 24+ blockchains — all built-in, all free</p>
+            <p className="text-muted-foreground" data-testid="text-explorer-subtitle">Explore wallets and transactions across 35+ blockchains — all built-in, all free</p>
           </div>
           {view === "overview" && (
             <Button variant="outline" size="sm" onClick={() => setShowCustomize(true)} className="shrink-0 mt-1" data-testid="button-customize-sections">
@@ -1427,29 +1440,6 @@ export default function ExplorerPage() {
         )}
 
         {view !== "overview" && <ChainExplorerView chainId={view} />}
-
-        {view === "overview" && (
-          <section className="mt-8">
-            <h2 className="text-xl font-display font-bold mb-4 text-foreground" data-testid="text-roadmap-title">Roadmap</h2>
-            <div className="flex flex-col gap-3">
-              {[
-                "Add real-time price alerts with customizable thresholds.",
-                "Introduce a portfolio performance chart with historical data.",
-                "Implement a news sentiment analysis feature for cryptocurrencies.",
-                "Create a customizable dashboard with drag-and-drop widgets.",
-                "Add support for more exchanges and blockchain networks.",
-              ].map((item, i) => (
-                <div
-                  key={i}
-                  className="glass-panel border border-border/50 rounded-xl px-5 py-3.5 text-sm text-muted-foreground"
-                  data-testid={`text-roadmap-item-${i}`}
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         <AdBanner slot="explorer-bottom" className="mt-8" />
       </main>

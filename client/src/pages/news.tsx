@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import {
   Loader2,
@@ -10,6 +10,10 @@ import {
   Globe,
   Flag,
   Bitcoin,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  BarChart3,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +27,152 @@ function timeAgo(ts: number): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+const BULLISH_KEYWORDS = [
+  "surge", "surges", "surging", "soar", "soars", "soaring", "rally", "rallies", "rallying",
+  "bullish", "bull run", "breakout", "moon", "mooning", "pump", "pumping", "pumps",
+  "all-time high", "ath", "record high", "new high", "gain", "gains", "gaining",
+  "rise", "rises", "rising", "jump", "jumps", "jumping", "spike", "spikes", "spiking",
+  "recover", "recovers", "recovery", "rebound", "rebounds", "rebounding",
+  "boom", "booming", "booms", "upgrade", "upgrades", "upside", "outperform",
+  "adoption", "partnership", "launch", "launches", "launched", "milestone",
+  "institutional", "approval", "approved", "optimistic", "momentum", "growth",
+  "breakthrough", "positive", "support", "supports", "bullish signal",
+  "buy signal", "accumulate", "accumulating", "whale buying", "inflow", "inflows",
+  "etf approval", "spot etf", "mainstream", "integration",
+];
+
+const BEARISH_KEYWORDS = [
+  "crash", "crashes", "crashing", "plunge", "plunges", "plunging", "dump", "dumps", "dumping",
+  "bearish", "bear market", "sell-off", "selloff", "selling", "decline", "declines", "declining",
+  "drop", "drops", "dropping", "fall", "falls", "falling", "tank", "tanks", "tanking",
+  "collapse", "collapses", "collapsing", "slump", "slumps", "slumping",
+  "liquidation", "liquidated", "liquidations", "fear", "panic", "scam", "hack", "hacked",
+  "exploit", "exploited", "rug pull", "rugpull", "fraud", "fraudulent",
+  "ban", "bans", "banned", "crackdown", "restrict", "restricts", "restriction",
+  "lawsuit", "sued", "investigation", "sec charges", "regulatory action",
+  "warning", "risk", "risky", "bubble", "overvalued", "downgrade", "downgrades",
+  "outflow", "outflows", "whale selling", "capitulation", "bearish signal",
+  "sell signal", "bankruptcy", "bankrupt", "insolvent", "default",
+  "vulnerability", "breach", "stolen", "theft", "loss", "losses",
+];
+
+type Sentiment = "bullish" | "bearish" | "neutral";
+
+function analyzeSentiment(article: any): { sentiment: Sentiment; score: number } {
+  const text = `${article.title || ""} ${article.body || ""}`.toLowerCase();
+  let score = 0;
+  for (const keyword of BULLISH_KEYWORDS) {
+    if (text.includes(keyword)) score += 1;
+  }
+  for (const keyword of BEARISH_KEYWORDS) {
+    if (text.includes(keyword)) score -= 1;
+  }
+  if (score >= 2) return { sentiment: "bullish", score };
+  if (score <= -2) return { sentiment: "bearish", score };
+  return { sentiment: "neutral", score };
+}
+
+function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
+  if (sentiment === "bullish") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-green-500/15 text-green-400 border-green-500/30 text-[10px] gap-1"
+        data-testid="badge-sentiment-bullish"
+      >
+        <TrendingUp className="w-3 h-3" />
+        Bullish
+      </Badge>
+    );
+  }
+  if (sentiment === "bearish") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-red-500/15 text-red-400 border-red-500/30 text-[10px] gap-1"
+        data-testid="badge-sentiment-bearish"
+      >
+        <TrendingDown className="w-3 h-3" />
+        Bearish
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="bg-yellow-500/15 text-yellow-400 border-yellow-500/30 text-[10px] gap-1"
+      data-testid="badge-sentiment-neutral"
+    >
+      <Minus className="w-3 h-3" />
+      Neutral
+    </Badge>
+  );
+}
+
+function MarketSentimentSummary({ articles }: { articles: any[] }) {
+  const stats = useMemo(() => {
+    let bullish = 0, bearish = 0, neutral = 0;
+    for (const article of articles) {
+      const { sentiment } = analyzeSentiment(article);
+      if (sentiment === "bullish") bullish++;
+      else if (sentiment === "bearish") bearish++;
+      else neutral++;
+    }
+    const total = articles.length || 1;
+    const bullishPct = Math.round((bullish / total) * 100);
+    const bearishPct = Math.round((bearish / total) * 100);
+    const neutralPct = 100 - bullishPct - bearishPct;
+    let overall: Sentiment = "neutral";
+    if (bullishPct > bearishPct + 10) overall = "bullish";
+    else if (bearishPct > bullishPct + 10) overall = "bearish";
+    return { bullish, bearish, neutral, bullishPct, bearishPct, neutralPct, overall, total };
+  }, [articles]);
+
+  if (articles.length === 0) return null;
+
+  const overallColor = stats.overall === "bullish" ? "text-green-400" : stats.overall === "bearish" ? "text-red-400" : "text-yellow-400";
+  const overallBg = stats.overall === "bullish" ? "bg-green-500/10 border-green-500/20" : stats.overall === "bearish" ? "bg-red-500/10 border-red-500/20" : "bg-yellow-500/10 border-yellow-500/20";
+  const OverallIcon = stats.overall === "bullish" ? TrendingUp : stats.overall === "bearish" ? TrendingDown : Minus;
+
+  return (
+    <div className={`glass-panel rounded-xl p-4 mb-6 border ${overallBg}`} data-testid="market-sentiment-summary">
+      <div className="flex items-center gap-3 mb-3">
+        <BarChart3 className={`w-5 h-5 ${overallColor}`} />
+        <h3 className="text-sm font-semibold text-foreground">Market Sentiment</h3>
+        <div className={`flex items-center gap-1.5 ml-auto ${overallColor}`}>
+          <OverallIcon className="w-4 h-4" />
+          <span className="text-sm font-medium capitalize" data-testid="text-overall-sentiment">{stats.overall}</span>
+        </div>
+      </div>
+      <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-3">
+        {stats.bullishPct > 0 && (
+          <div className="bg-green-500 rounded-l-full" style={{ width: `${stats.bullishPct}%` }} />
+        )}
+        {stats.neutralPct > 0 && (
+          <div className="bg-yellow-500" style={{ width: `${stats.neutralPct}%` }} />
+        )}
+        {stats.bearishPct > 0 && (
+          <div className="bg-red-500 rounded-r-full" style={{ width: `${stats.bearishPct}%` }} />
+        )}
+      </div>
+      <div className="flex justify-between text-xs">
+        <span className="text-green-400" data-testid="text-bullish-count">
+          <TrendingUp className="w-3 h-3 inline mr-1" />
+          Bullish {stats.bullish} ({stats.bullishPct}%)
+        </span>
+        <span className="text-yellow-400" data-testid="text-neutral-count">
+          <Minus className="w-3 h-3 inline mr-1" />
+          Neutral {stats.neutral} ({stats.neutralPct}%)
+        </span>
+        <span className="text-red-400" data-testid="text-bearish-count">
+          <TrendingDown className="w-3 h-3 inline mr-1" />
+          Bearish {stats.bearish} ({stats.bearishPct}%)
+        </span>
+      </div>
+    </div>
+  );
 }
 
 const CRYPTO_CATEGORY_MAP: Record<string, string[]> = {
@@ -54,6 +204,7 @@ function getCryptoCategoryCounts(articles: any[]): Record<string, number> {
 }
 
 type FeedType = "crypto" | "world" | "usa";
+type SentimentFilter = "all" | "bullish" | "bearish" | "neutral";
 
 const FEED_TABS: { key: FeedType; label: string; icon: any; description: string }[] = [
   { key: "crypto", label: "Crypto", icon: Bitcoin, description: "Cryptocurrency & blockchain news" },
@@ -61,7 +212,15 @@ const FEED_TABS: { key: FeedType; label: string; icon: any; description: string 
   { key: "usa", label: "USA", icon: Flag, description: "United States news & trending" },
 ];
 
+const SENTIMENT_FILTERS: { key: SentimentFilter; label: string; icon: any; color: string; activeColor: string }[] = [
+  { key: "all", label: "All", icon: BarChart3, color: "bg-muted/30 border-border text-muted-foreground hover:text-foreground hover:bg-muted/50", activeColor: "bg-primary text-primary-foreground hover:bg-primary/90" },
+  { key: "bullish", label: "Bullish", icon: TrendingUp, color: "bg-muted/30 border-border text-muted-foreground hover:text-green-400 hover:bg-green-500/10", activeColor: "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30" },
+  { key: "neutral", label: "Neutral", icon: Minus, color: "bg-muted/30 border-border text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10", activeColor: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30" },
+  { key: "bearish", label: "Bearish", icon: TrendingDown, color: "bg-muted/30 border-border text-muted-foreground hover:text-red-400 hover:bg-red-500/10", activeColor: "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30" },
+];
+
 function NewsCard({ article, index }: { article: any; index: number }) {
+  const { sentiment } = analyzeSentiment(article);
   return (
     <a
       href={article.url}
@@ -95,6 +254,7 @@ function NewsCard({ article, index }: { article: any; index: number }) {
                 {article.categories.split("|")[0]}
               </Badge>
             )}
+            <SentimentBadge sentiment={sentiment} />
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {timeAgo(article.publishedAt)}
@@ -126,6 +286,7 @@ export default function NewsPage() {
   const [feedType, setFeedType] = useState<FeedType>("crypto");
   const [activeCategory, setActiveCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"latest" | "archive">("latest");
+  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("all");
 
   const cryptoQuery = useQuery({
     queryKey: ["/api/news"],
@@ -226,6 +387,15 @@ export default function NewsPage() {
     pageDescription = `${usaArticles.length} articles from US sources`;
   }
 
+  const articlesBeforeSentimentFilter = displayArticles;
+
+  if (sentimentFilter !== "all") {
+    displayArticles = displayArticles.filter((a: any) => {
+      const { sentiment } = analyzeSentiment(a);
+      return sentiment === sentimentFilter;
+    });
+  }
+
   const cryptoCounts = getCryptoCategoryCounts(
     viewMode === "archive" ? uniqueArchive : cryptoArticles
   );
@@ -233,6 +403,7 @@ export default function NewsPage() {
   const handleFeedChange = (feed: FeedType) => {
     setFeedType(feed);
     setActiveCategory("All");
+    setSentimentFilter("all");
     if (feed !== "crypto") setViewMode("latest");
   };
 
@@ -354,6 +525,29 @@ export default function NewsPage() {
           </div>
         )}
 
+        <div className="flex gap-2 flex-wrap mb-5" data-testid="sentiment-filter-tabs">
+          {SENTIMENT_FILTERS.map((sf) => {
+            const Icon = sf.icon;
+            return (
+              <Button
+                key={sf.key}
+                variant="outline"
+                size="sm"
+                onClick={() => setSentimentFilter(sf.key)}
+                className={`text-xs ${sentimentFilter === sf.key ? sf.activeColor : sf.color}`}
+                data-testid={`button-sentiment-${sf.key}`}
+              >
+                <Icon className="w-3.5 h-3.5 mr-1.5" />
+                {sf.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {!isLoading && articlesBeforeSentimentFilter.length > 0 && feedType === "crypto" && (
+          <MarketSentimentSummary articles={articlesBeforeSentimentFilter} />
+        )}
+
         {isLoading ? (
           <div className="p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
@@ -361,7 +555,9 @@ export default function NewsPage() {
           </div>
         ) : displayArticles.length === 0 ? (
           <div className="glass-panel p-12 rounded-2xl text-center text-muted-foreground">
-            {feedType === "crypto" && activeCategory !== "All"
+            {sentimentFilter !== "all"
+              ? `No ${sentimentFilter} articles found. Try a different sentiment filter.`
+              : feedType === "crypto" && activeCategory !== "All"
               ? `No ${activeCategory} news right now. Try another category.`
               : "No news available right now. Check back soon."}
           </div>

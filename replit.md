@@ -13,7 +13,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 ## Key Features
 - Wallet address lookup with real-time balance display
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
-- Multi-Chain Explorer hub at `/` (HOME PAGE) — 24+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
+- Multi-Chain Explorer hub at `/` (HOME PAGE) — 35+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base, Fantom, Cronos, Mantle, Celo, zkSync Era), "Next-Gen L1s" (Sui, Aptos, Sei, Injective, Kava)
 - Wallet Tracker moved to `/wallet`
 - Every chain shows live CoinGecko coin info (price, market cap, volume, ATH, supply, description) via `/api/coin/:id`
 - Address lookup built-in for: BTC (Blockstream), SOL (Solana RPC), DOGE/LTC/BCH (Blockcypher), TRX (TronGrid), XLM (Stellar Horizon), XEM (NEM NIS), NEO (NEO N3 RPC), ADA (Koios), TON (Toncenter), ATOM (Cosmos LCD), NEAR (NEAR RPC)
@@ -25,7 +25,11 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Coin of the Day — picks from top 100 coins by market cap (via `/api/coin-of-the-day`), deterministic daily rotation, explorer homepage with live price, 24h change, market cap, and rank badge
 - Fear & Greed Index — live gauge widget on explorer homepage (compact) and prices page (full), powered by Alternative.me API, 7-day history bar chart, cached 10 min via `/api/fear-greed`
 - Market Overview widget on prices page — total market cap, 24h volume, BTC dominance bar, BTC/ETH live prices
-- Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks) via settings panel, preferences persisted in localStorage
+- Price Alerts at `/alerts` — search any coin, set upper/lower price thresholds, stored in localStorage, polls every 60s, toast notifications when triggered, active/triggered sections
+- Portfolio Tracker at `/portfolio` — add coin holdings (quantity + purchase price), live P&L tracking, allocation pie chart (Recharts), total value/cost/return summary, localStorage persistence
+- News Sentiment Analysis on `/news` — keyword-based bullish/bearish/neutral scoring, sentiment badges on each article, sentiment filter buttons, market sentiment summary bar at top
+- Customizable Dashboard at `/dashboard` — 7 widgets (Market Overview, Fear & Greed, Portfolio Summary, Price Alerts, Watchlist, Trending, News Headlines), show/hide and reorder, drag-and-drop support, localStorage persistence
+- Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks, Next-Gen L1s) via settings panel, preferences persisted in localStorage
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
 - Crypto prices page — mobile-friendly card layout (no horizontal scroll), clickable coins with detail panel (price, 24h/7d changes, market cap, volume, ATH, sparkline), desktop table preserved, Fear & Greed + Market Overview widgets at top
@@ -46,8 +50,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - **SEO tab** — page-level SEO meta management (title, description, keywords, OG tags, canonical) for all pages; SEO score checker (title length, description length, keyword analysis); robots.txt editor
 - Crypto Swap at `/swap` — full custom swap UI powered by ChangeNOW API (CHANGENOW_API_KEY env var), 900+ coins, real-time rate estimates, 3-step exchange flow (select pair → enter address → send & receive), exchange status tracking, revenue earned per transaction through API key
 - Live Validator Stats on `/masternodes` — real-time validator counts, total staked amounts, and staking APY for 8 major PoS chains (ETH, SOL, ATOM, ADA, DOT, AVAX, NEAR, TRX) from free public APIs, cached 5 minutes
-- Crypto Exchanges directory at `/exchanges` — 30+ pre-seeded exchanges (CEX + DEX), search, filter by type, featured highlights, affiliate link support
-- Admin "Exchanges" tab — add/edit/delete exchanges, set affiliate URLs, toggle featured/active, seed 30 defaults with one click
+- Crypto Exchanges directory at `/exchanges` — 50+ pre-seeded exchanges (CEX + DEX), search, filter by type, featured highlights, affiliate link support, global coverage (US, EU, Asia, Africa)
+- Admin "Exchanges" tab — add/edit/delete exchanges, set affiliate URLs, toggle featured/active, seed 50+ defaults with one click
 - Auto-generated sitemap.xml with all pages + published blog posts
 - robots.txt configurable from admin SEO tab
 - 100% Free — monetized with Google AdSense
