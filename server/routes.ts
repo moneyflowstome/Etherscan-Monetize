@@ -1846,7 +1846,33 @@ export async function registerRoutes(
   });
 
   function isValidTrxAddress(address: string): boolean {
-    return /^T[a-zA-Z0-9]{33}$/.test(address);
+    return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
+  }
+
+  function hexToTronBase58(hex: string): string | null {
+    if (!hex) return null;
+    const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
+    if (cleanHex.length !== 42 || !cleanHex.startsWith("41")) return hex;
+    try {
+      const bytes = Buffer.from(cleanHex, "hex");
+      const hash1 = crypto.createHash("sha256").update(bytes).digest();
+      const hash2 = crypto.createHash("sha256").update(hash1).digest();
+      const checksum = hash2.slice(0, 4);
+      const payload = Buffer.concat([bytes, checksum]);
+      const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      let num = BigInt("0x" + payload.toString("hex"));
+      let result = "";
+      while (num > 0n) {
+        result = ALPHABET[Number(num % 58n)] + result;
+        num = num / 58n;
+      }
+      for (let i = 0; i < payload.length && payload[i] === 0; i++) {
+        result = "1" + result;
+      }
+      return result;
+    } catch {
+      return hex;
+    }
   }
 
   app.get("/api/trx/account/:address", async (req, res) => {
@@ -1905,8 +1931,8 @@ export async function registerRoutes(
           txID: tx.txID,
           blockNumber: tx.blockNumber,
           timestamp: tx.block_timestamp || null,
-          from: value.owner_address || null,
-          to: value.to_address || null,
+          from: hexToTronBase58(value.owner_address) || null,
+          to: hexToTronBase58(value.to_address) || null,
           amount: value.amount ? (value.amount / 1000000).toFixed(6) : null,
           type: contract.type || null,
           confirmed: tx.ret?.[0]?.contractRet === "SUCCESS",

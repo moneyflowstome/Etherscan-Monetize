@@ -29,13 +29,14 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
 const CHAIN_OPTIONS = [
-  { name: "ethereum", id: 1, symbol: "ETH", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  { name: "bsc", id: 56, symbol: "BNB", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  { name: "polygon", id: 137, symbol: "MATIC", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
-  { name: "arbitrum", id: 42161, symbol: "ETH", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
-  { name: "optimism", id: 10, symbol: "ETH", color: "bg-red-500/20 text-red-400 border-red-500/30" },
-  { name: "base", id: 8453, symbol: "ETH", color: "bg-blue-400/20 text-blue-300 border-blue-400/30" },
-  { name: "avalanche", id: 43114, symbol: "AVAX", color: "bg-red-600/20 text-red-400 border-red-600/30" },
+  { name: "ethereum", id: 1, symbol: "ETH", color: "bg-blue-500/20 text-blue-400 border-blue-500/30", isTron: false },
+  { name: "bsc", id: 56, symbol: "BNB", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", isTron: false },
+  { name: "polygon", id: 137, symbol: "MATIC", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", isTron: false },
+  { name: "arbitrum", id: 42161, symbol: "ETH", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", isTron: false },
+  { name: "optimism", id: 10, symbol: "ETH", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: false },
+  { name: "base", id: 8453, symbol: "ETH", color: "bg-blue-400/20 text-blue-300 border-blue-400/30", isTron: false },
+  { name: "avalanche", id: 43114, symbol: "AVAX", color: "bg-red-600/20 text-red-400 border-red-600/30", isTron: false },
+  { name: "tron", id: -1, symbol: "TRX", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: true },
 ];
 
 function formatAddress(address: string): string {
@@ -51,8 +52,16 @@ function timeAgo(timestamp: string): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-function isValidAddress(address: string): boolean {
+function isValidEvmAddress(address: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
+function isValidTronAddress(address: string): boolean {
+  return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
+}
+
+function isValidAddress(address: string, isTron: boolean): boolean {
+  return isTron ? isValidTronAddress(address) : isValidEvmAddress(address);
 }
 
 export default function Dashboard() {
@@ -79,16 +88,45 @@ export default function Dashboard() {
 
   const handleSearch = useCallback(() => {
     const address = walletInput.trim();
-    if (!isValidAddress(address)) {
-      toast({
-        title: "Invalid address",
-        description: "Please enter a valid Ethereum address (0x...)",
-        variant: "destructive",
-      });
+    if (isValidTronAddress(address)) {
+      const tronChain = CHAIN_OPTIONS.find((c) => c.isTron);
+      if (tronChain) setSelectedChainId(tronChain.id);
+      setTrackedAddress(address);
       return;
     }
-    setTrackedAddress(address);
-  }, [walletInput, toast]);
+    if (isValidEvmAddress(address)) {
+      if (selectedChain.isTron) setSelectedChainId(1);
+      setTrackedAddress(address);
+      return;
+    }
+    toast({
+      title: "Invalid address",
+      description: "Enter a valid EVM address (0x...) or TRON address (T...)",
+      variant: "destructive",
+    });
+  }, [walletInput, toast, selectedChain.isTron]);
+
+  const handleConnectTronLink = useCallback(async () => {
+    try {
+      const tronWeb = (window as any).tronWeb;
+      if (!tronWeb || !tronWeb.ready) {
+        toast({ title: "TronLink not found", description: "Please install TronLink browser extension to connect your TRON wallet.", variant: "destructive" });
+        return;
+      }
+      const addr = tronWeb.defaultAddress?.base58;
+      if (!addr) {
+        toast({ title: "TronLink locked", description: "Please unlock TronLink and try again.", variant: "destructive" });
+        return;
+      }
+      setWalletInput(addr);
+      const tronChain = CHAIN_OPTIONS.find((c) => c.isTron);
+      if (tronChain) setSelectedChainId(tronChain.id);
+      setTrackedAddress(addr);
+      toast({ title: "TRON Wallet Connected", description: `Tracking ${formatAddress(addr)}` });
+    } catch {
+      toast({ title: "Connection failed", description: "Could not connect to TronLink.", variant: "destructive" });
+    }
+  }, [toast]);
 
   const handleCopyAddress = useCallback(() => {
     if (trackedAddress) {
@@ -98,6 +136,8 @@ export default function Dashboard() {
     }
   }, [trackedAddress]);
 
+  const isTronChain = selectedChain.isTron;
+
   const ethPriceQuery = useQuery({
     queryKey: ["/api/eth-price"],
     refetchInterval: 30000,
@@ -105,9 +145,14 @@ export default function Dashboard() {
   });
 
   const balanceQuery = useQuery({
-    queryKey: ["/api/balance", trackedAddress, selectedChainId],
+    queryKey: [isTronChain ? "/api/trx/account" : "/api/balance", trackedAddress, selectedChainId],
     queryFn: async () => {
       if (!trackedAddress) return null;
+      if (isTronChain) {
+        const res = await fetch(`/api/trx/account/${trackedAddress}`);
+        if (!res.ok) throw new Error("Failed to fetch TRON account");
+        return res.json();
+      }
       const res = await fetch(`/api/balance/${trackedAddress}?chainId=${selectedChainId}`);
       if (!res.ok) throw new Error("Failed to fetch balance");
       return res.json();
@@ -117,9 +162,14 @@ export default function Dashboard() {
   });
 
   const txQuery = useQuery({
-    queryKey: ["/api/transactions", trackedAddress, selectedChainId],
+    queryKey: [isTronChain ? "/api/trx/transactions" : "/api/transactions", trackedAddress, selectedChainId],
     queryFn: async () => {
       if (!trackedAddress) return null;
+      if (isTronChain) {
+        const res = await fetch(`/api/trx/transactions/${trackedAddress}`);
+        if (!res.ok) throw new Error("Failed to fetch TRON transactions");
+        return res.json();
+      }
       const res = await fetch(`/api/transactions/${trackedAddress}?chainId=${selectedChainId}`);
       if (!res.ok) throw new Error("Failed to fetch transactions");
       return res.json();
@@ -136,7 +186,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Failed to fetch token transfers");
       return res.json();
     },
-    enabled: !!trackedAddress,
+    enabled: !!trackedAddress && !isTronChain,
     refetchInterval: 60000,
   });
 
@@ -147,6 +197,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Failed to fetch gas");
       return res.json();
     },
+    enabled: !isTronChain,
     refetchInterval: 15000,
     staleTime: 10000,
   });
@@ -155,21 +206,26 @@ export default function Dashboard() {
     ? parseFloat(ethPriceQuery.data.result.ethusd)
     : 0;
 
-  const nativeBalance = balanceQuery.data?.result
-    ? parseFloat(balanceQuery.data.result) / 1e18
-    : 0;
+  const tronAccount = isTronChain ? balanceQuery.data : null;
+  const nativeBalance = isTronChain
+    ? (tronAccount?.balance ? parseFloat(tronAccount.balance) : 0)
+    : (balanceQuery.data?.result ? parseFloat(balanceQuery.data.result) / 1e18 : 0);
 
   const nativeValueUsd = nativeBalance * ethPrice;
 
-  const transactions = txQuery.data?.result && Array.isArray(txQuery.data.result)
-    ? txQuery.data.result.slice(0, 15)
+  const tronTransactions = isTronChain && txQuery.data?.transactions && Array.isArray(txQuery.data.transactions)
+    ? txQuery.data.transactions.slice(0, 15)
     : [];
+
+  const transactions = isTronChain
+    ? []
+    : (txQuery.data?.result && Array.isArray(txQuery.data.result) ? txQuery.data.result.slice(0, 15) : []);
 
   const tokenTransfers = tokenTxQuery.data?.result && Array.isArray(tokenTxQuery.data.result)
     ? tokenTxQuery.data.result.slice(0, 15)
     : [];
 
-  const gasData = gasQuery.data?.result;
+  const gasData = isTronChain ? null : gasQuery.data?.result;
 
   const uniqueTokens = new Map<string, { name: string; symbol: string; decimals: number; contract: string }>();
   if (tokenTxQuery.data?.result && Array.isArray(tokenTxQuery.data.result)) {
@@ -188,6 +244,7 @@ export default function Dashboard() {
   const isLoading = balanceQuery.isLoading || txQuery.isLoading;
 
   const getExplorerUrl = (hash: string) => {
+    if (isTronChain) return `https://tronscan.org/#/transaction/${hash}`;
     const explorers: Record<number, string> = {
       1: "https://etherscan.io",
       56: "https://bscscan.com",
@@ -207,38 +264,54 @@ export default function Dashboard() {
       if (typeof val === "string" && /^[=+\-@\t\r]/.test(val)) return "'" + val;
       return val;
     };
-    rows.push(["Type", "Hash", "From", "To", "Value", "Symbol", "Timestamp"]);
 
-    for (const tx of transactions) {
-      const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
-      const valueEth = parseFloat(tx.value) / 1e18;
-      rows.push([
-        isIncoming ? "Received" : "Sent",
-        sanitize(tx.hash),
-        sanitize(tx.from),
-        sanitize(tx.to),
-        valueEth.toString(),
-        sanitize(selectedChain.symbol),
-        new Date(parseInt(tx.timeStamp) * 1000).toISOString(),
-      ]);
-    }
-
-    if (tokenTransfers.length > 0) {
-      rows.push([]);
-      rows.push(["Type", "Hash", "From", "To", "Value", "Token", "Timestamp"]);
-      for (const tx of tokenTransfers) {
+    if (isTronChain) {
+      rows.push(["Type", "TxID", "From", "To", "Amount (TRX)", "Contract Type", "Timestamp"]);
+      for (const tx of tronTransactions) {
+        const isIncoming = tx.to === trackedAddress;
+        rows.push([
+          isIncoming ? "Received" : "Sent",
+          sanitize(tx.txID || ""),
+          sanitize(tx.from || ""),
+          sanitize(tx.to || ""),
+          tx.amount || "0",
+          tx.type || "",
+          tx.timestamp ? new Date(tx.timestamp).toISOString() : "",
+        ]);
+      }
+    } else {
+      rows.push(["Type", "Hash", "From", "To", "Value", "Symbol", "Timestamp"]);
+      for (const tx of transactions) {
         const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
-        const decimals = parseInt(tx.tokenDecimal) || 18;
-        const value = parseFloat(tx.value) / Math.pow(10, decimals);
+        const valueEth = parseFloat(tx.value) / 1e18;
         rows.push([
           isIncoming ? "Received" : "Sent",
           sanitize(tx.hash),
           sanitize(tx.from),
           sanitize(tx.to),
-          value.toString(),
-          sanitize(tx.tokenSymbol || "Unknown"),
+          valueEth.toString(),
+          sanitize(selectedChain.symbol),
           new Date(parseInt(tx.timeStamp) * 1000).toISOString(),
         ]);
+      }
+
+      if (tokenTransfers.length > 0) {
+        rows.push([]);
+        rows.push(["Type", "Hash", "From", "To", "Value", "Token", "Timestamp"]);
+        for (const tx of tokenTransfers) {
+          const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
+          const decimals = parseInt(tx.tokenDecimal) || 18;
+          const value = parseFloat(tx.value) / Math.pow(10, decimals);
+          rows.push([
+            isIncoming ? "Received" : "Sent",
+            sanitize(tx.hash),
+            sanitize(tx.from),
+            sanitize(tx.to),
+            value.toString(),
+            sanitize(tx.tokenSymbol || "Unknown"),
+            new Date(parseInt(tx.timeStamp) * 1000).toISOString(),
+          ]);
+        }
       }
     }
 
@@ -251,7 +324,7 @@ export default function Dashboard() {
     link.click();
     URL.revokeObjectURL(url);
     toast({ title: "CSV Exported", description: "Wallet data has been downloaded as CSV." });
-  }, [transactions, tokenTransfers, trackedAddress, selectedChain, toast]);
+  }, [transactions, tokenTransfers, tronTransactions, trackedAddress, selectedChain, isTronChain, toast]);
 
   const handleExportPDF = useCallback(async () => {
     const jsPDFModule = await import("jspdf");
@@ -272,7 +345,31 @@ export default function Dashboard() {
     }
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 54);
 
-    if (transactions.length > 0) {
+    if (isTronChain && tronTransactions.length > 0) {
+      doc.setFontSize(14);
+      doc.text("TRON Transactions", 14, 66);
+
+      const txRows = tronTransactions.map((tx: any) => {
+        const isIncoming = tx.to === trackedAddress;
+        return [
+          isIncoming ? "IN" : "OUT",
+          `${(tx.txID || "").slice(0, 10)}...`,
+          formatAddress(tx.from || ""),
+          formatAddress(tx.to || ""),
+          `${tx.amount || "0"} TRX`,
+          tx.timestamp ? new Date(tx.timestamp).toLocaleDateString() : "—",
+        ];
+      });
+
+      (doc as any).autoTable({
+        startY: 70,
+        head: [["Dir", "TxID", "From", "To", "Amount", "Date"]],
+        body: txRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [255, 0, 19] },
+      });
+    } else if (transactions.length > 0) {
       doc.setFontSize(14);
       doc.text("Transactions", 14, 66);
 
@@ -299,7 +396,7 @@ export default function Dashboard() {
       });
     }
 
-    if (tokenTransfers.length > 0) {
+    if (!isTronChain && tokenTransfers.length > 0) {
       const startY = (doc as any).lastAutoTable?.finalY + 14 || 70;
       doc.setFontSize(14);
       doc.text("Token Transfers", 14, startY);
@@ -330,9 +427,10 @@ export default function Dashboard() {
 
     doc.save(`wallet_${formatAddress(trackedAddress)}_${selectedChain.name}.pdf`);
     toast({ title: "PDF Exported", description: "Wallet report has been downloaded as PDF." });
-  }, [transactions, tokenTransfers, trackedAddress, selectedChain, nativeBalance, ethPrice, selectedChainId, nativeValueUsd, toast]);
+  }, [transactions, tokenTransfers, tronTransactions, trackedAddress, selectedChain, nativeBalance, ethPrice, selectedChainId, nativeValueUsd, isTronChain, toast]);
 
   const getAddressExplorerUrl = (address: string) => {
+    if (isTronChain) return `https://tronscan.org/#/address/${address}`;
     const explorers: Record<number, string> = {
       1: "https://etherscan.io",
       56: "https://bscscan.com",
@@ -367,7 +465,7 @@ export default function Dashboard() {
               onChange={(e) => setWalletInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="w-full bg-muted/30 border-border pl-10 pr-20 font-mono text-xs md:text-sm focus:border-primary/50 h-10"
-              placeholder="Enter wallet address (0x...)"
+              placeholder={isTronChain ? "Enter TRON address (T...)" : "Enter wallet address (0x...)"}
               data-testid="input-wallet-address"
             />
             <Button
@@ -401,6 +499,16 @@ export default function Dashboard() {
                       onClick={() => {
                         setSelectedChainId(chain.id);
                         setShowChainSelector(false);
+                        if (trackedAddress) {
+                          const addrIsTron = isValidTronAddress(trackedAddress);
+                          if (chain.isTron && !addrIsTron) {
+                            setTrackedAddress("");
+                            setWalletInput("");
+                          } else if (!chain.isTron && addrIsTron) {
+                            setTrackedAddress("");
+                            setWalletInput("");
+                          }
+                        }
                       }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
                         chain.id === selectedChainId
@@ -435,15 +543,25 @@ export default function Dashboard() {
               </div>
               <h2 className="text-2xl font-display font-bold text-foreground mb-3" data-testid="text-welcome-title">Track Any Wallet - 100% Free</h2>
               <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Enter any Ethereum address above to view real-time balances, transactions, and token activity across multiple chains. Completely free to use.
+                Enter any EVM or TRON address above to view real-time balances, transactions, and token activity across multiple chains. Completely free to use.
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {["Ethereum", "BSC", "Arbitrum", "Base", "Polygon"].map((chain) => (
-                  <Badge key={chain} variant="outline" className="bg-muted/30 border-border text-muted-foreground">
+              <div className="flex flex-wrap gap-2 justify-center mb-4">
+                {["Ethereum", "BSC", "Arbitrum", "Base", "Polygon", "TRON"].map((chain) => (
+                  <Badge key={chain} variant="outline" className={`bg-muted/30 border-border text-muted-foreground ${chain === "TRON" ? "bg-red-500/10 text-red-400 border-red-500/20" : ""}`}>
                     {chain}
                   </Badge>
                 ))}
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleConnectTronLink}
+                className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                data-testid="button-connect-tronlink"
+              >
+                <Wallet className="w-4 h-4" />
+                Connect TronLink
+              </Button>
             </div>
           ) : (
             <>
@@ -479,7 +597,7 @@ export default function Dashboard() {
                       variant="ghost"
                       size="icon"
                       onClick={handleExportCSV}
-                      disabled={transactions.length === 0 && tokenTransfers.length === 0}
+                      disabled={transactions.length === 0 && tokenTransfers.length === 0 && tronTransactions.length === 0}
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       title="Export CSV"
                       data-testid="button-export-csv"
@@ -490,7 +608,7 @@ export default function Dashboard() {
                       variant="ghost"
                       size="icon"
                       onClick={handleExportPDF}
-                      disabled={transactions.length === 0 && tokenTransfers.length === 0}
+                      disabled={transactions.length === 0 && tokenTransfers.length === 0 && tronTransactions.length === 0}
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       title="Export PDF"
                       data-testid="button-export-pdf"
@@ -531,6 +649,22 @@ export default function Dashboard() {
                         ≈ ${nativeValueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} USD
                       </div>
                     )}
+                    {isTronChain && tronAccount && (
+                      <div className="grid grid-cols-3 gap-3 mt-4">
+                        <div className="text-center p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                          <div className="text-[10px] text-blue-400 mb-1 uppercase font-medium">Bandwidth</div>
+                          <div className="text-sm font-bold text-foreground font-mono" data-testid="text-tron-bandwidth">{tronAccount.bandwidth || 0}</div>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
+                          <div className="text-[10px] text-yellow-400 mb-1 uppercase font-medium">Energy</div>
+                          <div className="text-sm font-bold text-foreground font-mono" data-testid="text-tron-energy">{tronAccount.energy || 0}</div>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                          <div className="text-[10px] text-purple-400 mb-1 uppercase font-medium">Frozen</div>
+                          <div className="text-sm font-bold text-foreground font-mono" data-testid="text-tron-frozen">{tronAccount.frozenBalance || "0"} TRX</div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -549,13 +683,15 @@ export default function Dashboard() {
                       >
                         <Activity className="w-4 h-4 mr-2" /> Transactions
                       </TabsTrigger>
-                      <TabsTrigger
-                        value="tokens"
-                        className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 px-1 text-muted-foreground"
-                        data-testid="tab-tokens"
-                      >
-                        <Wallet className="w-4 h-4 mr-2" /> Token Transfers
-                      </TabsTrigger>
+                      {!isTronChain && (
+                        <TabsTrigger
+                          value="tokens"
+                          className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 px-1 text-muted-foreground"
+                          data-testid="tab-tokens"
+                        >
+                          <Wallet className="w-4 h-4 mr-2" /> Token Transfers
+                        </TabsTrigger>
+                      )}
                     </TabsList>
                   </div>
 
@@ -565,6 +701,75 @@ export default function Dashboard() {
                         <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
                         Loading transactions...
                       </div>
+                    ) : isTronChain ? (
+                      tronTransactions.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground">
+                          No transactions found on TRON
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border">
+                          {tronTransactions.map((tx: any, i: number) => {
+                            const isIncoming = tx.to === trackedAddress;
+                            const amount = tx.amount ? parseFloat(tx.amount) : 0;
+                            const txTime = tx.timestamp ? new Date(tx.timestamp).toLocaleString() : "—";
+                            return (
+                              <div
+                                key={`trx-tx-${i}`}
+                                className="flex items-center justify-between p-3 md:p-4 hover:bg-muted/20 transition-colors group"
+                                data-testid={`row-tron-tx-${i}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                                      isIncoming
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-orange-500/20 text-orange-400"
+                                    }`}
+                                  >
+                                    {isIncoming ? (
+                                      <ArrowDownRight className="w-4 h-4" />
+                                    ) : (
+                                      <ArrowUpRight className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                                      {isIncoming ? "Received" : "Sent"}
+                                      <Badge variant="outline" className="text-[10px] bg-muted/30 border-border text-muted-foreground">
+                                        {tx.type === "TransferContract" ? "Transfer" : tx.type?.replace("Contract", "") || "TX"}
+                                      </Badge>
+                                      {tx.confirmed && (
+                                        <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-400 border-green-500/20">
+                                          Confirmed
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-mono truncate max-w-[140px]">
+                                      {isIncoming ? `From: ${formatAddress(tx.from || "")}` : `To: ${formatAddress(tx.to || "")}`}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right flex items-center gap-3">
+                                  <div>
+                                    <div className={`text-sm font-mono ${isIncoming ? "text-green-400" : "text-orange-400"}`}>
+                                      {amount > 0 ? `${isIncoming ? "+" : "-"}${amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} TRX` : "—"}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">{txTime}</div>
+                                  </div>
+                                  <a
+                                    href={getExplorerUrl(tx.txID)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
                     ) : transactions.length === 0 ? (
                       <div className="p-8 text-center text-muted-foreground">
                         No transactions found on {selectedChain.name}
@@ -741,7 +946,27 @@ export default function Dashboard() {
         {/* Right Sidebar */}
         <div className="space-y-6 md:space-y-8">
 
-          {ethPrice > 0 && (
+          {isTronChain ? (
+            <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500" data-testid="card-tron-connect">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">TRON Network</span>
+                  <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px]">TRX</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">Connect your TronLink wallet for instant tracking</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleConnectTronLink}
+                  className="w-full bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                  data-testid="button-sidebar-connect-tronlink"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Connect TronLink
+                </Button>
+              </CardContent>
+            </Card>
+          ) : ethPrice > 0 ? (
             <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500" data-testid="card-eth-price">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -758,7 +983,7 @@ export default function Dashboard() {
                 )}
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
           {/* Sidebar Ad 1 - Rectangle */}
           <AdBanner slot="6789012345" format="rectangle" className="w-full" style={{ minHeight: "250px" }} />
