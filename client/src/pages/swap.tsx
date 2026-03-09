@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeftRight,
   ArrowDown,
@@ -18,6 +19,14 @@ import {
   ChevronDown,
   History,
   Trash2,
+  Flame,
+  Star,
+  BarChart3,
+  Zap,
+  Shield,
+  Info,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +70,53 @@ interface SavedTransaction {
 }
 
 const SWAP_HISTORY_KEY = "tokenaltcoin_swap_history";
+const SWAP_FAVORITES_KEY = "tokenaltcoin_swap_favorites";
 const MAX_HISTORY = 20;
+
+const POPULAR_SWAPS = [
+  { from: "btc", to: "eth", label: "BTC → ETH" },
+  { from: "eth", to: "usdt", label: "ETH → USDT" },
+  { from: "btc", to: "usdt", label: "BTC → USDT" },
+  { from: "eth", to: "btc", label: "ETH → BTC" },
+  { from: "sol", to: "eth", label: "SOL → ETH" },
+  { from: "xrp", to: "btc", label: "XRP → BTC" },
+  { from: "bnb", to: "eth", label: "BNB → ETH" },
+  { from: "doge", to: "btc", label: "DOGE → BTC" },
+  { from: "ltc", to: "btc", label: "LTC → BTC" },
+  { from: "trx", to: "usdt", label: "TRX → USDT" },
+  { from: "ada", to: "eth", label: "ADA → ETH" },
+  { from: "matic", to: "eth", label: "MATIC → ETH" },
+];
+
+interface FavoritePair {
+  from: string;
+  to: string;
+}
+
+function loadFavorites(): FavoritePair[] {
+  try {
+    const raw = localStorage.getItem(SWAP_FAVORITES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveFavorites(pairs: FavoritePair[]) {
+  localStorage.setItem(SWAP_FAVORITES_KEY, JSON.stringify(pairs.slice(0, 20)));
+}
+
+function toggleFavorite(from: string, to: string): FavoritePair[] {
+  const existing = loadFavorites();
+  const idx = existing.findIndex((p) => p.from === from && p.to === to);
+  if (idx >= 0) {
+    existing.splice(idx, 1);
+  } else {
+    existing.unshift({ from, to });
+  }
+  saveFavorites(existing);
+  return existing;
+}
 
 function loadSwapHistory(): SavedTransaction[] {
   try {
@@ -206,6 +261,8 @@ const INFO_CARDS = [
 
 export default function SwapPage() {
   const { toast } = useToast();
+  const searchStr = useSearch();
+  const [, navigate] = useLocation();
 
   const [fromCurrency, setFromCurrency] = useState<Currency | null>(null);
   const [toCurrency, setToCurrency] = useState<Currency | null>(null);
@@ -219,19 +276,70 @@ export default function SwapPage() {
   const [trackId, setTrackId] = useState("");
   const [trackLoading, setTrackLoading] = useState(false);
   const [swapHistory, setSwapHistory] = useState<SavedTransaction[]>(() => loadSwapHistory());
+  const [favorites, setFavorites] = useState<FavoritePair[]>(() => loadFavorites());
+  const [urlParamsApplied, setUrlParamsApplied] = useState(false);
 
   const { data: currencies = [], isLoading: currenciesLoading } = useQuery<Currency[]>({
     queryKey: ["/api/swap/currencies"],
   });
 
+  const { data: trendingDex = [] } = useQuery({
+    queryKey: ["/api/dex/trending"],
+    queryFn: async () => {
+      const res = await fetch("/api/dex/trending");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data.slice(0, 8) : [];
+    },
+    staleTime: 60000,
+  });
+
   useEffect(() => {
-    if (currencies.length > 0 && !fromCurrency) {
-      const btc = currencies.find((c) => c.ticker === "btc");
-      const eth = currencies.find((c) => c.ticker === "eth");
-      if (btc) setFromCurrency(btc);
-      if (eth) setToCurrency(eth);
+    if (currencies.length > 0 && !urlParamsApplied) {
+      const params = new URLSearchParams(searchStr);
+      const fromParam = params.get("from")?.toLowerCase();
+      const toParam = params.get("to")?.toLowerCase();
+      const amountParam = params.get("amount");
+
+      if (fromParam || toParam) {
+        const fromFound = fromParam ? currencies.find((c) => c.ticker === fromParam) : null;
+        const toFound = toParam ? currencies.find((c) => c.ticker === toParam) : null;
+        const btc = currencies.find((c) => c.ticker === "btc");
+        const eth = currencies.find((c) => c.ticker === "eth");
+        setFromCurrency(fromFound || btc || null);
+        setToCurrency(toFound || (fromFound?.ticker === "eth" ? btc : eth) || null);
+        if (amountParam && parseFloat(amountParam) > 0) {
+          setFromAmount(amountParam);
+        }
+        setUrlParamsApplied(true);
+      } else if (!fromCurrency) {
+        const btc = currencies.find((c) => c.ticker === "btc");
+        const eth = currencies.find((c) => c.ticker === "eth");
+        if (btc) setFromCurrency(btc);
+        if (eth) setToCurrency(eth);
+        setUrlParamsApplied(true);
+      }
     }
-  }, [currencies, fromCurrency]);
+  }, [currencies, urlParamsApplied, searchStr]);
+
+  const handleQuickSwap = (from: string, to: string) => {
+    const f = currencies.find((c) => c.ticker === from);
+    const t = currencies.find((c) => c.ticker === to);
+    if (f) setFromCurrency(f);
+    if (t) setToCurrency(t);
+    setStep("swap");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleToggleFavorite = () => {
+    if (!fromCurrency || !toCurrency) return;
+    const updated = toggleFavorite(fromCurrency.ticker, toCurrency.ticker);
+    setFavorites(updated);
+  };
+
+  const isFavorited = fromCurrency && toCurrency && favorites.some(
+    (f) => f.from === fromCurrency.ticker && f.to === toCurrency.ticker
+  );
 
   const estimateEnabled = !!fromCurrency && !!toCurrency && parseFloat(fromAmount) > 0;
 
@@ -542,23 +650,72 @@ export default function SwapPage() {
                     </div>
 
                     {estimate && !estimateError && (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-rate-info">
-                        <TrendingUp className="w-3 h-3" />
-                        1 {fromCurrency?.ticker.toUpperCase()} ≈ {(parseFloat(estimate.toAmount) / parseFloat(fromAmount)).toFixed(6)} {toCurrency?.ticker.toUpperCase()}
-                        {estimate.networkFee && (
-                          <span className="ml-2">• Network fee: {estimate.networkFee} {toCurrency?.ticker.toUpperCase()}</span>
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-rate-info">
+                          <TrendingUp className="w-3 h-3" />
+                          1 {fromCurrency?.ticker.toUpperCase()} ≈ {(parseFloat(estimate.toAmount) / parseFloat(fromAmount)).toFixed(6)} {toCurrency?.ticker.toUpperCase()}
+                        </div>
+
+                        <div className="bg-muted/20 rounded-lg p-3 space-y-1.5" data-testid="swap-fee-breakdown">
+                          {estimate.networkFee && (
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" /> Network Fee</span>
+                              <span className="font-mono text-foreground">{estimate.networkFee} {toCurrency?.ticker.toUpperCase()}</span>
+                            </div>
+                          )}
+                          {estimate.rateId && (
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-muted-foreground flex items-center gap-1"><Zap className="w-3 h-3" /> Rate Type</span>
+                              <span className="font-mono text-foreground">Fixed</span>
+                            </div>
+                          )}
+                          {estimate.validUntil && (
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Rate Valid</span>
+                              <span className="font-mono text-foreground">{new Date(estimate.validUntil).toLocaleTimeString()}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground flex items-center gap-1"><Info className="w-3 h-3" /> You Receive</span>
+                            <span className="font-mono text-green-400 font-semibold">{parseFloat(estimate.toAmount).toFixed(8)} {toCurrency?.ticker.toUpperCase()}</span>
+                          </div>
+                        </div>
+
+                        {fromCurrency && toCurrency && (
+                          <a
+                            href={`/dex?q=${fromCurrency.ticker}`}
+                            className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary/80 transition-colors"
+                            data-testid="link-analyze-dex"
+                          >
+                            <BarChart3 className="w-3 h-3" />
+                            Analyze {fromCurrency.ticker.toUpperCase()} on DEX Screener
+                          </a>
                         )}
                       </div>
                     )}
 
-                    <Button
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display"
-                      onClick={() => setStep("confirm")}
-                      disabled={!estimate || !!estimateError || !fromCurrency || !toCurrency}
-                      data-testid="button-proceed-swap"
-                    >
-                      Proceed to Swap
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-display"
+                        onClick={() => setStep("confirm")}
+                        disabled={!estimate || !!estimateError || !fromCurrency || !toCurrency}
+                        data-testid="button-proceed-swap"
+                      >
+                        Proceed to Swap
+                      </Button>
+                      {fromCurrency && toCurrency && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleToggleFavorite}
+                          className={`shrink-0 ${isFavorited ? "text-yellow-400 border-yellow-400/30" : "text-muted-foreground"}`}
+                          data-testid="button-toggle-favorite"
+                          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Star className={`w-4 h-4 ${isFavorited ? "fill-yellow-400" : ""}`} />
+                        </Button>
+                      )}
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -770,6 +927,131 @@ export default function SwapPage() {
             </Card>
           )}
         </div>
+
+        {step === "swap" && !currenciesLoading && (
+          <div className="space-y-6 mt-8">
+            {favorites.length > 0 && (
+              <div className="glass-panel rounded-2xl p-5" data-testid="swap-favorites">
+                <h2 className="text-sm font-display font-bold text-foreground mb-3 flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  Favorite Pairs
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {favorites.map((fav) => (
+                    <button
+                      key={`${fav.from}-${fav.to}`}
+                      onClick={() => handleQuickSwap(fav.from, fav.to)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 hover:border-yellow-400/40 text-xs font-medium text-foreground transition-colors"
+                      data-testid={`button-fav-${fav.from}-${fav.to}`}
+                    >
+                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                      {fav.from.toUpperCase()} → {fav.to.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="glass-panel rounded-2xl p-5" data-testid="swap-popular-shortcuts">
+              <h2 className="text-sm font-display font-bold text-foreground mb-3 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-primary" />
+                Popular Swaps
+              </h2>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {POPULAR_SWAPS.map((swap) => (
+                  <button
+                    key={swap.label}
+                    onClick={() => handleQuickSwap(swap.from, swap.to)}
+                    className="px-2 py-2 rounded-lg bg-muted/30 border border-border hover:border-primary/50 hover:bg-primary/5 text-xs font-medium text-foreground transition-all text-center"
+                    data-testid={`button-popular-${swap.from}-${swap.to}`}
+                  >
+                    {swap.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(trendingDex as any[]).length > 0 && (
+              <div className="glass-panel rounded-2xl p-5" data-testid="swap-trending-dex">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-display font-bold text-foreground flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-orange-400" />
+                    Trending on DEX
+                  </h2>
+                  <a
+                    href="/dex"
+                    className="text-[11px] text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                    data-testid="link-view-all-dex"
+                  >
+                    View All <ArrowUpRight className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(trendingDex as any[]).map((token: any, i: number) => {
+                    const tokenName = token.description?.split(" ").slice(0, 2).join(" ") || "Token";
+                    const ticker = tokenName.split(" ")[0]?.toLowerCase() || "";
+                    return (
+                      <div
+                        key={`trending-${i}`}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border border-border/50 hover:border-primary/30 transition-colors group"
+                        data-testid={`card-trending-swap-${i}`}
+                      >
+                        {token.icon && <img src={token.icon} alt="" className="w-8 h-8 rounded-full shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-foreground truncate block group-hover:text-primary transition-colors">
+                            {tokenName}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{token.chainId}</span>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <a
+                            href={`/swap?from=${ticker}&to=usdt`}
+                            onClick={(e) => { e.preventDefault(); handleQuickSwap(ticker, "usdt"); }}
+                            className="px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors"
+                            data-testid={`button-quick-swap-usdt-${i}`}
+                          >
+                            → USDT
+                          </a>
+                          <a
+                            href={`/swap?from=${ticker}&to=btc`}
+                            onClick={(e) => { e.preventDefault(); handleQuickSwap(ticker, "btc"); }}
+                            className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[10px] font-medium hover:bg-orange-500/20 transition-colors"
+                            data-testid={`button-quick-swap-btc-${i}`}
+                          >
+                            → BTC
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-center gap-4 py-2">
+              <a
+                href="/dex"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 hover:border-orange-400/40 text-sm font-medium text-foreground transition-all"
+                data-testid="link-dex-screener-from-swap"
+              >
+                <Flame className="w-4 h-4 text-orange-400" />
+                DEX Screener
+                <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground" />
+              </a>
+              <a
+                href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:border-cyan-400/40 text-sm font-medium text-foreground transition-all"
+                data-testid="link-tradingview-from-swap"
+              >
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                TradingView
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+              </a>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10" data-testid="swap-info-cards">
           {INFO_CARDS.map((card) => (

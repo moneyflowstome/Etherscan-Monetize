@@ -18,6 +18,7 @@ import {
   Clock,
   Zap,
   Filter,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +142,13 @@ function PairDetailPanel({ pair, onClose }: { pair: any; onClose: () => void }) 
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href={`/swap?from=${(base.symbol || "").toLowerCase()}&to=usdt`}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-500/20 text-xs text-green-400 hover:bg-green-500/30 transition-colors"
+              data-testid="link-swap-pair"
+            >
+              <ArrowLeftRight className="w-3 h-3" /> Swap
+            </a>
             {safeUrl(pair.url) && (
               <a
                 href={safeUrl(pair.url)}
@@ -335,7 +343,7 @@ export default function DexPage() {
   const [chainFilter, setChainFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"trending" | "new">("trending");
   const [selectedToken, setSelectedToken] = useState<{ chainId: string; tokenAddress: string; name: string; icon?: string } | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = useCallback((val: string) => {
     setSearchQuery(val);
@@ -431,9 +439,17 @@ export default function DexPage() {
           <h1 className="font-display text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary via-cyan-400 to-primary bg-clip-text text-transparent mb-2" data-testid="text-dex-title">
             DEX Screener
           </h1>
-          <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-sm max-w-2xl mx-auto mb-3">
             Real-time DEX pair analytics across 80+ blockchains. Search tokens, track trending pairs, and analyze liquidity & volume.
           </p>
+          <a
+            href="/swap"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/20 hover:border-green-400/40 text-sm font-medium text-green-400 transition-all"
+            data-testid="link-swap-from-dex"
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            Swap Tokens Instantly
+          </a>
         </div>
 
         <div className="relative max-w-2xl mx-auto">
@@ -865,9 +881,19 @@ export default function DexPage() {
                           </div>
                           <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </div>
-                        {token.description && (
-                          <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{token.description}</p>
-                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          {token.description && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-1 flex-1">{token.description}</p>
+                          )}
+                          <a
+                            href={`/swap?from=${(token.description?.split(" ")[0] || "").toLowerCase()}&to=usdt`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-[10px] text-green-400 hover:bg-green-500/20 transition-colors shrink-0"
+                            data-testid={`link-swap-trending-${i}`}
+                          >
+                            <ArrowLeftRight className="w-2.5 h-2.5" /> Swap
+                          </a>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -923,9 +949,19 @@ export default function DexPage() {
                             ))}
                           </div>
                         )}
-                        {token.description && (
-                          <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{token.description}</p>
-                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          {token.description && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-1 flex-1">{token.description}</p>
+                          )}
+                          <a
+                            href={`/swap?from=${(token.description?.split(" ")[0] || "").toLowerCase()}&to=usdt`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-[10px] text-green-400 hover:bg-green-500/20 transition-colors shrink-0"
+                            data-testid={`link-swap-profile-${i}`}
+                          >
+                            <ArrowLeftRight className="w-2.5 h-2.5" /> Swap
+                          </a>
+                        </div>
                       </div>
                     ))}
                   </div>
