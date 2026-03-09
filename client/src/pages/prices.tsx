@@ -676,6 +676,29 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
           </div>
         )}
 
+        <div className="border-t border-border pt-4 mt-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><ExternalLink className="w-3 h-3" /> Quick Links</h4>
+          <div className="flex flex-wrap gap-2">
+            <a href={`https://www.coingecko.com/en/coins/${d.id || coin.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-coingecko">
+              <ExternalLink className="w-3 h-3 text-green-400" /> CoinGecko
+            </a>
+            <a href={`https://coinmarketcap.com/currencies/${d.id || coin.id}/`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-coinmarketcap">
+              <ExternalLink className="w-3 h-3 text-blue-400" /> CoinMarketCap
+            </a>
+            <a href={`https://www.tradingview.com/symbols/${(d.symbol || coin.symbol || "").toUpperCase()}USD/`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-tradingview">
+              <Activity className="w-3 h-3 text-cyan-400" /> TradingView
+            </a>
+            <a href={`https://www.google.com/search?q=${encodeURIComponent((d.name || coin.name) + " crypto")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-google-search">
+              <Search className="w-3 h-3 text-yellow-400" /> Google
+            </a>
+            {!links.twitter_screen_name && (
+              <a href={`https://twitter.com/search?q=${encodeURIComponent("$" + (d.symbol || coin.symbol || "").toUpperCase())}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-twitter-search">
+                <span className="text-primary">𝕏</span> Search on X
+              </a>
+            )}
+          </div>
+        </div>
+
         {d.platforms && Object.keys(d.platforms).filter(k => d.platforms[k]).length > 0 && (
           <div className="border-t border-border pt-4 mt-4">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Hash className="w-3 h-3" /> Contract Addresses</h4>
