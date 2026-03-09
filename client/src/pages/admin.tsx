@@ -361,6 +361,13 @@ function SettingsTab({ token }: { token: string }) {
     { key: "changenow_affiliate_id", label: "ChangeNOW Affiliate ID", placeholder: "your-affiliate-id", help: "Your ChangeNOW referral/affiliate ID for the swap widget" },
   ];
 
+  const apiKeyFields = [
+    { key: "api_key_ETHERSCAN_API_KEY", label: "Etherscan API Key", placeholder: "Your Etherscan API key", help: "Used for EVM wallet tracking (Ethereum, BSC, Polygon, etc.)" },
+    { key: "api_key_CMC_API_KEY", label: "CoinMarketCap API Key", placeholder: "Your CMC API key", help: "Used for market data and coin metadata" },
+    { key: "api_key_CHANGENOW_API_KEY", label: "ChangeNOW API Key", placeholder: "Your ChangeNOW API key", help: "Used for the crypto swap feature" },
+    { key: "api_key_BRAVE_API_KEY", label: "Brave Search API Key", placeholder: "Your Brave API key", help: "Used for news search and AI blog generation" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -451,6 +458,29 @@ function SettingsTab({ token }: { token: string }) {
                 placeholder={field.placeholder}
                 className="bg-muted/30 border-border text-foreground font-mono text-sm"
                 type={field.key === "admin_password" ? "password" : "text"}
+                data-testid={`input-setting-${field.key}`}
+              />
+            </CardContent>
+          </Card>
+        ))}
+
+        <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
+          <Shield className="w-4 h-4" /> API Keys
+        </h3>
+        <p className="text-xs text-muted-foreground -mt-2">
+          Set your API keys here so they transfer with the database when you move to a new server. These override environment variables.
+        </p>
+        {apiKeyFields.map((field) => (
+          <Card key={field.key} className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
+              <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
+              <Input
+                value={localSettings[field.key] || ""}
+                onChange={(e) => updateLocal(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                type="password"
                 data-testid={`input-setting-${field.key}`}
               />
             </CardContent>

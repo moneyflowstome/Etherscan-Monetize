@@ -6,10 +6,21 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { XMLParser } from "fast-xml-parser";
 
-const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
+async function getApiKey(name: string): Promise<string> {
+  const dbVal = await storage.getSetting(`api_key_${name}`);
+  if (dbVal) return dbVal;
+  return process.env[name] || "";
+}
+
+let ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
-const CMC_API_KEY = process.env.CMC_API_KEY || "";
+let CMC_API_KEY = process.env.CMC_API_KEY || "";
 const CMC_BASE = "https://pro-api.coinmarketcap.com";
+
+async function refreshApiKeys() {
+  ETHERSCAN_API_KEY = await getApiKey("ETHERSCAN_API_KEY");
+  CMC_API_KEY = await getApiKey("CMC_API_KEY");
+}
 
 const CHAIN_IDS: Record<string, number> = {
   ethereum: 1,
@@ -100,6 +111,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  await refreshApiKeys();
 
   const validChainIds = new Set(Object.values(CHAIN_IDS));
 
@@ -873,7 +886,7 @@ export async function registerRoutes(
       let articles: any[] = [];
       let source = "brave";
 
-      let braveKey = process.env.BRAVE_API_KEY;
+      let braveKey = await getApiKey("BRAVE_API_KEY");
       if (braveKey && !braveKey.endsWith("-")) braveKey = braveKey + "-";
       if (braveKey) {
         try {
@@ -3323,7 +3336,12 @@ export async function registerRoutes(
       const settings = await storage.getAllSettings();
       const settingsMap: Record<string, string> = {};
       for (const s of settings) {
-        settingsMap[s.key] = s.value;
+        if (s.key.startsWith("api_key_") && s.value) {
+          const v = s.value;
+          settingsMap[s.key] = v.length > 4 ? "••••••••" + v.slice(-4) : "••••";
+        } else {
+          settingsMap[s.key] = s.value;
+        }
       }
       res.json(settingsMap);
     } catch (err: any) {
@@ -3341,10 +3359,19 @@ export async function registerRoutes(
         if (key === "admin_password" && value) {
           const hash = await bcrypt.hash(String(value), 10);
           await storage.setSetting("admin_password_hash", hash);
+        } else if (key.startsWith("api_key_")) {
+          const v = String(value).trim();
+          if (v.startsWith("••")) {
+            // masked value unchanged, skip
+          } else {
+            await storage.setSetting(key, v);
+          }
         } else if (key !== "admin_password_hash") {
           await storage.setSetting(key, String(value));
         }
       }
+      await refreshApiKeys();
+      CN_KEY = await getApiKey("CHANGENOW_API_KEY");
       res.json({ ok: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -3473,7 +3500,7 @@ export async function registerRoutes(
 
   // ── ChangeNOW Swap API ──
   const CN_API = "https://api.changenow.io/v2";
-  const CN_KEY = process.env.CHANGENOW_API_KEY || "";
+  let CN_KEY = await getApiKey("CHANGENOW_API_KEY");
 
   let cnCurrencyCache: { data: any; timestamp: number } | null = null;
   const CN_CURRENCY_TTL = 600000;
@@ -4588,7 +4615,7 @@ export async function registerRoutes(
 
       let goldArticles: any[] = [];
 
-      let braveKey = process.env.BRAVE_API_KEY;
+      let braveKey = await getApiKey("BRAVE_API_KEY");
       if (braveKey && !braveKey.endsWith("-")) braveKey = braveKey + "-";
       if (braveKey) {
         try {
