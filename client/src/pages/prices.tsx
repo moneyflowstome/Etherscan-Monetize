@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -11,6 +12,8 @@ import {
   ChevronRight,
   Gauge,
   Activity,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -281,9 +284,90 @@ function MarketOverview() {
   );
 }
 
+const COINGECKO_TO_CHAIN: Record<string, string> = {
+  bitcoin: "btc", ethereum: "eth", solana: "sol", ripple: "xrp", binancecoin: "bnb",
+  dogecoin: "doge", cardano: "ada", tron: "trx", "avalanche-2": "avax", "the-open-network": "ton",
+  polkadot: "dot", chainlink: "link", litecoin: "ltc", "shiba-inu": "shib", "bitcoin-cash": "bch",
+  nem: "xem", neo: "neo", stellar: "xlm", cosmos: "atom", near: "near",
+};
+
+function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
+  const change24h = coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h;
+  const change7d = coin.price_change_percentage_7d_in_currency;
+  const priceUp = (change24h || 0) >= 0;
+
+  return (
+    <Card className="glass-panel border-primary/30 mb-4" data-testid={`panel-coin-detail-${coin.id}`}>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <img src={coin.image} alt="" className="w-10 h-10 rounded-full" />
+            <div>
+              <h3 className="font-display font-bold text-lg text-foreground">{coin.name}</h3>
+              <span className="text-xs text-muted-foreground uppercase">{coin.symbol} · #{coin.market_cap_rank}</span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1" data-testid="button-close-detail">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Price</p>
+            <p className="font-mono text-xl font-bold text-foreground" data-testid="text-detail-price">
+              ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: coin.current_price < 1 ? 6 : 2 })}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">24h Change</p>
+            <p className={`font-mono text-xl font-bold ${priceUp ? "text-green-400" : "text-red-400"}`} data-testid="text-detail-change">
+              {priceUp ? "+" : ""}{(change24h || 0).toFixed(2)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Market Cap</p>
+            <p className="font-mono text-sm font-semibold text-foreground">{coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">24h Volume</p>
+            <p className="font-mono text-sm font-semibold text-foreground">{coin.total_volume ? formatMarketCap(coin.total_volume) : "—"}</p>
+          </div>
+          {change7d != null && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">7d Change</p>
+              <p className={`font-mono text-sm font-semibold ${change7d >= 0 ? "text-green-400" : "text-red-400"}`}>
+                {change7d >= 0 ? "+" : ""}{change7d.toFixed(2)}%
+              </p>
+            </div>
+          )}
+          {coin.sparkline_in_7d?.price && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">7d Chart</p>
+              <MiniSparkline data={coin.sparkline_in_7d.price} positive={(change7d || 0) >= 0} />
+            </div>
+          )}
+        </div>
+        {coin.ath && (
+          <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">All-Time High</p>
+              <p className="font-mono text-sm text-foreground">${coin.ath?.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">From ATH</p>
+              <p className="font-mono text-sm text-red-400">{coin.ath_change_percentage?.toFixed(1)}%</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PricesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const { toggleWatchlist, isWatched } = useWatchlist();
   const { toast } = useToast();
 
@@ -380,126 +464,173 @@ export default function PricesPage() {
           </div>
         )}
 
-        <div className="glass-panel rounded-2xl overflow-hidden">
-          {pricesQuery.isLoading ? (
-            <div className="p-12 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-              <div className="text-muted-foreground">Loading prices...</div>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[700px]">
-                  <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="p-4 font-medium w-10"></th>
-                      <th className="p-4 font-medium w-12">#</th>
-                      <th className="p-4 font-medium">Coin</th>
-                      <th className="p-4 font-medium text-right">Price</th>
-                      <th className="p-4 font-medium text-right">1h</th>
-                      <th className="p-4 font-medium text-right">24h</th>
-                      <th className="p-4 font-medium text-right">7d</th>
-                      <th className="p-4 font-medium text-right">Market Cap</th>
-                      <th className="p-4 font-medium text-right">7d Chart</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {coins.map((coin: any, i: number) => {
-                      const change1h = coin.price_change_percentage_1h_in_currency;
-                      const change24h = coin.price_change_percentage_24h_in_currency;
-                      const change7d = coin.price_change_percentage_7d_in_currency;
-                      return (
-                        <>
-                          <tr
-                            key={coin.id}
-                            className="hover:bg-muted/20 transition-colors group"
-                            data-testid={`row-price-${coin.id}`}
-                          >
-                            <td className="p-4">
-                              <button
-                                onClick={() => {
-                                  toggleWatchlist(coin.id);
-                                  toast({ title: isWatched(coin.id) ? `Removed ${coin.name}` : `Added ${coin.name} to watchlist` });
-                                }}
-                                className="text-muted-foreground hover:text-yellow-400 transition-colors"
-                                data-testid={`button-star-${coin.id}`}
-                              >
-                                <Star className={`w-4 h-4 ${isWatched(coin.id) ? "text-yellow-400 fill-yellow-400" : ""}`} />
-                              </button>
-                            </td>
-                            <td className="p-4 text-muted-foreground text-sm">{coin.market_cap_rank}</td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-3">
-                                <img src={coin.image} alt="" className="w-7 h-7 rounded-full" />
-                                <div>
-                                  <div className="font-medium text-foreground text-sm">{coin.name}</div>
-                                  <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-4 text-right font-mono text-sm text-foreground">
-                              ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: coin.current_price < 1 ? 6 : 2 })}
-                            </td>
-                            <td className={`p-4 text-right text-sm font-mono ${change1h >= 0 ? "text-green-400" : "text-red-400"}`}>
-                              {change1h != null ? `${change1h >= 0 ? "+" : ""}${change1h.toFixed(2)}%` : "—"}
-                            </td>
-                            <td className={`p-4 text-right text-sm font-mono ${change24h >= 0 ? "text-green-400" : "text-red-400"}`}>
-                              {change24h != null ? `${change24h >= 0 ? "+" : ""}${change24h.toFixed(2)}%` : "—"}
-                            </td>
-                            <td className={`p-4 text-right text-sm font-mono ${change7d >= 0 ? "text-green-400" : "text-red-400"}`}>
-                              {change7d != null ? `${change7d >= 0 ? "+" : ""}${change7d.toFixed(2)}%` : "—"}
-                            </td>
-                            <td className="p-4 text-right text-sm font-mono text-foreground">
-                              {coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}
-                            </td>
-                            <td className="p-4 text-right">
-                              {coin.sparkline_in_7d?.price && (
-                                <MiniSparkline
-                                  data={coin.sparkline_in_7d.price}
-                                  positive={(change7d || 0) >= 0}
-                                />
-                              )}
-                            </td>
-                          </tr>
-                          {i === 9 && (
-                            <tr key="infeed-price-ad">
-                              <td colSpan={9} className="p-3">
-                                <AdBanner slot="9012345678" format="fluid" layout="in-article" className="w-full" />
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+        {selectedCoin && (
+          <CoinDetailPanel coin={selectedCoin} onClose={() => setSelectedCoin(null)} />
+        )}
 
-              <div className="flex items-center justify-between p-4 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="bg-muted/30 border-border text-foreground"
-                  data-testid="button-prev-page"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">Page {page}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page + 1)}
-                  className="bg-muted/30 border-border text-foreground"
-                  data-testid="button-next-page"
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+        {pricesQuery.isLoading ? (
+          <div className="glass-panel rounded-2xl p-12 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+            <div className="text-muted-foreground">Loading prices...</div>
+          </div>
+        ) : (
+          <>
+            <div className="md:hidden space-y-2">
+              {coins.map((coin: any, i: number) => {
+                const change24h = coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h;
+                const priceUp = (change24h || 0) >= 0;
+                return (
+                  <div key={coin.id}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)}
+                      onKeyDown={(e) => { if (e.key === "Enter") setSelectedCoin(selectedCoin?.id === coin.id ? null : coin); }}
+                      className="w-full text-left glass-panel rounded-xl p-3 hover:bg-muted/20 active:bg-muted/30 transition-colors cursor-pointer"
+                      data-testid={`card-price-mobile-${coin.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleWatchlist(coin.id);
+                            toast({ title: isWatched(coin.id) ? `Removed ${coin.name}` : `Added ${coin.name} to watchlist` });
+                          }}
+                          className="text-muted-foreground hover:text-yellow-400 transition-colors shrink-0"
+                          data-testid={`button-star-mobile-${coin.id}`}
+                        >
+                          <Star className={`w-4 h-4 ${isWatched(coin.id) ? "text-yellow-400 fill-yellow-400" : ""}`} />
+                        </button>
+                        <span className="text-xs text-muted-foreground w-6 text-right shrink-0">{coin.market_cap_rank}</span>
+                        <img src={coin.image} alt="" className="w-8 h-8 rounded-full shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground text-sm truncate">{coin.name}</span>
+                            <span className="text-xs text-muted-foreground uppercase shrink-0">{coin.symbol}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            MCap: {coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <div className="font-mono text-sm font-semibold text-foreground">
+                            ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: coin.current_price < 1 ? 6 : 2 })}
+                          </div>
+                          <div className={`text-xs font-mono ${priceUp ? "text-green-400" : "text-red-400"}`}>
+                            {priceUp ? "+" : ""}{(change24h || 0).toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {i === 9 && (
+                      <AdBanner slot="9012345678" format="fluid" layout="in-article" className="w-full my-2" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden md:block glass-panel rounded-2xl overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="p-4 font-medium w-10"></th>
+                    <th className="p-4 font-medium w-12">#</th>
+                    <th className="p-4 font-medium">Coin</th>
+                    <th className="p-4 font-medium text-right">Price</th>
+                    <th className="p-4 font-medium text-right">1h</th>
+                    <th className="p-4 font-medium text-right">24h</th>
+                    <th className="p-4 font-medium text-right">7d</th>
+                    <th className="p-4 font-medium text-right">Market Cap</th>
+                    <th className="p-4 font-medium text-right">7d Chart</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {coins.map((coin: any, i: number) => {
+                    const change1h = coin.price_change_percentage_1h_in_currency;
+                    const change24h = coin.price_change_percentage_24h_in_currency;
+                    const change7d = coin.price_change_percentage_7d_in_currency;
+                    return (
+                      <tr
+                        key={coin.id}
+                        className="hover:bg-muted/20 transition-colors cursor-pointer group"
+                        onClick={() => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)}
+                        data-testid={`row-price-${coin.id}`}
+                      >
+                        <td className="p-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleWatchlist(coin.id);
+                              toast({ title: isWatched(coin.id) ? `Removed ${coin.name}` : `Added ${coin.name} to watchlist` });
+                            }}
+                            className="text-muted-foreground hover:text-yellow-400 transition-colors"
+                            data-testid={`button-star-${coin.id}`}
+                          >
+                            <Star className={`w-4 h-4 ${isWatched(coin.id) ? "text-yellow-400 fill-yellow-400" : ""}`} />
+                          </button>
+                        </td>
+                        <td className="p-4 text-muted-foreground text-sm">{coin.market_cap_rank}</td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <img src={coin.image} alt="" className="w-7 h-7 rounded-full" />
+                            <div>
+                              <div className="font-medium text-foreground text-sm group-hover:text-primary transition-colors">{coin.name}</div>
+                              <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-right font-mono text-sm text-foreground">
+                          ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: coin.current_price < 1 ? 6 : 2 })}
+                        </td>
+                        <td className={`p-4 text-right text-sm font-mono ${(change1h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {change1h != null ? `${change1h >= 0 ? "+" : ""}${change1h.toFixed(2)}%` : "—"}
+                        </td>
+                        <td className={`p-4 text-right text-sm font-mono ${(change24h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {change24h != null ? `${change24h >= 0 ? "+" : ""}${change24h.toFixed(2)}%` : "—"}
+                        </td>
+                        <td className={`p-4 text-right text-sm font-mono ${(change7d || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {change7d != null ? `${change7d >= 0 ? "+" : ""}${change7d.toFixed(2)}%` : "—"}
+                        </td>
+                        <td className="p-4 text-right text-sm font-mono text-foreground">
+                          {coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}
+                        </td>
+                        <td className="p-4 text-right">
+                          {coin.sparkline_in_7d?.price && (
+                            <MiniSparkline data={coin.sparkline_in_7d.price} positive={(change7d || 0) >= 0} />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between p-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="bg-muted/30 border-border text-foreground"
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">Page {page}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                className="bg-muted/30 border-border text-foreground"
+                data-testid="button-next-page"
+              >
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </>
+        )}
 
         <AdBanner slot="0123456789" format="horizontal" className="w-full mt-6" />
       </div>

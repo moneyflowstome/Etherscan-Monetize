@@ -22,11 +22,13 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
 - Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration + "My Positions" tracker (localStorage) with accumulated rewards, projections, and progress tracking
 - Wallet Tracker export — CSV and PDF download buttons for transaction and token transfer data (with CSV formula injection sanitization)
-- Coin of the Day — deterministic daily featured coin on explorer homepage with live price, 24h change, and market cap
+- Coin of the Day — picks from top 100 coins by market cap (via `/api/coin-of-the-day`), deterministic daily rotation, explorer homepage with live price, 24h change, market cap, and rank badge
+- Fear & Greed Index — live gauge widget on explorer homepage (compact) and prices page (full), powered by Alternative.me API, 7-day history bar chart, cached 10 min via `/api/fear-greed`
+- Market Overview widget on prices page — total market cap, 24h volume, BTC dominance bar, BTC/ETH live prices
 - Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks) via settings panel, preferences persisted in localStorage
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
-- Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist
+- Crypto prices page — mobile-friendly card layout (no horizontal scroll), clickable coins with detail panel (price, 24h/7d changes, market cap, volume, ATH, sparkline), desktop table preserved, Fear & Greed + Market Overview widgets at top
 - Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
 - News feed with three tabs: Crypto (CryptoCompare), World (BBC, Al Jazeera, Sky News RSS), USA (BBC US, ABC News, NPR RSS)
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
