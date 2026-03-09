@@ -11,6 +11,7 @@ const NAV_LINKS: { path: string; label: string; featureKey?: string }[] = [
   { path: "/", label: "Explorer" },
   { path: "/wallet", label: "Wallet Tracker", featureKey: "wallet_tracking_enabled" },
   { path: "/prices", label: "Prices", featureKey: "prices_enabled" },
+  { path: "/nfts", label: "NFTs", featureKey: "nfts_enabled" },
   { path: "/dex", label: "DEX Screener", featureKey: "dex_enabled" },
   { path: "/gold", label: "Gold", featureKey: "gold_enabled" },
   { path: "/exchanges", label: "Exchanges" },

@@ -32,6 +32,7 @@ import GoldPage from "@/pages/gold";
 import CalculatorPage from "@/pages/calculator";
 import ArbitragePage from "@/pages/arbitrage";
 import ChatPage from "@/pages/chat";
+import NftsPage from "@/pages/nfts";
 
 export const FeatureContext = createContext<Record<string, string>>({});
 export function useFeatureEnabled(key: string): boolean {
@@ -106,6 +107,7 @@ function Router() {
         <FeatureRoute path="/calculator" component={CalculatorPage} featureKey="calculator_enabled" />
         <FeatureRoute path="/arbitrage" component={ArbitragePage} featureKey="arbitrage_enabled" />
         <FeatureRoute path="/chat" component={ChatPage} featureKey="chat_enabled" />
+        <FeatureRoute path="/nfts" component={NftsPage} featureKey="nfts_enabled" />
         <FeatureRoute path="/staking" component={StakingPage} featureKey="staking_enabled" />
         <FeatureRoute path="/news" component={NewsPage} featureKey="news_enabled" />
         <FeatureRoute path="/masternodes" component={MasternodesPage} featureKey="masternodes_enabled" />

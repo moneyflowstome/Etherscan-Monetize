@@ -622,6 +622,7 @@ function SettingsTab({ token }: { token: string }) {
             { key: "staking_enabled", label: "Staking Calculator", desc: "Enable/disable the staking calculator" },
             { key: "dex_enabled", label: "DEX Screener", desc: "Enable/disable the DEX screener page" },
             { key: "gold_enabled", label: "Gold & Precious Metals", desc: "Enable/disable the gold tracker page" },
+            { key: "nfts_enabled", label: "NFT Explorer", desc: "Enable/disable the OpenSea NFT explorer page" },
             { key: "contact_enabled", label: "Contact Form", desc: "Enable/disable the contact form" },
           ].map((feature) => (
             <Card key={feature.key} className="bg-muted/30 border-border">
@@ -655,6 +656,7 @@ function SettingsTab({ token }: { token: string }) {
             { key: "api_key_CMC_API_KEY", label: "CoinMarketCap API Key", placeholder: "Your CMC API key", help: "Used for market data and coin metadata" },
             { key: "api_key_CHANGENOW_API_KEY", label: "ChangeNOW API Key", placeholder: "Your ChangeNOW API key", help: "Used for the crypto swap feature" },
             { key: "api_key_BRAVE_API_KEY", label: "Brave Search API Key", placeholder: "Your Brave API key", help: "Used for news search and AI blog generation" },
+            { key: "api_key_OPENSEA_API_KEY", label: "OpenSea API Key", placeholder: "Your OpenSea API key", help: "Used for the NFT explorer (collections, wallet NFTs)" },
           ].map((field) => (
             <Card key={field.key} className="bg-muted/30 border-border">
               <CardContent className="p-4">
