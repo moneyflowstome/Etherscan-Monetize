@@ -326,6 +326,11 @@ function safeUrl(url: string): string | null {
 
 function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
   const [showAbout, setShowAbout] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [coin.id]);
 
   const { data: fullData, isLoading: fullLoading } = useQuery({
     queryKey: ["/api/coin", coin.id],
@@ -358,7 +363,7 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
   const hasLinks = links.homepage?.length > 0 || links.whitepaper || links.subreddit_url || links.twitter_screen_name || links.telegram_channel_identifier || links.repos_url?.github?.length > 0 || links.blockchain_site?.length > 0 || links.announcement_url?.length > 0 || links.official_forum_url?.length > 0 || links.chat_url?.length > 0 || links.snapshot_url;
 
   return (
-    <Card className="glass-panel border-primary/30 mb-4" data-testid={`panel-coin-detail-${coin.id}`}>
+    <Card ref={panelRef} className="glass-panel border-primary/30 mb-4" data-testid={`panel-coin-detail-${coin.id}`}>
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -1309,10 +1314,6 @@ export default function PricesPage() {
         <MemeCoinsSection onSelectCoin={(coin) => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)} />
         <PrivacyCoinsSection onSelectCoin={(coin) => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)} />
 
-        {selectedCoin && (
-          <CoinDetailPanel coin={selectedCoin} onClose={() => setSelectedCoin(null)} />
-        )}
-
         {pricesQuery.isLoading ? (
           <div className="glass-panel rounded-2xl p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
@@ -1507,6 +1508,10 @@ export default function PricesPage() {
               </span>
             </div>
           </>
+        )}
+
+        {selectedCoin && (
+          <CoinDetailPanel coin={selectedCoin} onClose={() => setSelectedCoin(null)} />
         )}
 
         <AdBanner slot="0123456789" format="horizontal" className="w-full mt-6" />
