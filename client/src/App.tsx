@@ -18,6 +18,9 @@ import AdminPage from "@/pages/admin";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
 import ExchangesPage from "@/pages/exchanges";
+import ContactPage from "@/pages/contact";
+import BlogPage from "@/pages/blog";
+import BlogPostPage from "@/pages/blog-post";
 
 function Router() {
   return (
@@ -31,6 +34,9 @@ function Router() {
       <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>
       <Route path="/masternodes" component={MasternodesPage}/>
+      <Route path="/blog" component={BlogPage}/>
+      <Route path="/blog/:slug" component={BlogPostPage}/>
+      <Route path="/contact" component={ContactPage}/>
       <Route path="/privacy" component={PrivacyPage}/>
       <Route path="/terms" component={TermsPage}/>
       <Route path="/admin" component={AdminPage}/>

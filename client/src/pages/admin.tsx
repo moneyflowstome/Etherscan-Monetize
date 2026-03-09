@@ -26,6 +26,9 @@ import {
   ExternalLink,
   Check,
   X,
+  Mail,
+  FileText,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -799,6 +802,703 @@ function ExchangesTab({ token }: { token: string }) {
   );
 }
 
+function MessagesTab({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: messages, isLoading } = useQuery({
+    queryKey: ["admin-messages"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/messages", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/messages/${id}/read`, {
+        method: "PUT",
+        headers: apiHeaders(token),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-messages"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/messages/${id}`, {
+        method: "DELETE",
+        headers: apiHeaders(token),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-messages"] });
+      toast({ title: "Message deleted" });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-messages-title">Contact Messages</h2>
+      {(messages || []).length === 0 ? (
+        <Card className="bg-muted/30 border-border">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">No messages yet.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{(messages || []).length} messages total</p>
+          {(messages || []).map((msg: any) => (
+            <Card
+              key={msg.id}
+              className={`border-border/50 cursor-pointer transition-colors ${!msg.read ? "bg-primary/5 border-primary/20" : "bg-muted/30"}`}
+              onClick={() => { if (!msg.read) markReadMutation.mutate(msg.id); }}
+              data-testid={`message-${msg.id}`}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm text-foreground">{msg.name}</span>
+                      {!msg.read && <Badge className="bg-primary/20 text-primary border-0 text-[9px]">New</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-1">{msg.email}</p>
+                    {msg.subject && <p className="text-sm text-foreground font-medium mb-1">{msg.subject}</p>}
+                    <p className="text-sm text-muted-foreground line-clamp-2">{msg.message}</p>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-400 hover:text-red-300 shrink-0"
+                    onClick={(e) => { e.stopPropagation(); if (confirm("Delete this message?")) deleteMutation.mutate(msg.id); }}
+                    data-testid={`button-delete-message-${msg.id}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BlogTab({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    title: "", slug: "", content: "", excerpt: "", category: "News",
+    tags: "", coverImage: "", metaTitle: "", metaDescription: "",
+    published: false, featured: false,
+  });
+
+  const { data: posts, isLoading } = useQuery({
+    queryKey: ["admin-blog"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/blog", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const generateSlug = (title: string) => {
+    return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  };
+
+  const resetForm = () => {
+    setForm({ title: "", slug: "", content: "", excerpt: "", category: "News", tags: "", coverImage: "", metaTitle: "", metaDescription: "", published: false, featured: false });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const endpoint = editingId ? `/api/admin/blog/${editingId}` : "/api/admin/blog";
+      const method = editingId ? "PUT" : "POST";
+      const payload = { ...form, tags: form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) };
+      const res = await fetch(endpoint, { method, headers: apiHeaders(token), body: JSON.stringify(payload) });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-blog"] });
+      toast({ title: editingId ? "Post updated" : "Post created" });
+      resetForm();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/blog/${id}`, { method: "DELETE", headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-blog"] });
+      toast({ title: "Post deleted" });
+    },
+  });
+
+  const startEdit = (post: any) => {
+    setForm({
+      title: post.title || "", slug: post.slug || "", content: post.content || "",
+      excerpt: post.excerpt || "", category: post.category || "News",
+      tags: Array.isArray(post.tags) ? post.tags.join(", ") : (post.tags || ""),
+      coverImage: post.coverImage || "", metaTitle: post.metaTitle || "",
+      metaDescription: post.metaDescription || "",
+      published: post.published || false, featured: post.featured || false,
+    });
+    setEditingId(post.id);
+    setShowForm(true);
+  };
+
+  const updateField = (key: string, value: any) => {
+    setForm((p) => {
+      const updated = { ...p, [key]: value };
+      if (key === "title" && !editingId) {
+        updated.slug = generateSlug(value);
+      }
+      return updated;
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-blog-admin-title">Manage Blog</h2>
+        <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }} className="bg-primary hover:bg-primary/90" data-testid="button-add-post">
+          <Plus className="w-4 h-4 mr-1" /> New Post
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-5 space-y-4">
+            <h3 className="font-display text-sm font-bold text-primary">{editingId ? "Edit Post" : "New Blog Post"}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Title *</label>
+                <Input value={form.title} onChange={(e) => updateField("title", e.target.value)} placeholder="Post title" className="bg-muted/30 border-border" data-testid="input-blog-title" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Slug</label>
+                <Input value={form.slug} onChange={(e) => updateField("slug", e.target.value)} placeholder="post-slug" className="bg-muted/30 border-border font-mono text-sm" data-testid="input-blog-slug" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Content *</label>
+                <textarea
+                  value={form.content}
+                  onChange={(e) => updateField("content", e.target.value)}
+                  placeholder="Write your blog post content..."
+                  rows={8}
+                  className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground text-sm resize-y min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  data-testid="textarea-blog-content"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Excerpt</label>
+                <textarea
+                  value={form.excerpt}
+                  onChange={(e) => updateField("excerpt", e.target.value)}
+                  placeholder="Short summary of the post..."
+                  rows={3}
+                  className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground text-sm resize-y min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  data-testid="textarea-blog-excerpt"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+                <select value={form.category} onChange={(e) => updateField("category", e.target.value)} className="w-full h-9 rounded-md border border-border bg-muted/30 px-3 text-sm text-foreground" data-testid="select-blog-category">
+                  <option value="News">News</option>
+                  <option value="Tutorial">Tutorial</option>
+                  <option value="Guide">Guide</option>
+                  <option value="Analysis">Analysis</option>
+                  <option value="Opinion">Opinion</option>
+                  <option value="Review">Review</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tags (comma-separated)</label>
+                <Input value={form.tags} onChange={(e) => updateField("tags", e.target.value)} placeholder="crypto, bitcoin, defi" className="bg-muted/30 border-border" data-testid="input-blog-tags" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Cover Image URL</label>
+                <Input value={form.coverImage} onChange={(e) => updateField("coverImage", e.target.value)} placeholder="https://example.com/image.jpg" className="bg-muted/30 border-border" data-testid="input-blog-cover" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Meta Title</label>
+                <Input value={form.metaTitle} onChange={(e) => updateField("metaTitle", e.target.value)} placeholder="SEO title" className="bg-muted/30 border-border" data-testid="input-blog-meta-title" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Meta Description</label>
+                <Input value={form.metaDescription} onChange={(e) => updateField("metaDescription", e.target.value)} placeholder="SEO description" className="bg-muted/30 border-border" data-testid="input-blog-meta-desc" />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input type="checkbox" checked={form.published} onChange={(e) => updateField("published", e.target.checked)} className="accent-primary" data-testid="checkbox-blog-published" />
+                  Published
+                </label>
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input type="checkbox" checked={form.featured} onChange={(e) => updateField("featured", e.target.checked)} className="accent-primary" data-testid="checkbox-blog-featured" />
+                  Featured
+                </label>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!form.title || !form.content || saveMutation.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-save-post">
+                {saveMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                {editingId ? "Update" : "Create"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={resetForm} data-testid="button-cancel-post">Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(posts || []).length === 0 ? (
+        <Card className="bg-muted/30 border-border">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">No blog posts yet. Click "New Post" to create one.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{(posts || []).length} posts total</p>
+          {(posts || []).map((post: any) => (
+            <Card key={post.id} className="border-border/50" data-testid={`admin-post-${post.id}`}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-foreground truncate">{post.title}</span>
+                    {post.featured && <Star className="w-3 h-3 text-primary fill-primary shrink-0" />}
+                    <Badge variant="outline" className={`text-[9px] ${post.published ? "text-green-400 border-green-400/30" : "text-yellow-400 border-yellow-400/30"}`}>
+                      {post.published ? "Published" : "Draft"}
+                    </Badge>
+                    {post.category && <Badge variant="outline" className="text-[9px] text-primary border-primary/30">{post.category}</Badge>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">/{post.slug}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground hover:text-foreground" onClick={() => startEdit(post)} data-testid={`button-edit-post-${post.id}`}>
+                    <Edit className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300" onClick={() => { if (confirm(`Delete "${post.title}"?`)) deleteMutation.mutate(post.id); }} data-testid={`button-delete-post-${post.id}`}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SeoTab({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const defaultPages = [
+    { path: "/", label: "Home" },
+    { path: "/wallet", label: "Wallet Tracker" },
+    { path: "/prices", label: "Prices" },
+    { path: "/blog", label: "Blog" },
+    { path: "/contact", label: "Contact" },
+    { path: "/news", label: "News" },
+    { path: "/exchanges", label: "Exchanges" },
+    { path: "/staking", label: "Staking" },
+    { path: "/masternodes", label: "Masternodes" },
+  ];
+
+  const [seoData, setSeoData] = useState<Record<string, any>>({});
+  const [robotsTxt, setRobotsTxt] = useState("");
+  const [expandedPage, setExpandedPage] = useState<string | null>(null);
+
+  const { data: seoSettings, isLoading } = useQuery({
+    queryKey: ["admin-seo"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/seo", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["admin-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (seoSettings) {
+      const mapped: Record<string, any> = {};
+      if (Array.isArray(seoSettings)) {
+        seoSettings.forEach((s: any) => { mapped[s.pagePath] = s; });
+      } else if (typeof seoSettings === "object") {
+        Object.assign(mapped, seoSettings);
+      }
+      setSeoData(mapped);
+    }
+  }, [seoSettings]);
+
+  useEffect(() => {
+    if (settings?.robots_txt_content) {
+      setRobotsTxt(settings.robots_txt_content);
+    }
+  }, [settings]);
+
+  const saveSeoMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/seo", {
+        method: "PUT",
+        headers: apiHeaders(token),
+        body: JSON.stringify(seoData),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-seo"] });
+      toast({ title: "SEO settings saved" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save SEO settings.", variant: "destructive" });
+    },
+  });
+
+  const saveRobotsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: apiHeaders(token),
+        body: JSON.stringify({ robots_txt_content: robotsTxt }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      toast({ title: "robots.txt saved" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save robots.txt.", variant: "destructive" });
+    },
+  });
+
+  const updatePageSeo = (path: string, field: string, value: string) => {
+    setSeoData((prev) => ({
+      ...prev,
+      [path]: { ...(prev[path] || {}), pagePath: path, [field]: value },
+    }));
+  };
+
+  const getSeoScore = (pageData: any) => {
+    if (!pageData) return { score: 0, issues: ["No SEO data configured"] };
+    const issues: string[] = [];
+    let score = 0;
+    const title = pageData.metaTitle || "";
+    const desc = pageData.metaDescription || "";
+    const keywords = pageData.metaKeywords || "";
+
+    if (title.length === 0) { issues.push("Missing meta title"); }
+    else if (title.length >= 50 && title.length <= 60) { score += 30; }
+    else if (title.length < 50) { score += 15; issues.push(`Title too short (${title.length}/50-60 chars)`); }
+    else { score += 15; issues.push(`Title too long (${title.length}/50-60 chars)`); }
+
+    if (desc.length === 0) { issues.push("Missing meta description"); }
+    else if (desc.length >= 150 && desc.length <= 160) { score += 30; }
+    else if (desc.length < 150) { score += 15; issues.push(`Description too short (${desc.length}/150-160 chars)`); }
+    else { score += 15; issues.push(`Description too long (${desc.length}/150-160 chars)`); }
+
+    if (keywords.length > 0) { score += 20; } else { issues.push("No keywords set"); }
+    if (pageData.ogTitle) { score += 10; } else { issues.push("Missing OG title"); }
+    if (pageData.ogDescription) { score += 10; } else { issues.push("Missing OG description"); }
+
+    if (issues.length === 0) issues.push("All checks passed!");
+    return { score, issues };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-seo-title">SEO Manager</h2>
+        <Button
+          size="sm"
+          onClick={() => saveSeoMutation.mutate()}
+          disabled={saveSeoMutation.isPending}
+          className="bg-primary hover:bg-primary/90"
+          data-testid="button-save-seo"
+        >
+          {saveSeoMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+          Save All SEO
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {defaultPages.map((page) => {
+          const pageData = seoData[page.path] || {};
+          const { score, issues } = getSeoScore(pageData);
+          const isExpanded = expandedPage === page.path;
+          return (
+            <Card key={page.path} className="bg-muted/30 border-border" data-testid={`seo-page-${page.path.replace(/\//g, "-") || "home"}`}>
+              <CardContent className="p-0">
+                <button
+                  className="w-full p-4 flex items-center justify-between text-left"
+                  onClick={() => setExpandedPage(isExpanded ? null : page.path)}
+                  data-testid={`button-toggle-seo-${page.path.replace(/\//g, "-") || "home"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-4 h-4 text-primary" />
+                    <div>
+                      <span className="font-medium text-sm text-foreground">{page.label}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{page.path}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[9px] ${score >= 80 ? "text-green-400 border-green-400/30" : score >= 50 ? "text-yellow-400 border-yellow-400/30" : "text-red-400 border-red-400/30"}`}>
+                      {score}/100
+                    </Badge>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Meta Title ({(pageData.metaTitle || "").length} chars)</label>
+                        <Input
+                          value={pageData.metaTitle || ""}
+                          onChange={(e) => updatePageSeo(page.path, "metaTitle", e.target.value)}
+                          placeholder="Page title (50-60 chars ideal)"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-title-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Keywords</label>
+                        <Input
+                          value={pageData.metaKeywords || ""}
+                          onChange={(e) => updatePageSeo(page.path, "metaKeywords", e.target.value)}
+                          placeholder="keyword1, keyword2, keyword3"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-keywords-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs text-muted-foreground mb-1 block">Meta Description ({(pageData.metaDescription || "").length} chars)</label>
+                        <Input
+                          value={pageData.metaDescription || ""}
+                          onChange={(e) => updatePageSeo(page.path, "metaDescription", e.target.value)}
+                          placeholder="Page description (150-160 chars ideal)"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-desc-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">OG Title</label>
+                        <Input
+                          value={pageData.ogTitle || ""}
+                          onChange={(e) => updatePageSeo(page.path, "ogTitle", e.target.value)}
+                          placeholder="Open Graph title"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-og-title-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">OG Image URL</label>
+                        <Input
+                          value={pageData.ogImage || ""}
+                          onChange={(e) => updatePageSeo(page.path, "ogImage", e.target.value)}
+                          placeholder="https://example.com/og-image.jpg"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-og-image-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs text-muted-foreground mb-1 block">OG Description</label>
+                        <Input
+                          value={pageData.ogDescription || ""}
+                          onChange={(e) => updatePageSeo(page.path, "ogDescription", e.target.value)}
+                          placeholder="Open Graph description"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-og-desc-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Canonical URL</label>
+                        <Input
+                          value={pageData.canonical || ""}
+                          onChange={(e) => updatePageSeo(page.path, "canonical", e.target.value)}
+                          placeholder="https://tokenaltcoin.com/page"
+                          className="bg-muted/30 border-border"
+                          data-testid={`input-seo-canonical-${page.path.replace(/\//g, "-") || "home"}`}
+                        />
+                      </div>
+                    </div>
+                    <Card className={`border-0 ${score >= 80 ? "bg-green-500/10" : score >= 50 ? "bg-yellow-500/10" : "bg-red-500/10"}`}>
+                      <CardContent className="p-3">
+                        <h4 className="text-xs font-bold text-foreground mb-1 flex items-center gap-1">
+                          <Search className="w-3 h-3" /> SEO Score: {score}/100
+                        </h4>
+                        <ul className="text-[10px] text-muted-foreground space-y-0.5">
+                          {issues.map((issue, i) => (
+                            <li key={i}>• {issue}</li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card className="bg-muted/30 border-border">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" /> robots.txt Editor
+            </h3>
+            <Button
+              size="sm"
+              onClick={() => saveRobotsMutation.mutate()}
+              disabled={saveRobotsMutation.isPending}
+              className="bg-primary hover:bg-primary/90"
+              data-testid="button-save-robots"
+            >
+              {saveRobotsMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+              Save robots.txt
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            This content is served at <span className="font-mono text-primary">/robots.txt</span>
+          </p>
+          <textarea
+            value={robotsTxt}
+            onChange={(e) => setRobotsTxt(e.target.value)}
+            placeholder={"User-agent: *\nAllow: /\n\nSitemap: https://tokenaltcoin.com/sitemap.xml"}
+            rows={8}
+            className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground font-mono text-sm resize-y min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+            data-testid="textarea-robots-txt"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AdminTabs({ token }: { token: string }) {
+  const { data: messages } = useQuery({
+    queryKey: ["admin-messages"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/messages", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const unreadCount = (messages || []).filter((m: any) => !m.read).length;
+
+  return (
+    <Tabs defaultValue="analytics" className="space-y-6">
+      <div className="overflow-x-auto">
+        <TabsList className="bg-muted/30 border border-border w-max min-w-full">
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-analytics">
+            <BarChart3 className="w-4 h-4 mr-2" /> Analytics
+          </TabsTrigger>
+          <TabsTrigger value="adsense" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-adsense">
+            <Zap className="w-4 h-4 mr-2" /> Settings
+          </TabsTrigger>
+          <TabsTrigger value="content" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-content">
+            <Newspaper className="w-4 h-4 mr-2" /> Content
+          </TabsTrigger>
+          <TabsTrigger value="exchanges" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-exchanges">
+            <Building2 className="w-4 h-4 mr-2" /> Exchanges
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-messages">
+            <Mail className="w-4 h-4 mr-2" /> Messages
+            {unreadCount > 0 && (
+              <Badge className="ml-1 bg-red-500 text-white border-0 text-[9px] px-1.5 py-0 min-w-[18px] h-[18px] flex items-center justify-center" data-testid="badge-unread-messages">
+                {unreadCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="blog" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-blog">
+            <FileText className="w-4 h-4 mr-2" /> Blog
+          </TabsTrigger>
+          <TabsTrigger value="seo" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-seo">
+            <Search className="w-4 h-4 mr-2" /> SEO
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="analytics">
+        <AnalyticsTab token={token} />
+      </TabsContent>
+      <TabsContent value="adsense">
+        <SettingsTab token={token} />
+      </TabsContent>
+      <TabsContent value="content">
+        <ContentTab token={token} />
+      </TabsContent>
+      <TabsContent value="exchanges">
+        <ExchangesTab token={token} />
+      </TabsContent>
+      <TabsContent value="messages">
+        <MessagesTab token={token} />
+      </TabsContent>
+      <TabsContent value="blog">
+        <BlogTab token={token} />
+      </TabsContent>
+      <TabsContent value="seo">
+        <SeoTab token={token} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
@@ -880,35 +1580,7 @@ export default function AdminPage() {
       </nav>
 
       <main className="relative z-10 max-w-6xl mx-auto px-4 md:px-6 py-8">
-        <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="bg-muted/30 border border-border">
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-analytics">
-              <BarChart3 className="w-4 h-4 mr-2" /> Analytics
-            </TabsTrigger>
-            <TabsTrigger value="adsense" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-adsense">
-              <Zap className="w-4 h-4 mr-2" /> Settings
-            </TabsTrigger>
-            <TabsTrigger value="content" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-content">
-              <Newspaper className="w-4 h-4 mr-2" /> Content
-            </TabsTrigger>
-            <TabsTrigger value="exchanges" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-exchanges">
-              <Building2 className="w-4 h-4 mr-2" /> Exchanges
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="analytics">
-            <AnalyticsTab token={token} />
-          </TabsContent>
-          <TabsContent value="adsense">
-            <SettingsTab token={token} />
-          </TabsContent>
-          <TabsContent value="content">
-            <ContentTab token={token} />
-          </TabsContent>
-          <TabsContent value="exchanges">
-            <ExchangesTab token={token} />
-          </TabsContent>
-        </Tabs>
+        <AdminTabs token={token} />
       </main>
     </div>
   );

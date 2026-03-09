@@ -85,3 +85,57 @@ export const exchanges = pgTable("exchanges", {
 export const insertExchangeSchema = createInsertSchema(exchanges).omit({ id: true });
 export type InsertExchange = z.infer<typeof insertExchangeSchema>;
 export type Exchange = typeof exchanges.$inferSelect;
+
+export const contactMessages = pgTable("contact_messages", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, read: true, createdAt: true });
+export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+export type ContactMessage = typeof contactMessages.$inferSelect;
+
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  content: text("content").notNull(),
+  excerpt: text("excerpt"),
+  author: text("author").default("Admin"),
+  category: text("category"),
+  tags: text("tags").array(),
+  coverImage: text("cover_image"),
+  published: boolean("published").default(false),
+  featured: boolean("featured").default(false),
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  metaKeywords: text("meta_keywords"),
+  views: integer("views").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true, views: true, createdAt: true, updatedAt: true });
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type BlogPost = typeof blogPosts.$inferSelect;
+
+export const seoMeta = pgTable("seo_meta", {
+  id: serial("id").primaryKey(),
+  pagePath: text("page_path").notNull().unique(),
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  metaKeywords: text("meta_keywords"),
+  ogTitle: text("og_title"),
+  ogDescription: text("og_description"),
+  ogImage: text("og_image"),
+  canonical: text("canonical"),
+});
+
+export const insertSeoMetaSchema = createInsertSchema(seoMeta).omit({ id: true });
+export type InsertSeoMeta = z.infer<typeof insertSeoMetaSchema>;
+export type SeoMeta = typeof seoMeta.$inferSelect;

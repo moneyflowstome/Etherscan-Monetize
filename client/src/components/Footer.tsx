@@ -19,6 +19,8 @@ export function Footer() {
           <Link href="/staking" className="hover:text-foreground transition-colors" data-testid="footer-link-staking">Staking</Link>
           <Link href="/news" className="hover:text-foreground transition-colors" data-testid="footer-link-news">News</Link>
           <Link href="/masternodes" className="hover:text-foreground transition-colors" data-testid="footer-link-masternodes">Masternodes</Link>
+          <Link href="/blog" className="hover:text-foreground transition-colors" data-testid="footer-link-blog">Blog</Link>
+          <Link href="/contact" className="hover:text-foreground transition-colors" data-testid="footer-link-contact">Contact</Link>
         </div>
       </div>
       <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground/50 pb-2">

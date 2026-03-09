@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import { insertHiddenNewsSchema, insertPinnedNewsSchema } from "@shared/schema";
+import { insertHiddenNewsSchema, insertPinnedNewsSchema, insertContactMessageSchema, insertBlogPostSchema, insertSeoMetaSchema } from "@shared/schema";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { XMLParser } from "fast-xml-parser";
@@ -2267,6 +2267,232 @@ export async function registerRoutes(
       res.json({ message: `Seeded ${count} exchanges`, count });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Contact Messages ──
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const parsed = insertContactMessageSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Invalid form data", details: parsed.error.flatten() });
+      const msg = await storage.createMessage(parsed.data);
+      res.json({ success: true, id: msg.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/messages", requireAdmin, async (_req, res) => {
+    try {
+      const messages = await storage.getMessages();
+      res.json(messages);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/messages/unread-count", requireAdmin, async (_req, res) => {
+    try {
+      const count = await storage.getUnreadCount();
+      res.json({ count });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/messages/:id", requireAdmin, async (req, res) => {
+    try {
+      const msg = await storage.getMessage(parseInt(req.params.id));
+      if (!msg) return res.status(404).json({ error: "Message not found" });
+      res.json(msg);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/admin/messages/:id/read", requireAdmin, async (req, res) => {
+    try {
+      await storage.markMessageRead(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/messages/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteMessage(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Blog Posts ──
+  app.get("/api/blog", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 12, 50);
+      const category = req.query.category as string;
+      const offset = (page - 1) * limit;
+      const [posts, total] = await Promise.all([
+        storage.getPosts({ published: true, category: category || undefined, limit, offset }),
+        storage.getPostCount({ published: true, category: category || undefined }),
+      ]);
+      res.json({ posts, total, page, pages: Math.ceil(total / limit) });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/blog/:slug", async (req, res) => {
+    try {
+      const post = await storage.getPostBySlug(req.params.slug);
+      if (!post || !post.published) return res.status(404).json({ error: "Post not found" });
+      await storage.incrementPostViews(post.id);
+      res.json(post);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/blog", requireAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getPosts();
+      res.json(posts);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/blog", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertBlogPostSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Invalid post data", details: parsed.error.flatten() });
+      const post = await storage.createPost(parsed.data);
+      res.json(post);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/blog/:id", requireAdmin, async (req, res) => {
+    try {
+      const post = await storage.getPost(parseInt(req.params.id));
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      res.json(post);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/admin/blog/:id", requireAdmin, async (req, res) => {
+    try {
+      const post = await storage.updatePost(parseInt(req.params.id), req.body);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      res.json(post);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/blog/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deletePost(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── SEO Meta ──
+  app.get("/api/seo/:pagePath", async (req, res) => {
+    try {
+      const meta = await storage.getSeoMeta("/" + req.params.pagePath);
+      res.json(meta || {});
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/seo", requireAdmin, async (_req, res) => {
+    try {
+      const allMeta = await storage.getAllSeoMeta();
+      res.json(allMeta);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/admin/seo", requireAdmin, async (req, res) => {
+    try {
+      const body = req.body;
+      if (typeof body === "object" && !Array.isArray(body) && body.pagePath) {
+        const parsed = insertSeoMetaSchema.safeParse(body);
+        if (!parsed.success) return res.status(400).json({ error: "Invalid SEO data", details: parsed.error.flatten() });
+        const meta = await storage.setSeoMeta(parsed.data);
+        return res.json(meta);
+      }
+      const entries = Object.values(body) as any[];
+      const results = [];
+      for (const entry of entries) {
+        if (!entry.pagePath) continue;
+        const parsed = insertSeoMetaSchema.safeParse(entry);
+        if (parsed.success) {
+          const meta = await storage.setSeoMeta(parsed.data);
+          results.push(meta);
+        }
+      }
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/seo/:pagePath", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSeoMeta("/" + req.params.pagePath);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Sitemap.xml ──
+  app.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const baseUrl = "https://tokenaltcoin.com";
+      const staticPages = ["/", "/wallet", "/prices", "/watchlist", "/exchanges", "/xrp", "/staking", "/news", "/masternodes", "/blog", "/contact", "/privacy", "/terms"];
+      const posts = await storage.getPosts({ published: true });
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+      for (const page of staticPages) {
+        xml += `  <url><loc>${baseUrl}${page}</loc><changefreq>${page === "/" ? "hourly" : "daily"}</changefreq><priority>${page === "/" ? "1.0" : "0.8"}</priority></url>\n`;
+      }
+      for (const post of posts) {
+        xml += `  <url><loc>${baseUrl}/blog/${post.slug}</loc><lastmod>${post.updatedAt.toISOString().split("T")[0]}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
+      }
+      xml += `</urlset>`;
+      res.set("Content-Type", "application/xml");
+      res.send(xml);
+    } catch (err: any) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  // ── Robots.txt ──
+  app.get("/robots.txt", async (_req, res) => {
+    try {
+      const custom = await storage.getSetting("robots_txt_content");
+      if (custom) {
+        res.set("Content-Type", "text/plain");
+        return res.send(custom);
+      }
+      res.set("Content-Type", "text/plain");
+      res.send(`User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: https://tokenaltcoin.com/sitemap.xml`);
+    } catch {
+      res.set("Content-Type", "text/plain");
+      res.send(`User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: https://tokenaltcoin.com/sitemap.xml`);
     }
   });
 

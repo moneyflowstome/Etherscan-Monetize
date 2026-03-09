@@ -14,6 +14,8 @@ const NAV_LINKS = [
   { path: "/staking", label: "Staking" },
   { path: "/news", label: "News" },
   { path: "/masternodes", label: "Masternodes" },
+  { path: "/blog", label: "Blog" },
+  { path: "/contact", label: "Contact" },
 ];
 
 export function Navbar() {
