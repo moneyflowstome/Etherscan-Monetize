@@ -302,6 +302,7 @@ function SettingsTab({ token }: { token: string }) {
     { key: "prices_enabled", label: "Prices Page", placeholder: "true", help: "Enable/disable prices page (true/false)" },
     { key: "news_enabled", label: "News Page", placeholder: "true", help: "Enable/disable news page (true/false)" },
     { key: "masternodes_enabled", label: "Masternodes Page", placeholder: "true", help: "Enable/disable masternodes page (true/false)" },
+    { key: "show_login_link", label: "Show Login Link", placeholder: "true", help: "Show/hide the Login link in the navigation bar (true/false). Set to false after connecting your domain." },
   ];
 
   return (

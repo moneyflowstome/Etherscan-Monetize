@@ -1,7 +1,8 @@
-import { Zap, Menu, X, Sun, Moon } from "lucide-react";
+import { Zap, Menu, X, Sun, Moon, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/use-theme";
 
 const NAV_LINKS = [
@@ -19,6 +20,23 @@ export function Navbar() {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+
+  const { data: showLogin } = useQuery({
+    queryKey: ["show-login-link"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/show-login");
+        if (!res.ok) return true;
+        const data = await res.json();
+        return data.show !== false;
+      } catch {
+        return true;
+      }
+    },
+    staleTime: 60000,
+  });
+
+  const loginVisible = showLogin !== false;
 
   return (
     <nav className="relative z-20 border-b border-border sticky top-0 px-4 md:px-6 py-3 backdrop-blur-xl bg-background/80" data-testid="navbar">
@@ -50,6 +68,23 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-1">
+          {loginVisible && (
+            <Link href="/admin">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`text-sm px-3 transition-colors ${
+                  location === "/admin"
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+                data-testid="nav-login"
+              >
+                <LogIn className="w-4 h-4 mr-1" />
+                Login
+              </Button>
+            </Link>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -88,6 +123,21 @@ export function Navbar() {
               </button>
             </Link>
           ))}
+          {loginVisible && (
+            <Link href="/admin">
+              <button
+                onClick={() => setMobileOpen(false)}
+                className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-colors ${
+                  location === "/admin"
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+                data-testid="mobile-nav-login"
+              >
+                Login
+              </button>
+            </Link>
+          )}
         </div>
       )}
     </nav>

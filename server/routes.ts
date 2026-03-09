@@ -2123,6 +2123,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/show-login", async (_req, res) => {
+    try {
+      const val = await storage.getSetting("show_login_link");
+      res.json({ show: val !== "false" });
+    } catch {
+      res.json({ show: true });
+    }
+  });
+
   // Public exchanges endpoint
   app.get("/api/exchanges", async (_req, res) => {
     try {
