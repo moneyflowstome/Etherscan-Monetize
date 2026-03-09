@@ -2372,7 +2372,7 @@ export async function registerRoutes(
   app.get("/api/show-login", async (_req, res) => {
     try {
       const val = await storage.getSetting("show_login_link");
-      res.json({ show: val !== "false" });
+      res.json({ show: val?.toLowerCase() !== "false" });
     } catch {
       res.json({ show: true });
     }
