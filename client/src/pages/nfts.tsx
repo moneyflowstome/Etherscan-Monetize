@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Search, ExternalLink, TrendingUp, Image, Wallet, ChevronDown, ChevronUp, X,
-  Activity, Tag, ShoppingCart, HandCoins, BarChart3, Layers, Eye
+  Search, ExternalLink, TrendingUp, Image, Wallet, X,
+  BarChart3, Layers, Eye, ShoppingCart, Tag
 } from "lucide-react";
 
 const CHAINS = [
@@ -16,8 +16,6 @@ const CHAINS = [
   { value: "arbitrum", label: "Arbitrum" },
   { value: "optimism", label: "Optimism" },
   { value: "base", label: "Base" },
-  { value: "avalanche", label: "Avalanche" },
-  { value: "bsc", label: "BSC" },
 ];
 
 function formatEth(val: number | string | undefined | null) {
@@ -34,13 +32,9 @@ function formatNum(val: number | undefined | null) {
   return val.toLocaleString();
 }
 
-function timeAgo(ts: string | number | undefined) {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(typeof ts === "number" ? ts * 1000 : ts).getTime();
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return Math.floor(diff / 60000) + "m ago";
-  if (diff < 86400000) return Math.floor(diff / 3600000) + "h ago";
-  return Math.floor(diff / 86400000) + "d ago";
+function shortenAddr(addr: string | undefined) {
+  if (!addr) return "—";
+  return addr.slice(0, 6) + "..." + addr.slice(-4);
 }
 
 function weiToEth(wei: string | number | undefined) {
@@ -49,11 +43,6 @@ function weiToEth(wei: string | number | undefined) {
   if (isNaN(n)) return "—";
   const eth = n / 1e18;
   return eth < 0.0001 ? "<0.0001" : eth.toFixed(eth < 1 ? 4 : 2);
-}
-
-function shortenAddr(addr: string | undefined) {
-  if (!addr) return "—";
-  return addr.slice(0, 6) + "..." + addr.slice(-4);
 }
 
 function ErrorDisplay({ message }: { message: string }) {
@@ -65,13 +54,13 @@ function ErrorDisplay({ message }: { message: string }) {
   );
 }
 
-function LoadingSkeleton({ count = 8, aspect = true }: { count?: number; aspect?: boolean }) {
+function LoadingSkeleton({ count = 8 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <Card key={i} className="bg-card/50 border-border/50 animate-pulse">
           <CardContent className="p-4">
-            {aspect && <div className="w-full aspect-square rounded-lg bg-muted/30 mb-3" />}
+            <div className="w-full aspect-square rounded-lg bg-muted/30 mb-3" />
             <div className="h-4 bg-muted/30 rounded w-3/4 mb-2" />
             <div className="h-3 bg-muted/30 rounded w-1/2" />
           </CardContent>
@@ -81,11 +70,20 @@ function LoadingSkeleton({ count = 8, aspect = true }: { count?: number; aspect?
   );
 }
 
-function TrendingCollections() {
+function StatBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-muted/20 rounded-lg p-2">
+      <span className="text-muted-foreground block text-xs">{label}</span>
+      <span className="font-bold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function TrendingCollections({ onSelectCollection }: { onSelectCollection: (addr: string) => void }) {
   const [chain, setChain] = useState("ethereum");
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["opensea-trending", chain],
+    queryKey: ["nft-trending", chain],
     queryFn: async () => {
       const res = await fetch(`/api/nfts/collections?chain=${chain}`);
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `Error ${res.status}`); }
@@ -100,7 +98,7 @@ function TrendingCollections() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold flex items-center gap-2" data-testid="text-trending-title">
-          <TrendingUp className="w-5 h-5 text-primary" /> Trending Collections
+          <TrendingUp className="w-5 h-5 text-primary" /> Top NFT Collections
         </h2>
         <div className="flex gap-1 flex-wrap">
           {CHAINS.map((c) => (
@@ -120,7 +118,7 @@ function TrendingCollections() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {collections.map((c: any, i: number) => (
-            <CollectionCard key={c.collection || i} collection={c} rank={i + 1} />
+            <CollectionCard key={c.contract_address || i} collection={c} rank={i + 1} onClick={() => c.contract_address && onSelectCollection(c.contract_address)} />
           ))}
         </div>
       )}
@@ -128,14 +126,14 @@ function TrendingCollections() {
   );
 }
 
-function CollectionCard({ collection: c, rank }: { collection: any; rank: number }) {
+function CollectionCard({ collection: c, rank, onClick }: { collection: any; rank: number; onClick?: () => void }) {
   return (
-    <Card className="bg-card/50 border-border/50 hover:border-primary/30 transition-all group" data-testid={`collection-card-${rank}`}>
+    <Card className="bg-card/50 border-border/50 hover:border-primary/30 transition-all group cursor-pointer" data-testid={`collection-card-${rank}`} onClick={onClick}>
       <CardContent className="p-4">
         <div className="relative mb-3">
           {c.image_url ? (
             <img src={c.image_url} alt={c.name} className="w-full aspect-square object-cover rounded-lg bg-muted/30" loading="lazy"
-              onError={(e) => { (e.target as HTMLImageElement).src = ""; (e.target as HTMLImageElement).className = "w-full aspect-square rounded-lg bg-muted/30 flex items-center justify-center"; }} />
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
           ) : (
             <div className="w-full aspect-square rounded-lg bg-muted/30 flex items-center justify-center"><Image className="w-10 h-10 text-muted-foreground/30" /></div>
           )}
@@ -144,14 +142,13 @@ function CollectionCard({ collection: c, rank }: { collection: any; rank: number
         </div>
         <h3 className="font-bold text-sm truncate mb-1" data-testid={`text-collection-name-${rank}`}>{c.name || "Unknown"}</h3>
         <div className="grid grid-cols-2 gap-2 text-xs mt-3">
-          {c.stats?.floor_price != null && <StatBox label="Floor" value={`${formatEth(c.stats.floor_price)} ${c.payment_tokens?.[0]?.symbol || "ETH"}`} />}
-          {c.stats?.total_volume != null && <StatBox label="Volume" value={formatEth(c.stats.total_volume)} />}
-          {c.stats?.num_owners != null && <StatBox label="Owners" value={formatNum(c.stats.num_owners)} />}
+          {c.stats?.floor_price != null && <StatBox label="Floor" value={`${formatEth(c.stats.floor_price)} ETH`} />}
           {c.stats?.total_supply != null && <StatBox label="Supply" value={formatNum(c.stats.total_supply)} />}
         </div>
         {c.opensea_url && (
-          <a href={c.opensea_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 mt-3 text-xs text-primary hover:underline" data-testid={`link-opensea-${rank}`}>
-            View on OpenSea <ExternalLink className="w-3 h-3" />
+          <a href={c.opensea_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center gap-1 mt-3 text-xs text-primary hover:underline" data-testid={`link-opensea-${rank}`}>
+            OpenSea <ExternalLink className="w-3 h-3" />
           </a>
         )}
       </CardContent>
@@ -159,21 +156,12 @@ function CollectionCard({ collection: c, rank }: { collection: any; rank: number
   );
 }
 
-function StatBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-muted/20 rounded-lg p-2">
-      <span className="text-muted-foreground block">{label}</span>
-      <span className="font-bold text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function CollectionSearch() {
+function CollectionSearch({ onSelectCollection }: { onSelectCollection: (addr: string) => void }) {
   const [query, setQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-search", searchTerm],
+    queryKey: ["nft-search", searchTerm],
     queryFn: async () => {
       if (!searchTerm) return [];
       const res = await fetch(`/api/nfts/search?q=${encodeURIComponent(searchTerm)}`);
@@ -191,21 +179,21 @@ function CollectionSearch() {
         <Search className="w-5 h-5 text-primary" /> Search Collections
       </h2>
       <div className="flex gap-2">
-        <Input placeholder="Search by collection name..." value={query} onChange={(e) => setQuery(e.target.value)}
+        <Input placeholder="Search by collection name (e.g. bored ape, punk, azuki)..." value={query} onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && query.trim() && setSearchTerm(query.trim())}
           className="bg-muted/30 border-border/50" data-testid="input-nft-search" />
         <Button onClick={() => query.trim() && setSearchTerm(query.trim())} className="bg-primary hover:bg-primary/80" data-testid="button-nft-search">
           <Search className="w-4 h-4" />
         </Button>
       </div>
-      {isLoading && <div className="text-center py-6 text-muted-foreground">Searching across multiple chains...</div>}
+      {isLoading && <div className="text-center py-6 text-muted-foreground">Searching...</div>}
       {isError && <ErrorDisplay message="Search failed" />}
       {searchTerm && !isLoading && !isError && results.length === 0 && (
         <div className="text-center py-6 text-muted-foreground">No collections found for "{searchTerm}"</div>
       )}
       {results.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {results.map((c: any, i: number) => <CollectionCard key={c.collection || i} collection={c} rank={i + 1} />)}
+          {results.map((c: any, i: number) => <CollectionCard key={c.contract_address || i} collection={c} rank={i + 1} onClick={() => c.contract_address && onSelectCollection(c.contract_address)} />)}
         </div>
       )}
     </div>
@@ -218,9 +206,10 @@ function WalletNfts() {
   const [chain, setChain] = useState("ethereum");
   const [selectedNft, setSelectedNft] = useState<any>(null);
   const [showCollections, setShowCollections] = useState(false);
+  const [hideSpam, setHideSpam] = useState(true);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-wallet", walletAddr, chain],
+    queryKey: ["nft-wallet", walletAddr, chain],
     queryFn: async () => {
       if (!walletAddr) return [];
       const res = await fetch(`/api/nfts/wallet/${walletAddr}?chain=${chain}`);
@@ -231,18 +220,20 @@ function WalletNfts() {
   });
 
   const { data: walletCollections, isLoading: collLoading } = useQuery({
-    queryKey: ["opensea-wallet-collections", walletAddr],
+    queryKey: ["nft-wallet-collections", walletAddr, chain],
     queryFn: async () => {
       if (!walletAddr) return [];
-      const res = await fetch(`/api/nfts/account/${walletAddr}/collections`);
+      const res = await fetch(`/api/nfts/account/${walletAddr}/collections?chain=${chain}`);
       if (!res.ok) return [];
       return res.json();
     },
     enabled: !!walletAddr && showCollections, staleTime: 60000,
   });
 
-  const nfts = Array.isArray(data) ? data : [];
-  const collections = Array.isArray(walletCollections) ? walletCollections : [];
+  const allNfts = Array.isArray(data) ? data : [];
+  const nfts = hideSpam ? allNfts.filter((n: any) => !n.is_spam) : allNfts;
+  const spamCount = allNfts.length - nfts.length;
+  const collections = Array.isArray(walletCollections) ? walletCollections.filter((c: any) => !c.is_spam) : [];
 
   return (
     <div className="space-y-4">
@@ -274,23 +265,31 @@ function WalletNfts() {
 
       {nfts.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-muted-foreground">{nfts.length} NFTs found</p>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground">{nfts.length} NFTs found</p>
+              {spamCount > 0 && (
+                <button onClick={() => setHideSpam(!hideSpam)} className="text-xs text-muted-foreground hover:text-foreground" data-testid="button-toggle-spam">
+                  {hideSpam ? `Show ${spamCount} hidden spam` : "Hide spam"}
+                </button>
+              )}
+            </div>
             <button onClick={() => setShowCollections(!showCollections)}
               className="text-xs text-primary hover:underline flex items-center gap-1" data-testid="button-toggle-wallet-collections">
-              <Layers className="w-3 h-3" /> {showCollections ? "Hide" : "Show"} Wallet Collections
+              <Layers className="w-3 h-3" /> {showCollections ? "Hide" : "Show"} Collections
             </button>
           </div>
 
           {showCollections && (
             <div className="mb-4">
               {collLoading ? <div className="text-sm text-muted-foreground">Loading collections...</div> :
-               collections.length === 0 ? <div className="text-sm text-muted-foreground">No collections owned</div> : (
+               collections.length === 0 ? <div className="text-sm text-muted-foreground">No collections found</div> : (
                 <div className="flex flex-wrap gap-2">
                   {collections.map((c: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 bg-muted/20 rounded-lg px-3 py-2 border border-border/30">
                       {c.image_url && <img src={c.image_url} alt="" className="w-6 h-6 rounded" />}
-                      <span className="text-xs font-medium">{c.name || c.collection}</span>
+                      <span className="text-xs font-medium">{c.name}</span>
+                      {c.total_supply > 0 && <Badge className="text-[10px] bg-muted/30 border-border">{c.total_supply}</Badge>}
                     </div>
                   ))}
                 </div>
@@ -300,7 +299,7 @@ function WalletNfts() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {nfts.map((nft: any, i: number) => (
-              <div key={nft.identifier + "-" + i}
+              <div key={(nft.contract || "") + nft.identifier + "-" + i}
                 className="bg-card/50 border border-border/50 rounded-lg overflow-hidden hover:border-primary/30 transition-all cursor-pointer group"
                 onClick={() => setSelectedNft(nft)} data-testid={`nft-card-${i}`}>
                 {nft.image_url ? (
@@ -339,7 +338,7 @@ function NftDetailModal({ nft, onClose }: { nft: any; onClose: () => void }) {
             <div className="flex justify-between"><span className="text-muted-foreground">Token ID</span><span className="font-mono text-xs">{nft.identifier}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Standard</span><span>{nft.token_standard || "—"}</span></div>
             {nft.contract && <div className="flex justify-between"><span className="text-muted-foreground">Contract</span><span className="font-mono text-xs">{shortenAddr(nft.contract)}</span></div>}
-            {nft.description && <div><span className="text-muted-foreground block mb-1">Description</span><p className="text-xs text-foreground/80">{nft.description}</p></div>}
+            {nft.description && <div><span className="text-muted-foreground block mb-1">Description</span><p className="text-xs text-foreground/80 line-clamp-4">{nft.description}</p></div>}
             {nft.traits && nft.traits.length > 0 && (
               <div>
                 <span className="text-muted-foreground block mb-2">Traits</span>
@@ -362,38 +361,52 @@ function NftDetailModal({ nft, onClose }: { nft: any; onClose: () => void }) {
   );
 }
 
-function CollectionDetail() {
-  const [slug, setSlug] = useState("");
-  const [searchSlug, setSearchSlug] = useState("");
-  const [detailTab, setDetailTab] = useState<"nfts" | "activity" | "listings" | "offers" | "traits" | "stats">("nfts");
+function CollectionDetail({ initialAddress }: { initialAddress?: string }) {
+  const [contractInput, setContractInput] = useState(initialAddress || "");
+  const [contractAddr, setContractAddr] = useState(initialAddress || "");
+  const [chain, setChain] = useState("ethereum");
+  const [detailTab, setDetailTab] = useState<"nfts" | "stats" | "sales">("nfts");
 
   const { data: detail, isLoading, isError } = useQuery({
-    queryKey: ["opensea-collection", searchSlug],
+    queryKey: ["nft-collection-detail", contractAddr, chain],
     queryFn: async () => {
-      if (!searchSlug) return null;
-      const res = await fetch(`/api/nfts/collection/${searchSlug}`);
+      if (!contractAddr) return null;
+      const res = await fetch(`/api/nfts/collection/${contractAddr}?chain=${chain}`);
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || "Not found"); }
       return res.json();
     },
-    enabled: !!searchSlug, staleTime: 60000,
+    enabled: !!contractAddr, staleTime: 60000,
   });
+
+  function doLookup() {
+    const v = contractInput.trim();
+    if (v && /^0x[a-fA-F0-9]{40}$/.test(v)) {
+      setContractAddr(v);
+      setDetailTab("nfts");
+    }
+  }
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold flex items-center gap-2">
-        <Image className="w-5 h-5 text-primary" /> Collection Explorer
+        <Layers className="w-5 h-5 text-primary" /> Collection Explorer
       </h2>
-      <div className="flex gap-2">
-        <Input placeholder="Enter collection slug (e.g. boredapeyachtclub)" value={slug} onChange={(e) => setSlug(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && slug.trim() && (setSearchSlug(slug.trim()), setDetailTab("nfts"))}
-          className="bg-muted/30 border-border/50" data-testid="input-collection-slug" />
-        <Button onClick={() => slug.trim() && (setSearchSlug(slug.trim()), setDetailTab("nfts"))} className="bg-primary hover:bg-primary/80" data-testid="button-collection-lookup">
+      <div className="flex gap-2 flex-wrap">
+        <Input placeholder="Enter contract address (0x...)" value={contractInput} onChange={(e) => setContractInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && doLookup()}
+          className="bg-muted/30 border-border/50 flex-1 min-w-[200px]" data-testid="input-collection-contract" />
+        <select value={chain} onChange={(e) => setChain(e.target.value)}
+          className="bg-muted/30 border border-border/50 rounded-md px-3 text-sm" data-testid="select-collection-chain">
+          {CHAINS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        <Button onClick={doLookup} className="bg-primary hover:bg-primary/80" data-testid="button-collection-lookup">
           <Search className="w-4 h-4" />
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">Tip: Click any collection from Trending or Search to load it here automatically</p>
 
       {isLoading && <div className="text-center py-6 text-muted-foreground">Loading collection...</div>}
-      {isError && <ErrorDisplay message="Collection not found" />}
+      {isError && <ErrorDisplay message="Collection not found. Check the contract address." />}
 
       {detail && !isLoading && (
         <Card className="bg-card/50 border-border/50">
@@ -405,12 +418,17 @@ function CollectionDetail() {
                   <h3 className="text-lg font-bold truncate" data-testid="text-detail-name">{detail.name}</h3>
                   {detail.safelist_request_status === "verified" && <Badge className="bg-blue-500 text-white border-0 text-[10px]">Verified</Badge>}
                 </div>
-                {detail.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{detail.description}</p>}
+                {detail.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{detail.description}</p>}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-2">
+                  {detail.stats?.floor_price != null && <StatBox label="Floor Price" value={`${formatEth(detail.stats.floor_price)} ETH`} />}
+                  {detail.stats?.floor_price_looksrare != null && <StatBox label="LooksRare Floor" value={`${formatEth(detail.stats.floor_price_looksrare)} ETH`} />}
+                  {detail.stats?.total_supply != null && <StatBox label="Total Supply" value={formatNum(detail.stats.total_supply)} />}
+                </div>
                 <div className="flex gap-2 flex-wrap">
                   {detail.opensea_url && <a href={detail.opensea_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">OpenSea <ExternalLink className="w-3 h-3" /></a>}
-                  {detail.project_url && <a href={detail.project_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">Website <ExternalLink className="w-3 h-3" /></a>}
                   {detail.discord_url && <a href={detail.discord_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">Discord <ExternalLink className="w-3 h-3" /></a>}
                   {detail.twitter_username && <a href={`https://twitter.com/${detail.twitter_username}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">Twitter <ExternalLink className="w-3 h-3" /></a>}
+                  <span className="text-xs text-muted-foreground font-mono">{shortenAddr(detail.contract_address)}</span>
                 </div>
               </div>
             </div>
@@ -418,11 +436,8 @@ function CollectionDetail() {
             <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
               {([
                 { key: "nfts", label: "NFTs", icon: Image },
-                { key: "stats", label: "Stats", icon: BarChart3 },
-                { key: "activity", label: "Activity", icon: Activity },
-                { key: "listings", label: "Listings", icon: ShoppingCart },
-                { key: "offers", label: "Offers", icon: HandCoins },
-                { key: "traits", label: "Traits", icon: Tag },
+                { key: "stats", label: "Stats & Floor", icon: BarChart3 },
+                { key: "sales", label: "Sales History", icon: ShoppingCart },
               ] as const).map(({ key, label, icon: Icon }) => (
                 <button key={key} onClick={() => setDetailTab(key)}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${detailTab === key ? "bg-primary/20 text-primary border border-primary/30" : "bg-muted/30 text-muted-foreground hover:text-foreground border border-border/30"}`}
@@ -432,12 +447,9 @@ function CollectionDetail() {
               ))}
             </div>
 
-            {detailTab === "nfts" && <CollectionNftsTab slug={searchSlug} />}
-            {detailTab === "stats" && <CollectionStatsTab slug={searchSlug} />}
-            {detailTab === "activity" && <CollectionActivityTab slug={searchSlug} />}
-            {detailTab === "listings" && <CollectionListingsTab slug={searchSlug} />}
-            {detailTab === "offers" && <CollectionOffersTab slug={searchSlug} />}
-            {detailTab === "traits" && <CollectionTraitsTab slug={searchSlug} />}
+            {detailTab === "nfts" && <CollectionNftsTab address={contractAddr} chain={chain} />}
+            {detailTab === "stats" && <CollectionStatsTab address={contractAddr} chain={chain} />}
+            {detailTab === "sales" && <CollectionSalesTab address={contractAddr} chain={chain} />}
           </CardContent>
         </Card>
       )}
@@ -445,11 +457,11 @@ function CollectionDetail() {
   );
 }
 
-function CollectionNftsTab({ slug }: { slug: string }) {
+function CollectionNftsTab({ address, chain }: { address: string; chain: string }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["opensea-collection-nfts", slug],
+    queryKey: ["nft-collection-nfts", address, chain],
     queryFn: async () => {
-      const res = await fetch(`/api/nfts/collection/${slug}/nfts`);
+      const res = await fetch(`/api/nfts/collection/${address}/nfts?chain=${chain}`);
       if (!res.ok) return [];
       return res.json();
     },
@@ -478,11 +490,11 @@ function CollectionNftsTab({ slug }: { slug: string }) {
   );
 }
 
-function CollectionStatsTab({ slug }: { slug: string }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-collection-stats", slug],
+function CollectionStatsTab({ address, chain }: { address: string; chain: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["nft-collection-stats", address, chain],
     queryFn: async () => {
-      const res = await fetch(`/api/nfts/collection/${slug}/stats`);
+      const res = await fetch(`/api/nfts/collection/${address}/stats?chain=${chain}`);
       if (!res.ok) return null;
       return res.json();
     },
@@ -490,317 +502,92 @@ function CollectionStatsTab({ slug }: { slug: string }) {
   });
 
   if (isLoading) return <div className="text-center py-4 text-muted-foreground">Loading stats...</div>;
-  if (isError || !data) return <div className="text-center py-4 text-muted-foreground">Stats unavailable</div>;
-
-  const s = data?.total || data;
+  if (!data) return <div className="text-center py-4 text-muted-foreground">Stats unavailable</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {s.floor_price != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Floor Price</span>
-            <span className="font-bold text-xl text-foreground">{formatEth(s.floor_price)}</span>
-            <span className="text-xs text-muted-foreground block">{s.floor_price_symbol || "ETH"}</span>
-          </div>
-        )}
-        {s.total_volume != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Total Volume</span>
-            <span className="font-bold text-xl text-foreground">{formatEth(s.total_volume)}</span>
-            <span className="text-xs text-muted-foreground block">ETH</span>
-          </div>
-        )}
-        {s.total_sales != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Total Sales</span>
-            <span className="font-bold text-xl text-foreground">{formatNum(s.total_sales)}</span>
-          </div>
-        )}
-        {s.average_price != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Avg Price</span>
-            <span className="font-bold text-xl text-foreground">{formatEth(s.average_price)}</span>
-            <span className="text-xs text-muted-foreground block">ETH</span>
-          </div>
-        )}
-        {s.num_owners != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Owners</span>
-            <span className="font-bold text-xl text-foreground">{formatNum(s.num_owners)}</span>
-          </div>
-        )}
-        {s.total_supply != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Total Supply</span>
-            <span className="font-bold text-xl text-foreground">{formatNum(s.total_supply)}</span>
-          </div>
-        )}
-        {s.market_cap != null && (
-          <div className="bg-muted/20 rounded-lg p-4 text-center">
-            <span className="text-muted-foreground text-xs block mb-1">Market Cap</span>
-            <span className="font-bold text-xl text-foreground">{formatEth(s.market_cap)}</span>
-            <span className="text-xs text-muted-foreground block">ETH</span>
-          </div>
-        )}
-      </div>
-
-      {data?.intervals && (
-        <div>
-          <h4 className="text-sm font-bold mb-2">Time Intervals</h4>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-2 text-muted-foreground">Period</th>
-                  <th className="text-right py-2 text-muted-foreground">Volume</th>
-                  <th className="text-right py-2 text-muted-foreground">Volume Change</th>
-                  <th className="text-right py-2 text-muted-foreground">Sales</th>
-                  <th className="text-right py-2 text-muted-foreground">Avg Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(data.intervals || {}).map(([period, stats]: [string, any]) => (
-                  <tr key={period} className="border-b border-border/30">
-                    <td className="py-2 font-medium">{period}</td>
-                    <td className="py-2 text-right">{formatEth(stats.volume)}</td>
-                    <td className={`py-2 text-right ${stats.volume_change > 0 ? "text-green-400" : stats.volume_change < 0 ? "text-red-400" : ""}`}>
-                      {stats.volume_change != null ? (stats.volume_change > 0 ? "+" : "") + (stats.volume_change * 100).toFixed(1) + "%" : "—"}
-                    </td>
-                    <td className="py-2 text-right">{formatNum(stats.sales)}</td>
-                    <td className="py-2 text-right">{formatEth(stats.average_price)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {data.floor_price != null && (
+        <div className="bg-muted/20 rounded-lg p-4 text-center">
+          <span className="text-muted-foreground text-xs block mb-1">OpenSea Floor</span>
+          <span className="font-bold text-xl text-foreground">{formatEth(data.floor_price)}</span>
+          <span className="text-xs text-muted-foreground block">ETH</span>
+        </div>
+      )}
+      {data.floor_price_looksrare != null && (
+        <div className="bg-muted/20 rounded-lg p-4 text-center">
+          <span className="text-muted-foreground text-xs block mb-1">LooksRare Floor</span>
+          <span className="font-bold text-xl text-foreground">{formatEth(data.floor_price_looksrare)}</span>
+          <span className="text-xs text-muted-foreground block">ETH</span>
+        </div>
+      )}
+      {data.total_supply != null && (
+        <div className="bg-muted/20 rounded-lg p-4 text-center">
+          <span className="text-muted-foreground text-xs block mb-1">Total Supply</span>
+          <span className="font-bold text-xl text-foreground">{formatNum(data.total_supply)}</span>
+        </div>
+      )}
+      {data.token_type && (
+        <div className="bg-muted/20 rounded-lg p-4 text-center">
+          <span className="text-muted-foreground text-xs block mb-1">Token Type</span>
+          <span className="font-bold text-lg text-foreground">{data.token_type}</span>
+        </div>
+      )}
+      {data.deployer && (
+        <div className="bg-muted/20 rounded-lg p-4 text-center">
+          <span className="text-muted-foreground text-xs block mb-1">Deployer</span>
+          <span className="font-mono text-xs text-foreground">{shortenAddr(data.deployer)}</span>
+        </div>
+      )}
+      {data.deployed_block && (
+        <div className="bg-muted/20 rounded-lg p-4 text-center">
+          <span className="text-muted-foreground text-xs block mb-1">Deploy Block</span>
+          <span className="font-bold text-foreground">{formatNum(data.deployed_block)}</span>
         </div>
       )}
     </div>
   );
 }
 
-function CollectionActivityTab({ slug }: { slug: string }) {
-  const [eventType, setEventType] = useState("");
-  const eventTypes = [
-    { value: "", label: "All" },
-    { value: "sale", label: "Sales" },
-    { value: "listing", label: "Listings" },
-    { value: "transfer", label: "Transfers" },
-    { value: "offer", label: "Offers" },
-    { value: "cancel", label: "Cancellations" },
-  ];
-
+function CollectionSalesTab({ address, chain }: { address: string; chain: string }) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-events", slug, eventType],
+    queryKey: ["nft-collection-sales", address, chain],
     queryFn: async () => {
-      const res = await fetch(`/api/nfts/events?collection=${slug}${eventType ? `&event_type=${eventType}` : ""}`);
+      const res = await fetch(`/api/nfts/sales/${address}?chain=${chain}`);
       if (!res.ok) return [];
       return res.json();
     },
-    staleTime: 30000,
+    staleTime: 60000,
   });
 
-  const events = Array.isArray(data) ? data : [];
+  const sales = Array.isArray(data) ? data : [];
 
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-1 flex-wrap">
-        {eventTypes.map(t => (
-          <button key={t.value} onClick={() => setEventType(t.value)}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${eventType === t.value ? "bg-primary/20 text-primary border border-primary/30" : "bg-muted/30 text-muted-foreground hover:text-foreground border border-border/30"}`}
-            data-testid={`button-event-${t.value || "all"}`}>{t.label}</button>
-        ))}
-      </div>
-
-      {isLoading && <div className="text-center py-4 text-muted-foreground">Loading activity...</div>}
-      {isError && <ErrorDisplay message="Failed to load events" />}
-
-      {events.length === 0 && !isLoading && <div className="text-center py-4 text-muted-foreground">No events found</div>}
-
-      {events.length > 0 && (
-        <div className="space-y-2 max-h-[500px] overflow-y-auto">
-          {events.map((ev: any, i: number) => (
-            <div key={i} className="flex items-center gap-3 bg-muted/20 rounded-lg p-3 border border-border/30" data-testid={`event-row-${i}`}>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                ev.event_type === "sale" ? "bg-green-500/20 text-green-400" :
-                ev.event_type === "listing" ? "bg-blue-500/20 text-blue-400" :
-                ev.event_type === "transfer" ? "bg-purple-500/20 text-purple-400" :
-                ev.event_type === "offer" ? "bg-yellow-500/20 text-yellow-400" :
-                "bg-muted/30 text-muted-foreground"
-              }`}>
-                {ev.event_type === "sale" ? <ShoppingCart className="w-4 h-4" /> :
-                 ev.event_type === "listing" ? <Tag className="w-4 h-4" /> :
-                 ev.event_type === "transfer" ? <Activity className="w-4 h-4" /> :
-                 ev.event_type === "offer" ? <HandCoins className="w-4 h-4" /> :
-                 <Activity className="w-4 h-4" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold capitalize">{ev.event_type || "Event"}</span>
-                  {ev.nft?.name && <span className="text-xs text-muted-foreground truncate">{ev.nft.name}</span>}
-                  {!ev.nft?.name && ev.nft?.identifier && <span className="text-xs text-muted-foreground">#{ev.nft.identifier}</span>}
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                  {ev.payment?.quantity && <span className="font-medium text-foreground">{weiToEth(ev.payment.quantity)} ETH</span>}
-                  {ev.seller && <span>From: {shortenAddr(ev.seller)}</span>}
-                  {ev.buyer && <span>To: {shortenAddr(ev.buyer)}</span>}
-                  {ev.from_address && <span>From: {shortenAddr(ev.from_address)}</span>}
-                  {ev.to_address && <span>To: {shortenAddr(ev.to_address)}</span>}
-                </div>
-              </div>
-              <div className="text-[10px] text-muted-foreground shrink-0">
-                {timeAgo(ev.event_timestamp || ev.created_date || ev.closing_date)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CollectionListingsTab({ slug }: { slug: string }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-listings", slug],
-    queryFn: async () => {
-      const res = await fetch(`/api/nfts/listings/${slug}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 30000,
-  });
-
-  const listings = Array.isArray(data) ? data : [];
-
-  if (isLoading) return <div className="text-center py-4 text-muted-foreground">Loading listings...</div>;
-  if (isError) return <ErrorDisplay message="Failed to load listings" />;
-  if (listings.length === 0) return <div className="text-center py-4 text-muted-foreground">No active listings</div>;
+  if (isLoading) return <div className="text-center py-4 text-muted-foreground">Loading sales...</div>;
+  if (isError) return <ErrorDisplay message="Failed to load sales" />;
+  if (sales.length === 0) return <div className="text-center py-4 text-muted-foreground">No sales data available</div>;
 
   return (
     <div className="space-y-2 max-h-[500px] overflow-y-auto">
-      <p className="text-xs text-muted-foreground mb-2">{listings.length} active listings</p>
-      {listings.map((listing: any, i: number) => {
-        const price = listing.price?.current;
-        const priceEth = price?.value ? weiToEth(price.value) : "—";
-        const nft = listing.protocol_data?.parameters?.offer?.[0];
+      <p className="text-xs text-muted-foreground mb-2">{sales.length} recent sales</p>
+      {sales.map((sale: any, i: number) => {
+        const totalWei = parseInt(sale.sellerFee?.amount || "0") + parseInt(sale.protocolFee?.amount || "0") + parseInt(sale.royaltyFee?.amount || "0");
+        const symbol = sale.sellerFee?.symbol || "ETH";
         return (
-          <div key={i} className="flex items-center justify-between bg-muted/20 rounded-lg p-3 border border-border/30" data-testid={`listing-row-${i}`}>
+          <div key={i} className="flex items-center justify-between bg-muted/20 rounded-lg p-3 border border-border/30" data-testid={`sale-row-${i}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-medium">Token #{nft?.identifierOrCriteria || "?"}</span>
+                <ShoppingCart className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                <span className="text-xs font-medium">Token #{sale.tokenId}</span>
+                <Badge className="text-[10px] bg-muted/30 border-border">{sale.marketplace}</Badge>
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {listing.protocol_data?.parameters?.offerer && <span>By: {shortenAddr(listing.protocol_data.parameters.offerer)}</span>}
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <span className="text-sm font-bold text-primary">{priceEth}</span>
-              <span className="text-[10px] text-muted-foreground block">{price?.currency || "ETH"}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function CollectionOffersTab({ slug }: { slug: string }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-offers", slug],
-    queryFn: async () => {
-      const res = await fetch(`/api/nfts/offers/${slug}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 30000,
-  });
-
-  const offers = Array.isArray(data) ? data : [];
-
-  if (isLoading) return <div className="text-center py-4 text-muted-foreground">Loading offers...</div>;
-  if (isError) return <ErrorDisplay message="Failed to load offers" />;
-  if (offers.length === 0) return <div className="text-center py-4 text-muted-foreground">No active offers</div>;
-
-  return (
-    <div className="space-y-2 max-h-[500px] overflow-y-auto">
-      <p className="text-xs text-muted-foreground mb-2">{offers.length} active offers</p>
-      {offers.map((offer: any, i: number) => {
-        const price = offer.price?.current;
-        const priceEth = price?.value ? weiToEth(price.value) : "—";
-        return (
-          <div key={i} className="flex items-center justify-between bg-muted/20 rounded-lg p-3 border border-border/30" data-testid={`offer-row-${i}`}>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <HandCoins className="w-3.5 h-3.5 text-yellow-400" />
-                <span className="text-xs font-medium">Offer</span>
-                {offer.protocol_data?.parameters?.consideration?.[0]?.identifierOrCriteria && (
-                  <span className="text-[10px] text-muted-foreground">Token #{offer.protocol_data.parameters.consideration[0].identifierOrCriteria}</span>
-                )}
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {offer.protocol_data?.parameters?.offerer && <span>From: {shortenAddr(offer.protocol_data.parameters.offerer)}</span>}
+              <div className="text-[10px] text-muted-foreground mt-0.5 flex gap-2">
+                <span>From: {shortenAddr(sale.sellerAddress)}</span>
+                <span>To: {shortenAddr(sale.buyerAddress)}</span>
               </div>
             </div>
-            <div className="text-right shrink-0">
-              <span className="text-sm font-bold text-yellow-400">{priceEth}</span>
-              <span className="text-[10px] text-muted-foreground block">{price?.currency || "WETH"}</span>
+            <div className="text-right shrink-0 ml-2">
+              <span className="text-sm font-bold text-green-400">{weiToEth(totalWei.toString())}</span>
+              <span className="text-[10px] text-muted-foreground block">{symbol}</span>
             </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function CollectionTraitsTab({ slug }: { slug: string }) {
-  const [expandedTrait, setExpandedTrait] = useState<string | null>(null);
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["opensea-traits", slug],
-    queryFn: async () => {
-      const res = await fetch(`/api/nfts/traits/${slug}`);
-      if (!res.ok) return null;
-      return res.json();
-    },
-    staleTime: 120000,
-  });
-
-  if (isLoading) return <div className="text-center py-4 text-muted-foreground">Loading traits...</div>;
-  if (isError || !data) return <div className="text-center py-4 text-muted-foreground">Traits unavailable</div>;
-
-  const categories = data.categories || data;
-  const traitEntries = typeof categories === "object" ? Object.entries(categories) : [];
-
-  if (traitEntries.length === 0) return <div className="text-center py-4 text-muted-foreground">No traits data</div>;
-
-  return (
-    <div className="space-y-2 max-h-[500px] overflow-y-auto">
-      {traitEntries.map(([traitType, values]: [string, any]) => {
-        const isExpanded = expandedTrait === traitType;
-        const valueEntries = typeof values === "object" && values !== null ? Object.entries(values) : [];
-        return (
-          <div key={traitType} className="bg-muted/20 rounded-lg border border-border/30">
-            <button onClick={() => setExpandedTrait(isExpanded ? null : traitType)}
-              className="w-full flex items-center justify-between p-3 text-left" data-testid={`button-trait-${traitType}`}>
-              <div className="flex items-center gap-2">
-                <Tag className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-bold">{traitType}</span>
-                <Badge className="bg-muted/30 text-muted-foreground border-border text-[10px]">{valueEntries.length} values</Badge>
-              </div>
-              {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-            </button>
-            {isExpanded && valueEntries.length > 0 && (
-              <div className="px-3 pb-3 flex flex-wrap gap-1.5">
-                {valueEntries.slice(0, 50).map(([value, count]: [string, any]) => (
-                  <Badge key={value} className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                    {value} <span className="ml-1 text-muted-foreground">({typeof count === "number" ? count : JSON.stringify(count)})</span>
-                  </Badge>
-                ))}
-                {valueEntries.length > 50 && <span className="text-[10px] text-muted-foreground">+{valueEntries.length - 50} more</span>}
-              </div>
-            )}
           </div>
         );
       })}
@@ -815,7 +602,7 @@ function NftLookup() {
   const [lookupKey, setLookupKey] = useState({ chain: "", contract: "", tokenId: "" });
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["opensea-nft-lookup", lookupKey.chain, lookupKey.contract, lookupKey.tokenId],
+    queryKey: ["nft-lookup", lookupKey.chain, lookupKey.contract, lookupKey.tokenId],
     queryFn: async () => {
       if (!lookupKey.contract || !lookupKey.tokenId) return null;
       const res = await fetch(`/api/nfts/asset/${lookupKey.chain}/${lookupKey.contract}/${lookupKey.tokenId}`);
@@ -872,22 +659,23 @@ function NftLookup() {
                 )}
               </div>
               <div className="sm:w-2/3 space-y-3">
-                <h3 className="text-lg font-bold" data-testid="text-lookup-name">{data.name || `#${data.identifier}`}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold" data-testid="text-lookup-name">{data.name || `#${data.identifier}`}</h3>
+                  {data.is_spam && <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">Spam</Badge>}
+                </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Collection</span><span className="font-medium">{data.collection}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Token ID</span><span className="font-mono text-xs">{data.identifier}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Standard</span><span>{data.token_standard || "—"}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Contract</span><span className="font-mono text-xs">{shortenAddr(data.contract)}</span></div>
-                  {data.creator && <div className="flex justify-between"><span className="text-muted-foreground">Creator</span><span className="font-mono text-xs">{shortenAddr(data.creator)}</span></div>}
-                  {data.owners && data.owners.length > 0 && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Owner</span><span className="font-mono text-xs">{shortenAddr(data.owners[0]?.address)}</span></div>
-                  )}
+                  {data.contract_deployer && <div className="flex justify-between"><span className="text-muted-foreground">Deployer</span><span className="font-mono text-xs">{shortenAddr(data.contract_deployer)}</span></div>}
+                  {data.total_supply && <div className="flex justify-between"><span className="text-muted-foreground">Collection Supply</span><span>{formatNum(parseInt(data.total_supply))}</span></div>}
                   {data.rarity && <div className="flex justify-between"><span className="text-muted-foreground">Rarity Rank</span><span className="font-bold text-primary">#{data.rarity.rank}</span></div>}
                 </div>
                 {data.description && (
                   <div>
                     <span className="text-muted-foreground text-sm block mb-1">Description</span>
-                    <p className="text-xs text-foreground/80">{data.description}</p>
+                    <p className="text-xs text-foreground/80 line-clamp-4">{data.description}</p>
                   </div>
                 )}
                 {data.traits && data.traits.length > 0 && (
@@ -896,7 +684,7 @@ function NftLookup() {
                     <div className="flex flex-wrap gap-1.5">
                       {data.traits.map((t: any, i: number) => (
                         <Badge key={i} className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                          {t.trait_type}: {t.value} {t.display_type === "number" && t.max_value ? `/ ${t.max_value}` : ""}
+                          {t.trait_type}: {t.value}
                         </Badge>
                       ))}
                     </div>
@@ -927,21 +715,25 @@ function NftLookup() {
 
 export default function NftsPage() {
   const [tab, setTab] = useState<"trending" | "search" | "wallet" | "detail" | "lookup">("trending");
+  const [selectedCollection, setSelectedCollection] = useState("");
+
+  function handleSelectCollection(addr: string) {
+    setSelectedCollection(addr);
+    setTab("detail");
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold" data-testid="text-nft-page-title">NFT Explorer</h1>
-            <p className="text-sm text-muted-foreground mt-1">Browse collections, activity, listings, offers, traits, and wallet holdings via OpenSea</p>
-          </div>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-display font-bold" data-testid="text-nft-page-title">NFT Explorer</h1>
+          <p className="text-sm text-muted-foreground mt-1">Browse collections, search NFTs, view sales history, and look up wallet holdings</p>
         </div>
 
         <div className="flex gap-1 bg-muted/30 rounded-lg p-1 w-fit flex-wrap">
           {([
-            { key: "trending", label: "Trending", icon: TrendingUp },
+            { key: "trending", label: "Top Collections", icon: TrendingUp },
             { key: "search", label: "Search", icon: Search },
             { key: "wallet", label: "Wallet", icon: Wallet },
             { key: "detail", label: "Collection", icon: Layers },
@@ -955,10 +747,10 @@ export default function NftsPage() {
           ))}
         </div>
 
-        {tab === "trending" && <TrendingCollections />}
-        {tab === "search" && <CollectionSearch />}
+        {tab === "trending" && <TrendingCollections onSelectCollection={handleSelectCollection} />}
+        {tab === "search" && <CollectionSearch onSelectCollection={handleSelectCollection} />}
         {tab === "wallet" && <WalletNfts />}
-        {tab === "detail" && <CollectionDetail />}
+        {tab === "detail" && <CollectionDetail initialAddress={selectedCollection} />}
         {tab === "lookup" && <NftLookup />}
       </main>
     </div>
