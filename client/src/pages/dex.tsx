@@ -334,6 +334,7 @@ export default function DexPage() {
   const [selectedPair, setSelectedPair] = useState<any>(null);
   const [chainFilter, setChainFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"trending" | "new">("trending");
+  const [selectedToken, setSelectedToken] = useState<{ chainId: string; tokenAddress: string; name: string; icon?: string } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSearch = useCallback((val: string) => {
@@ -343,6 +344,18 @@ export default function DexPage() {
   }, []);
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const handleTokenClick = (token: any) => {
+    if (!token.chainId || !token.tokenAddress) return;
+    setSelectedToken({
+      chainId: token.chainId,
+      tokenAddress: token.tokenAddress,
+      name: token.description?.split(" ").slice(0, 3).join(" ") || "Token",
+      icon: token.icon,
+    });
+    setSelectedPair(null);
+    setChainFilter(null);
+  };
 
   const trendingQuery = useQuery({
     queryKey: ["/api/dex/trending"],
@@ -380,9 +393,26 @@ export default function DexPage() {
     staleTime: 30000,
   });
 
+  const tokenPairsQuery = useQuery({
+    queryKey: ["/api/dex/token", selectedToken?.chainId, selectedToken?.tokenAddress],
+    queryFn: async () => {
+      if (!selectedToken) return [];
+      const res = await fetch(`/api/dex/token/${selectedToken.chainId}/${selectedToken.tokenAddress}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data?.pairs || data || []);
+    },
+    enabled: !!selectedToken,
+    staleTime: 30000,
+  });
+
+  const isViewingToken = !!selectedToken && debouncedQuery.length < 2;
+  const tokenPairs = (tokenPairsQuery.data || []) as any[];
+
   const pairs = (searchResults.data?.pairs || []) as any[];
-  const filteredPairs = chainFilter ? pairs.filter((p: any) => p.chainId === chainFilter) : pairs;
-  const chainCounts = pairs.reduce((acc: Record<string, number>, p: any) => {
+  const activePairs = isViewingToken ? tokenPairs : pairs;
+  const filteredPairs = chainFilter ? activePairs.filter((p: any) => p.chainId === chainFilter) : activePairs;
+  const chainCounts = activePairs.reduce((acc: Record<string, number>, p: any) => {
     acc[p.chainId] = (acc[p.chainId] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -426,7 +456,186 @@ export default function DexPage() {
           )}
         </div>
 
-        {debouncedQuery.length >= 2 && (
+        {isViewingToken && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 glass-panel rounded-xl p-4">
+              {selectedToken?.icon && <img src={selectedToken.icon} alt="" className="w-10 h-10 rounded-full" />}
+              <div className="flex-1">
+                <h2 className="font-display text-lg font-bold text-foreground">{selectedToken?.name}</h2>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${getChainStyle(selectedToken?.chainId || "")}`}>
+                    {selectedToken?.chainId}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {selectedToken?.tokenAddress?.slice(0, 12)}...{selectedToken?.tokenAddress?.slice(-6)}
+                  </span>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setSelectedToken(null); setSelectedPair(null); setChainFilter(null); }}
+                className="gap-1"
+                data-testid="button-back-to-list"
+              >
+                <X className="w-4 h-4" /> Back
+              </Button>
+            </div>
+
+            {tokenPairsQuery.isLoading ? (
+              <div className="glass-panel rounded-2xl p-8 text-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+                <p className="text-sm text-muted-foreground mt-2">Loading pairs...</p>
+              </div>
+            ) : tokenPairs.length === 0 ? (
+              <div className="glass-panel rounded-2xl p-8 text-center text-muted-foreground text-sm">
+                No trading pairs found for this token
+              </div>
+            ) : (
+              <>
+                {topChains.length > 1 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <Badge
+                      variant={chainFilter === null ? "default" : "outline"}
+                      className="cursor-pointer text-[11px]"
+                      onClick={() => setChainFilter(null)}
+                      data-testid="button-token-chain-all"
+                    >
+                      All ({activePairs.length})
+                    </Badge>
+                    {topChains.map(([chain, count]) => (
+                      <Badge
+                        key={chain}
+                        variant={chainFilter === chain ? "default" : "outline"}
+                        className={`cursor-pointer text-[11px] ${chainFilter !== chain ? getChainStyle(chain) : ""}`}
+                        onClick={() => setChainFilter(chainFilter === chain ? null : chain)}
+                        data-testid={`button-token-chain-${chain}`}
+                      >
+                        {chain} ({count})
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/20">
+                        <th className="p-3 text-left font-medium">Pair</th>
+                        <th className="p-3 text-left font-medium">Chain / DEX</th>
+                        <th className="p-3 font-medium text-right">Price</th>
+                        <th className="p-3 font-medium text-right">5m</th>
+                        <th className="p-3 font-medium text-right">1h</th>
+                        <th className="p-3 font-medium text-right">24h</th>
+                        <th className="p-3 font-medium text-right">Volume 24h</th>
+                        <th className="p-3 font-medium text-right">Liquidity</th>
+                        <th className="p-3 font-medium text-right">Txns 24h</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredPairs.slice(0, 50).map((pair: any) => {
+                        const pc = pair.priceChange || {};
+                        const tx24 = pair.txns?.h24;
+                        return (
+                          <tr
+                            key={`${pair.chainId}-${pair.pairAddress}`}
+                            className="hover:bg-muted/20 transition-colors cursor-pointer group"
+                            onClick={() => setSelectedPair(selectedPair?.pairAddress === pair.pairAddress && selectedPair?.chainId === pair.chainId ? null : pair)}
+                            data-testid={`row-token-pair-${pair.pairAddress}`}
+                          >
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                {pair.info?.imageUrl && <img src={pair.info.imageUrl} alt="" className="w-6 h-6 rounded-full" />}
+                                <div>
+                                  <div className="font-medium text-foreground text-sm group-hover:text-primary transition-colors">
+                                    {pair.baseToken?.symbol}<span className="text-muted-foreground font-normal">/{pair.quoteToken?.symbol}</span>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground truncate max-w-[150px]">{pair.baseToken?.name}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${getChainStyle(pair.chainId)}`}>
+                                {pair.chainId}
+                              </Badge>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">{pair.dexId}</div>
+                            </td>
+                            <td className="p-3 text-right font-mono text-sm text-foreground">{formatPrice(pair.priceUsd)}</td>
+                            <td className="p-3 text-right"><PctBadge value={pc.m5} /></td>
+                            <td className="p-3 text-right"><PctBadge value={pc.h1} /></td>
+                            <td className="p-3 text-right"><PctBadge value={pc.h24} /></td>
+                            <td className="p-3 text-right font-mono text-xs text-foreground">{formatUsd(pair.volume?.h24)}</td>
+                            <td className="p-3 text-right font-mono text-xs text-foreground">{formatUsd(pair.liquidity?.usd)}</td>
+                            <td className="p-3 text-right">
+                              {tx24 ? (
+                                <div className="text-xs">
+                                  <span className="font-mono text-green-400">{tx24.buys}</span>
+                                  <span className="text-muted-foreground mx-0.5">/</span>
+                                  <span className="font-mono text-red-400">{tx24.sells}</span>
+                                </div>
+                              ) : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="md:hidden space-y-2">
+                  {filteredPairs.slice(0, 30).map((pair: any) => {
+                    const pc = pair.priceChange || {};
+                    return (
+                      <div
+                        key={`${pair.chainId}-${pair.pairAddress}`}
+                        className="glass-panel rounded-xl p-3 hover:bg-muted/20 active:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => setSelectedPair(selectedPair?.pairAddress === pair.pairAddress && selectedPair?.chainId === pair.chainId ? null : pair)}
+                        data-testid={`card-token-pair-mobile-${pair.pairAddress}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {pair.info?.imageUrl && <img src={pair.info.imageUrl} alt="" className="w-7 h-7 rounded-full" />}
+                            <div>
+                              <div className="font-medium text-sm text-foreground">
+                                {pair.baseToken?.symbol}<span className="text-muted-foreground font-normal">/{pair.quoteToken?.symbol}</span>
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Badge variant="outline" className={`text-[9px] px-1 py-0 border ${getChainStyle(pair.chainId)}`}>
+                                  {pair.chainId}
+                                </Badge>
+                                <span className="text-[9px] text-muted-foreground">{pair.dexId}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-mono text-sm font-semibold text-foreground">{formatPrice(pair.priceUsd)}</div>
+                            <PctBadge value={pc.h24} />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
+                          <span>Vol: {formatUsd(pair.volume?.h24)}</span>
+                          <span>Liq: {formatUsd(pair.liquidity?.usd)}</span>
+                          {pair.txns?.h24 && (
+                            <span>
+                              <span className="text-green-400">{pair.txns.h24.buys}B</span>/<span className="text-red-400">{pair.txns.h24.sells}S</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {selectedPair && (
+              <PairDetailPanel pair={selectedPair} onClose={() => setSelectedPair(null)} />
+            )}
+          </div>
+        )}
+
+        {debouncedQuery.length >= 2 && !isViewingToken && (
           <div className="space-y-4">
             {topChains.length > 1 && (
               <div className="flex items-center gap-2 flex-wrap">
@@ -587,7 +796,7 @@ export default function DexPage() {
           </div>
         )}
 
-        {debouncedQuery.length < 2 && (
+        {debouncedQuery.length < 2 && !isViewingToken && (
           <>
             <div className="flex gap-2 justify-center">
               <Button
@@ -626,11 +835,9 @@ export default function DexPage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {trending.slice(0, 30).map((token: any, i: number) => (
-                      <a
+                      <div
                         key={`${token.chainId}-${token.tokenAddress}-${i}`}
-                        href={safeUrl(token.url) || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        onClick={() => handleTokenClick(token)}
                         className="glass-panel rounded-xl p-4 hover:bg-muted/20 transition-colors group cursor-pointer"
                         data-testid={`card-trending-${i}`}
                       >
@@ -656,12 +863,12 @@ export default function DexPage() {
                               </span>
                             </div>
                           </div>
-                          <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                          <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </div>
                         {token.description && (
                           <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{token.description}</p>
                         )}
-                      </a>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -684,11 +891,9 @@ export default function DexPage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {profiles.slice(0, 30).map((token: any, i: number) => (
-                      <a
+                      <div
                         key={`${token.chainId}-${token.tokenAddress}-${i}`}
-                        href={safeUrl(token.url) || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        onClick={() => handleTokenClick(token)}
                         className="glass-panel rounded-xl p-4 hover:bg-muted/20 transition-colors group cursor-pointer"
                         data-testid={`card-profile-${i}`}
                       >
@@ -707,7 +912,7 @@ export default function DexPage() {
                               </span>
                             </div>
                           </div>
-                          <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                          <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </div>
                         {token.links && token.links.length > 0 && (
                           <div className="flex gap-1.5 mt-2 flex-wrap">
@@ -721,7 +926,7 @@ export default function DexPage() {
                         {token.description && (
                           <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{token.description}</p>
                         )}
-                      </a>
+                      </div>
                     ))}
                   </div>
                 )}
