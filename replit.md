@@ -124,7 +124,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `POST /api/track` - Record analytics event
 
 ### Admin (requires x-admin-token header)
-- `POST /api/admin/login` - Login (default password: admin123)
+- `POST /api/admin/login` - Login (password set via ADMIN_PASSWORD env var)
 - `POST /api/admin/logout` - Logout
 - `GET /api/admin/verify` - Check auth
 - `GET /api/admin/stats` - Analytics data

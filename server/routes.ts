@@ -2225,10 +2225,13 @@ export async function registerRoutes(
       if (hashedPassword) {
         valid = await bcrypt.compare(password, hashedPassword);
       } else {
-        valid = password === "admin123";
-        if (valid) {
-          const hash = await bcrypt.hash(password, 10);
-          await storage.setSetting("admin_password_hash", hash);
+        const envPassword = process.env.ADMIN_PASSWORD;
+        if (envPassword) {
+          valid = password === envPassword;
+          if (valid) {
+            const hash = await bcrypt.hash(password, 10);
+            await storage.setSetting("admin_password_hash", hash);
+          }
         }
       }
       if (!valid) {

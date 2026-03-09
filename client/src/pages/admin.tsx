@@ -111,7 +111,7 @@ function LoginForm({ onLogin }: { onLogin: (token: string) => void }) {
               {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4 mr-2" />}
               {loading ? "Authenticating..." : "Login"}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">Default: admin123</p>
+            <p className="text-xs text-muted-foreground text-center">Enter admin password</p>
           </form>
         </CardContent>
       </Card>
