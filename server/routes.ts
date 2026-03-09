@@ -2224,7 +2224,8 @@ export async function registerRoutes(
       const existingSlugs = new Set(existing.map((e: any) => e.slug));
       const defaultExchanges = [
         { name: "Binance", url: "https://www.binance.com", description: "World's largest crypto exchange by trading volume", type: "centralized", country: "Global", year: 2017, tradingPairs: 1500, featured: true, sortOrder: 1 },
-        { name: "Coinbase", url: "https://www.coinbase.com", description: "US-based regulated crypto exchange, publicly traded (NASDAQ)", type: "centralized", country: "United States", year: 2012, tradingPairs: 500, featured: true, sortOrder: 2 },
+        { name: "Binance.US", url: "https://www.binance.us", description: "US-regulated version of Binance for American traders", type: "centralized", country: "United States", year: 2019, tradingPairs: 150, featured: false, sortOrder: 2 },
+        { name: "Coinbase", url: "https://www.coinbase.com", description: "US-based regulated crypto exchange, publicly traded (NASDAQ)", type: "centralized", country: "United States", year: 2012, tradingPairs: 500, featured: true, sortOrder: 3 },
         { name: "Kraken", url: "https://www.kraken.com", description: "US-based exchange known for security and compliance", type: "centralized", country: "United States", year: 2011, tradingPairs: 600, featured: true, sortOrder: 3 },
         { name: "Bybit", url: "https://www.bybit.com", description: "Leading crypto derivatives and spot exchange", type: "centralized", country: "Dubai", year: 2018, tradingPairs: 800, featured: true, sortOrder: 4 },
         { name: "OKX", url: "https://www.okx.com", description: "Global exchange with advanced trading features and Web3 wallet", type: "centralized", country: "Seychelles", year: 2017, tradingPairs: 700, featured: true, sortOrder: 5 },
