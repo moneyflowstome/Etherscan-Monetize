@@ -116,34 +116,34 @@ function CopyButton({ text, id }: { text: string; id: string }) {
   );
 }
 
-function getCoinOfTheDay(): ChainInfo {
-  const today = new Date().toISOString().split("T")[0];
-  let hash = 0;
-  for (let i = 0; i < today.length; i++) {
-    hash = ((hash << 5) - hash + today.charCodeAt(i)) | 0;
-  }
-  const index = Math.abs(hash) % ALL_CHAINS.length;
-  return ALL_CHAINS[index];
-}
-
 function CoinOfTheDay({ onChainClick }: { onChainClick: (chain: ChainInfo) => void }) {
-  const coinChain = getCoinOfTheDay();
+  const [, navigate] = useLocation();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["coin-info", coinChain.coingeckoId],
+    queryKey: ["coin-of-the-day"],
     queryFn: async () => {
-      const res = await fetch(`/api/coin/${coinChain.coingeckoId}`);
-      if (!res.ok) throw new Error("Failed to fetch coin info");
+      const res = await fetch("/api/coin-of-the-day");
+      if (!res.ok) throw new Error("Failed to fetch coin of the day");
       return res.json();
     },
-    staleTime: 60000,
+    staleTime: 300000,
     retry: 2,
   });
+
+  const matchingChain = data ? ALL_CHAINS.find(c => c.coingeckoId === data.id) : null;
+
+  const handleClick = () => {
+    if (matchingChain) {
+      onChainClick(matchingChain);
+    } else {
+      navigate("/prices");
+    }
+  };
 
   const priceUp = (data?.price_change_percentage_24h || 0) >= 0;
 
   return (
-    <button onClick={() => onChainClick(coinChain)} className="w-full text-left group" data-testid="card-coin-of-the-day">
+    <button onClick={handleClick} className="w-full text-left group" data-testid="card-coin-of-the-day">
       <Card className="glass-panel bg-gradient-to-br from-yellow-500/10 via-amber-500/5 to-orange-500/10 border-yellow-500/30 hover:border-yellow-400/60 transition-all duration-300 group-hover:scale-[1.01] overflow-hidden relative">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-yellow-500/10 to-transparent rounded-bl-full" />
         <CardContent className="p-5 md:p-6">
@@ -151,24 +151,31 @@ function CoinOfTheDay({ onChainClick }: { onChainClick: (chain: ChainInfo) => vo
             <Trophy className="w-5 h-5 text-yellow-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-yellow-400" data-testid="text-cotd-label">Coin of the Day</span>
             <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+            {data?.market_cap_rank && (
+              <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-400 ml-1" data-testid="badge-cotd-rank">
+                #{data.market_cap_rank}
+              </Badge>
+            )}
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              {data?.image ? (
-                <img src={data.image} alt={coinChain.name} className="w-12 h-12 rounded-full ring-2 ring-yellow-500/30" data-testid="img-cotd-icon" />
-              ) : (
-                <span className="text-4xl" data-testid="img-cotd-icon">{coinChain.icon}</span>
-              )}
-              <div className="min-w-0">
-                <h3 className="font-display font-bold text-lg md:text-xl truncate" data-testid="text-cotd-name">{coinChain.name}</h3>
-                <p className="text-sm text-muted-foreground">{coinChain.symbol}</p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-yellow-400" /></div>
+          ) : error ? (
+            <div className="text-sm text-muted-foreground py-2">Unable to load coin of the day</div>
+          ) : data ? (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                {data.image ? (
+                  <img src={data.image} alt={data.name} className="w-12 h-12 rounded-full ring-2 ring-yellow-500/30" data-testid="img-cotd-icon" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center text-xl font-bold text-yellow-400" data-testid="img-cotd-icon">
+                    {data.symbol?.[0] || "?"}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-display font-bold text-lg md:text-xl truncate" data-testid="text-cotd-name">{data.name}</h3>
+                  <p className="text-sm text-muted-foreground">{data.symbol}</p>
+                </div>
               </div>
-            </div>
-            {isLoading ? (
-              <div className="ml-auto"><Loader2 className="w-5 h-5 animate-spin text-yellow-400" /></div>
-            ) : error ? (
-              <div className="ml-auto text-xs text-muted-foreground">Click to explore {coinChain.symbol} →</div>
-            ) : data ? (
               <div className="ml-auto flex items-center gap-4 md:gap-6">
                 <div className="text-right">
                   <p className="font-mono text-xl md:text-2xl font-bold" data-testid="text-cotd-price">
@@ -187,8 +194,8 @@ function CoinOfTheDay({ onChainClick }: { onChainClick: (chain: ChainInfo) => vo
                 </div>
                 <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-yellow-400 transition-colors hidden sm:block" />
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </button>

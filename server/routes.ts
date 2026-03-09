@@ -40,8 +40,10 @@ async function etherscanFetch(params: Record<string, string>, chainId: number = 
 
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
 
-let priceCache: { data: any; timestamp: number } | null = null;
+let priceCache: { data: any; timestamp: number; perPage: number } | null = null;
+let cotdCache: { data: any[]; timestamp: number } | null = null;
 const PRICE_CACHE_TTL = 60000;
+const COTD_CACHE_TTL = 300000;
 
 let newsCache: { data: any; timestamp: number } | null = null;
 const NEWS_CACHE_TTL = 300000;
@@ -316,7 +318,7 @@ export async function registerRoutes(
       const page = parseInt(req.query.page as string) || 1;
       const perPage = Math.min(parseInt(req.query.per_page as string) || 50, 100);
 
-      if (priceCache && Date.now() - priceCache.timestamp < PRICE_CACHE_TTL && page === 1) {
+      if (priceCache && Date.now() - priceCache.timestamp < PRICE_CACHE_TTL && page === 1 && priceCache.perPage === perPage) {
         return res.json(priceCache.data);
       }
 
@@ -326,10 +328,52 @@ export async function registerRoutes(
       const data = await response.json();
 
       if (page === 1) {
-        priceCache = { data, timestamp: Date.now() };
+        priceCache = { data, timestamp: Date.now(), perPage };
       }
 
       res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/coin-of-the-day", async (req, res) => {
+    try {
+      let topCoins: any[] = [];
+      if (cotdCache && Date.now() - cotdCache.timestamp < COTD_CACHE_TTL) {
+        topCoins = cotdCache.data;
+      } else {
+        const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+        topCoins = await response.json();
+        cotdCache = { data: topCoins, timestamp: Date.now() };
+      }
+
+      if (!topCoins.length) {
+        return res.status(503).json({ error: "No price data available" });
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      let hash = 0;
+      for (let i = 0; i < today.length; i++) {
+        hash = ((hash << 5) - hash + today.charCodeAt(i)) | 0;
+      }
+      const index = Math.abs(hash) % topCoins.length;
+      const coin = topCoins[index];
+
+      res.json({
+        id: coin.id,
+        name: coin.name,
+        symbol: coin.symbol?.toUpperCase(),
+        image: coin.image,
+        current_price: coin.current_price,
+        price_change_percentage_24h: coin.price_change_percentage_24h,
+        market_cap: coin.market_cap,
+        total_volume: coin.total_volume,
+        market_cap_rank: coin.market_cap_rank,
+        sparkline_in_7d: coin.sparkline_in_7d,
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
