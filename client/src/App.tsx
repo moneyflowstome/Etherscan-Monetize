@@ -21,6 +21,7 @@ import ExchangesPage from "@/pages/exchanges";
 import ContactPage from "@/pages/contact";
 import BlogPage from "@/pages/blog";
 import BlogPostPage from "@/pages/blog-post";
+import SwapPage from "@/pages/swap";
 
 function Router() {
   return (
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/prices" component={PricesPage}/>
       <Route path="/watchlist" component={WatchlistPage}/>
       <Route path="/exchanges" component={ExchangesPage}/>
+      <Route path="/swap" component={SwapPage}/>
       <Route path="/xrp" component={XrpExplorerPage}/>
       <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>

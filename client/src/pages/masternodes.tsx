@@ -6,6 +6,9 @@ import {
   TrendingUp,
   Shield,
   ExternalLink,
+  Activity,
+  Users,
+  Coins,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +20,16 @@ function formatUsd(num: number): string {
   if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
   if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
   return `$${num.toFixed(2)}`;
+}
+
+function formatStaked(val: string | null): string {
+  if (!val) return "—";
+  const num = parseFloat(val);
+  if (isNaN(num)) return val;
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(0)}K`;
+  return num.toLocaleString();
 }
 
 export default function MasternodesPage() {
@@ -31,7 +44,19 @@ export default function MasternodesPage() {
     staleTime: 120000,
   });
 
+  const validatorQuery = useQuery({
+    queryKey: ["/api/validators"],
+    queryFn: async () => {
+      const res = await fetch("/api/validators");
+      if (!res.ok) throw new Error("Failed to fetch validators");
+      return res.json();
+    },
+    refetchInterval: 300000,
+    staleTime: 120000,
+  });
+
   const coins = mnQuery.data?.coins || [];
+  const validators = validatorQuery.data?.validators || [];
 
   const totalMnValue = coins.reduce((sum: number, c: any) => sum + (c.collateralValueUsd || 0), 0);
 
@@ -51,12 +76,86 @@ export default function MasternodesPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3" data-testid="text-page-title">
             <Server className="w-8 h-8 text-primary" />
-            Masternode Tracker
+            Masternodes & Validators
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Compare masternode coins, collateral requirements, and estimated ROI
+            Live network validator stats, masternode coins, collateral requirements, and estimated ROI
           </p>
         </div>
+
+        <div className="mb-10">
+          <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2 mb-4" data-testid="text-validators-title">
+            <Activity className="w-5 h-5 text-primary" />
+            Network Validators — Live Stats
+          </h2>
+          {validatorQuery.isLoading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
+              <div className="text-muted-foreground text-sm">Loading validator data...</div>
+            </div>
+          ) : validators.length === 0 ? (
+            <div className="glass-panel p-8 rounded-2xl text-center text-muted-foreground text-sm">
+              Validator data unavailable right now.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {validators.map((v: any) => (
+                <Card
+                  key={v.symbol}
+                  className="glass-panel border-border hover:border-primary/30 transition-all group"
+                  data-testid={`card-validator-${v.symbol.toLowerCase()}`}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                          style={{ backgroundColor: v.color }}
+                        >
+                          {v.symbol.slice(0, 2)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{v.chain}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">{v.symbol}</div>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-green-500/10 text-green-400 border-green-500/20"
+                        data-testid={`badge-apy-${v.symbol.toLowerCase()}`}
+                      >
+                        {v.stakingApy} APY
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Users className="w-3 h-3" /> Validators
+                        </span>
+                        <span className="font-mono text-foreground" data-testid={`text-validators-${v.symbol.toLowerCase()}`}>
+                          {v.validatorCount != null ? v.validatorCount.toLocaleString() : "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Coins className="w-3 h-3" /> Staked
+                        </span>
+                        <span className="font-mono text-foreground" data-testid={`text-staked-${v.symbol.toLowerCase()}`}>
+                          {formatStaked(v.totalStaked)} {v.symbol}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2 mb-4" data-testid="text-masternodes-title">
+          <Shield className="w-5 h-5 text-primary" />
+          Masternode Coins
+        </h2>
 
         {coins.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

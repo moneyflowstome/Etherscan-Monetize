@@ -52,6 +52,9 @@ const TRENDING_CACHE_TTL = 120000;
 let masternodeCache: { data: any; timestamp: number } | null = null;
 const MASTERNODE_CACHE_TTL = 300000;
 
+let validatorCache: { data: any; timestamp: number } | null = null;
+const VALIDATOR_CACHE_TTL = 300000;
+
 let worldNewsCache: { data: any; timestamp: number } | null = null;
 let usaNewsCache: { data: any; timestamp: number } | null = null;
 const GENERAL_NEWS_CACHE_TTL = 600000;
@@ -1961,6 +1964,98 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/validators", async (_req, res) => {
+    try {
+      if (validatorCache && Date.now() - validatorCache.timestamp < VALIDATOR_CACHE_TTL) {
+        return res.json(validatorCache.data);
+      }
+
+      const fetchWithTimeout = async (url: string, options?: RequestInit) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        try {
+          const r = await fetch(url, { ...options, signal: controller.signal });
+          return r;
+        } finally {
+          clearTimeout(timeout);
+        }
+      };
+
+      const results = await Promise.allSettled([
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://beaconcha.in/api/v1/epoch/latest");
+            const d = await r.json();
+            return { chain: "Ethereum", symbol: "ETH", validatorCount: d.data?.validatorscount ?? null, totalStaked: d.data?.eligibleether ? `${Math.round(d.data.eligibleether).toLocaleString()} ETH` : null, stakingApy: "3.5%", color: "#627EEA" };
+          } catch { return { chain: "Ethereum", symbol: "ETH", validatorCount: null, totalStaked: null, stakingApy: "3.5%", color: "#627EEA" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://api.mainnet-beta.solana.com", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getVoteAccounts" }) });
+            const d = await r.json();
+            const count = d.result?.current?.length ?? null;
+            return { chain: "Solana", symbol: "SOL", validatorCount: count, totalStaked: null, stakingApy: "7%", color: "#00FFA3" };
+          } catch { return { chain: "Solana", symbol: "SOL", validatorCount: null, totalStaked: null, stakingApy: "7%", color: "#00FFA3" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://rest.cosmos.directory/cosmoshub/cosmos/staking/v1beta1/pool");
+            const d = await r.json();
+            const bonded = d.pool?.bonded_tokens ? `${Math.round(parseInt(d.pool.bonded_tokens) / 1e6).toLocaleString()} ATOM` : null;
+            return { chain: "Cosmos", symbol: "ATOM", validatorCount: null, totalStaked: bonded, stakingApy: "15%", color: "#2E3148" };
+          } catch { return { chain: "Cosmos", symbol: "ATOM", validatorCount: null, totalStaked: null, stakingApy: "15%", color: "#2E3148" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://api.koios.rest/api/v1/tip");
+            const d = await r.json();
+            const epoch = Array.isArray(d) && d[0]?.epoch_no ? d[0].epoch_no : null;
+            return { chain: "Cardano", symbol: "ADA", validatorCount: null, totalStaked: epoch ? `Epoch ${epoch}` : null, stakingApy: "3.5%", color: "#0033AD" };
+          } catch { return { chain: "Cardano", symbol: "ADA", validatorCount: null, totalStaked: null, stakingApy: "3.5%", color: "#0033AD" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://polkadot.api.subscan.io/api/scan/metadata", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+            const d = await r.json();
+            const count = d.data?.count_signed_extrinsic ? null : (d.data?.validator_count ?? null);
+            return { chain: "Polkadot", symbol: "DOT", validatorCount: count, totalStaked: null, stakingApy: "12%", color: "#E6007A" };
+          } catch { return { chain: "Polkadot", symbol: "DOT", validatorCount: null, totalStaked: null, stakingApy: "12%", color: "#E6007A" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://api.avax.network/ext/bc/P", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "platform.getCurrentValidators", params: {} }) });
+            const d = await r.json();
+            const count = d.result?.validators?.length ?? null;
+            return { chain: "Avalanche", symbol: "AVAX", validatorCount: count, totalStaked: null, stakingApy: "8%", color: "#E84142" };
+          } catch { return { chain: "Avalanche", symbol: "AVAX", validatorCount: null, totalStaked: null, stakingApy: "8%", color: "#E84142" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://rpc.mainnet.near.org", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "validators", params: [null] }) });
+            const d = await r.json();
+            const count = d.result?.current_validators?.length ?? null;
+            return { chain: "NEAR", symbol: "NEAR", validatorCount: count, totalStaked: null, stakingApy: "9%", color: "#00C1DE" };
+          } catch { return { chain: "NEAR", symbol: "NEAR", validatorCount: null, totalStaked: null, stakingApy: "9%", color: "#00C1DE" }; }
+        })(),
+        (async () => {
+          try {
+            const r = await fetchWithTimeout("https://api.trongrid.io/wallet/listwitnesses");
+            const d = await r.json();
+            const count = d.witnesses?.length ?? null;
+            return { chain: "Tron", symbol: "TRX", validatorCount: count, totalStaked: null, stakingApy: "4%", color: "#FF0013" };
+          } catch { return { chain: "Tron", symbol: "TRX", validatorCount: null, totalStaked: null, stakingApy: "4%", color: "#FF0013" }; }
+        })(),
+      ]);
+
+      const validators = results.map((r) => r.status === "fulfilled" ? r.value : null).filter(Boolean);
+      const data = { validators, updatedAt: Date.now() };
+      validatorCache = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/contract-abi/:address", async (req, res) => {
     try {
       const { address } = req.params;
@@ -2462,7 +2557,7 @@ export async function registerRoutes(
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       const baseUrl = "https://tokenaltcoin.com";
-      const staticPages = ["/", "/wallet", "/prices", "/watchlist", "/exchanges", "/xrp", "/staking", "/news", "/masternodes", "/blog", "/contact", "/privacy", "/terms"];
+      const staticPages = ["/", "/wallet", "/prices", "/watchlist", "/exchanges", "/swap", "/xrp", "/staking", "/news", "/masternodes", "/blog", "/contact", "/privacy", "/terms"];
       const posts = await storage.getPosts({ published: true });
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;

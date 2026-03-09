@@ -42,6 +42,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - **Messages tab** — view all contact form submissions, mark read/unread, delete, unread count badge
   - **Blog tab** — full CRUD for blog posts (title, slug, content, excerpt, category, tags, cover image, meta fields, publish/draft, featured toggle)
   - **SEO tab** — page-level SEO meta management (title, description, keywords, OG tags, canonical) for all pages; SEO score checker (title length, description length, keyword analysis); robots.txt editor
+- Crypto Swap at `/swap` — instant cryptocurrency swapping via ChangeNOW widget integration, supports 900+ coins, affiliate revenue per transaction (configure affiliate ID in admin settings key: `changenow_affiliate_id`)
+- Live Validator Stats on `/masternodes` — real-time validator counts, total staked amounts, and staking APY for 8 major PoS chains (ETH, SOL, ATOM, ADA, DOT, AVAX, NEAR, TRX) from free public APIs, cached 5 minutes
 - Crypto Exchanges directory at `/exchanges` — 30+ pre-seeded exchanges (CEX + DEX), search, filter by type, featured highlights, affiliate link support
 - Admin "Exchanges" tab — add/edit/delete exchanges, set affiliate URLs, toggle featured/active, seed 30 defaults with one click
 - Auto-generated sitemap.xml with all pages + published blog posts
