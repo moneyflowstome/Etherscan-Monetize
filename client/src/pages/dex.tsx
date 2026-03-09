@@ -936,6 +936,25 @@ export default function DexPage() {
         )}
 
         <AdBanner slot="0123456789" format="horizontal" className="w-full mt-6" />
+
+        <a
+          href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:border-cyan-400/40 transition-all group"
+          data-testid="banner-tradingview-dex"
+        >
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-cyan-400" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Level Up Your Trading</p>
+              <p className="text-xs text-muted-foreground">Get advanced charts, real-time data & 100+ indicators</p>
+            </div>
+          </div>
+          <span className="text-sm font-bold text-cyan-400 group-hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap">
+            Try TradingView <ExternalLink className="w-4 h-4" />
+          </span>
+        </a>
       </div>
       <Footer />
     </div>

@@ -498,6 +498,18 @@ function PriceHistoryChart({ coinId }: { coinId: string }) {
           )}
         </div>
       )}
+
+      <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20" data-testid="banner-tradingview-chart">
+        <a href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 group">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs text-muted-foreground">Want advanced charts & indicators?</span>
+          </div>
+          <span className="text-xs font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors flex items-center gap-1">
+            Try TradingView <ExternalLink className="w-3 h-3" />
+          </span>
+        </a>
+      </div>
     </div>
   );
 }
@@ -1015,7 +1027,7 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
                 <a href={`https://coinmarketcap.com/currencies/${d.id || coin.id}/`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-coinmarketcap">
                   <ExternalLink className="w-3 h-3 text-blue-400" /> CoinMarketCap
                 </a>
-                <a href={`https://www.tradingview.com/symbols/${(d.symbol || coin.symbol || "").toUpperCase()}USD/`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-tradingview">
+                <a href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-tradingview">
                   <Activity className="w-3 h-3 text-cyan-400" /> TradingView
                 </a>
                 <a href={`https://www.google.com/search?q=${encodeURIComponent((d.name || coin.name) + " crypto")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-google-search">
