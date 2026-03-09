@@ -347,16 +347,32 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
             </div>
           )}
         </div>
-        {coin.ath && (
+        {(coin.ath || coin.atl) && (
           <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">All-Time High</p>
-              <p className="font-mono text-sm text-foreground">${coin.ath?.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">From ATH</p>
-              <p className="font-mono text-sm text-red-400">{coin.ath_change_percentage?.toFixed(1)}%</p>
-            </div>
+            {coin.ath && (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">All-Time High</p>
+                  <p className="font-mono text-sm text-foreground">${coin.ath?.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">From ATH</p>
+                  <p className="font-mono text-sm text-red-400">{coin.ath_change_percentage?.toFixed(1)}%</p>
+                </div>
+              </>
+            )}
+            {coin.atl != null && (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">All-Time Low</p>
+                  <p className="font-mono text-sm text-foreground" data-testid="text-detail-atl">${coin.atl?.toLocaleString(undefined, { maximumFractionDigits: coin.atl < 1 ? 6 : 2 })}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">From ATL</p>
+                  <p className="font-mono text-sm text-green-400" data-testid="text-detail-atl-change">+{coin.atl_change_percentage?.toFixed(1)}%</p>
+                </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>
