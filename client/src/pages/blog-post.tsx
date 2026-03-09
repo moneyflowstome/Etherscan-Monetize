@@ -7,12 +7,9 @@ import {
   Calendar,
   Tag,
   ArrowLeft,
-  Share2,
   BookOpen,
-  Copy,
-  Check,
 } from "lucide-react";
-import { useState } from "react";
+import { SocialShareButton } from "@/components/SocialShare";
 import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,80 +27,13 @@ function formatDate(date: string | Date): string {
 }
 
 function ShareButtons({ post }: { post: BlogPost }) {
-  const [copied, setCopied] = useState(false);
-  const url = window.location.href;
-  const title = post.title;
-
-  const shareTwitter = () => {
-    window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
-      "_blank"
-    );
-  };
-
-  const shareFacebook = () => {
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      "_blank"
-    );
-  };
-
-  const shareLinkedIn = () => {
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
-      "_blank"
-    );
-  };
-
-  const copyLink = async () => {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="flex items-center gap-2" data-testid="share-buttons">
-      <span className="text-sm text-muted-foreground flex items-center gap-1">
-        <Share2 className="w-4 h-4" />
-        Share:
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={shareTwitter}
-        className="text-xs"
-        data-testid="button-share-twitter"
-      >
-        𝕏 Twitter
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={shareFacebook}
-        className="text-xs"
-        data-testid="button-share-facebook"
-      >
-        Facebook
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={shareLinkedIn}
-        className="text-xs"
-        data-testid="button-share-linkedin"
-      >
-        LinkedIn
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={copyLink}
-        className="text-xs"
-        data-testid="button-share-copy"
-      >
-        {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-        {copied ? "Copied!" : "Copy Link"}
-      </Button>
+      <SocialShareButton
+        url={window.location.href}
+        title={post.title}
+        description={post.excerpt || post.metaDescription || ""}
+      />
     </div>
   );
 }

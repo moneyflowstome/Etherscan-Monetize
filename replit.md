@@ -46,8 +46,12 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
 - World and USA news auto-refreshed from RSS feeds, cached 10 minutes server-side
 - Masternode tracker with collateral/ROI data
-- Blog at `/blog` — full blog system with article listing, category filter, search, pagination, featured posts; single post view at `/blog/:slug` with social sharing (Twitter, Facebook, LinkedIn, copy link), view counter, related posts
+- Blog at `/blog` — full blog system with article listing, category filter, search, pagination, featured posts; single post view at `/blog/:slug` with social sharing (100+ networks via SocialShare modal), view counter, related posts
+- Community Chat at `/chat` — real-time-ish chat (5s polling), nickname persistence (localStorage), coin tag selector, message cards with timestamps, profanity auto-flagging, rate limiting (5s per IP). Backend: `chat_messages` table, `GET /api/chat/messages`, `POST /api/chat/messages`
+- Social Share Component (`SocialShare.tsx`) — 100+ networks in 9 categories (Popular, Messaging, Social, Tech, Regional, Professional, Bookmarks, Google, Other), searchable modal with category tabs, copy link button. Integrated in blog posts and arbitrage page
 - Contact form at `/contact` — name, email, subject dropdown, message; submits to DB; success confirmation
+- Login Security (Wordfence-like) — `login_attempts` and `blocked_ips` tables; auto-block IP after 5 failed login attempts in 15min (30min block); admin Security tab shows login attempts log, blocked IPs with manual block/unblock; uses Express `trust proxy` + `req.ip` for reliable IP extraction
+- PWA Foundation — `manifest.json` (standalone, theme #00C8FF), icons (192/512), service worker (stale-while-revalidate for static, network-first for API, admin routes excluded from cache), apple-mobile-web-app meta tags, SW registration in main.tsx
 - Admin panel at `/admin` with:
   - Site analytics (page views, tracked wallets, top chains)
   - AdSense management (publisher ID, slot IDs)
@@ -58,6 +62,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - **Airdrops tab** — manage submitted airdrops (approve/reject with one click, feature/unfeature, delete), filter by status, pending count badge
   - **Blog tab** — full CRUD for blog posts (title, slug, content, excerpt, category, tags, cover image, meta fields, publish/draft, featured toggle)
   - **SEO tab** — page-level SEO meta management (title, description, keywords, OG tags, canonical) for all pages; SEO score checker (title length, description length, keyword analysis); robots.txt editor
+  - **Security tab** — login attempts log (IP, time, success/fail), blocked IPs list with manual block/unblock, auto-block status
+  - **Chat tab** — chat message moderation, flagged messages view, flag/delete messages
 - Crypto Swap at `/swap` — full custom swap UI powered by ChangeNOW API (CHANGENOW_API_KEY env var), 900+ coins, real-time rate estimates, 3-step exchange flow (select pair → enter address → send & receive), exchange status tracking, revenue earned per transaction through API key
 - **Swap Widget on Home Page** — compact ChangeNOW exchange widget on explorer/home page with currency selectors, amount input, live estimate, and "Exchange Now" button linking to full swap flow
 - Live Validator Stats on `/masternodes` — real-time validator counts, total staked amounts, and staking APY for 8 major PoS chains (ETH, SOL, ATOM, ADA, DOT, AVAX, NEAR, TRX) from free public APIs, cached 5 minutes

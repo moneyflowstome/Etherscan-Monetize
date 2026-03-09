@@ -27,6 +27,7 @@ import {
   Star,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SocialShareButton } from "@/components/SocialShare";
 
 const COIN_META: Record<string, { symbol: string; name: string; image: string }> = {
   bitcoin: { symbol: "BTC", name: "Bitcoin", image: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png" },
@@ -570,14 +571,21 @@ export default function ArbitragePage() {
         <AdBanner slot="0123456789" format="horizontal" className="w-full mb-4" />
 
         <div className="mb-6">
-          <h1
-            className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3"
-            style={{ fontFamily: "'Orbitron', sans-serif" }}
-            data-testid="heading-arbitrage"
-          >
-            <TrendingUp className="w-8 h-8 text-primary" />
-            Crypto Arbitrage Scanner
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1
+              className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3"
+              style={{ fontFamily: "'Orbitron', sans-serif" }}
+              data-testid="heading-arbitrage"
+            >
+              <TrendingUp className="w-8 h-8 text-primary" />
+              Crypto Arbitrage Scanner
+            </h1>
+            <SocialShareButton
+              url={typeof window !== "undefined" ? window.location.href : ""}
+              title="Crypto Arbitrage Scanner - Find the Best Price Differences"
+              description="Real-time crypto arbitrage opportunities across exchanges."
+            />
+          </div>
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             Real-time price comparison across {totalExchanges}+ exchanges. Find where to buy low and sell high — updated every 2 minutes.
           </p>

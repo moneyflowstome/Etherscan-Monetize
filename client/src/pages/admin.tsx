@@ -1634,6 +1634,309 @@ function AirdropsTab({ token }: { token: string }) {
   );
 }
 
+function SecurityTab({ token }: { token: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [blockIp, setBlockIp] = useState("");
+  const [blockReason, setBlockReason] = useState("");
+
+  const { data: attempts, isLoading: attemptsLoading } = useQuery({
+    queryKey: ["admin-login-attempts"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/login-attempts", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: blockedIps, isLoading: blockedLoading } = useQuery({
+    queryKey: ["admin-blocked-ips"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/blocked-ips", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/block-ip", {
+        method: "POST",
+        headers: apiHeaders(token),
+        body: JSON.stringify({ ip: blockIp, reason: blockReason || "Manual block" }),
+      });
+      if (!res.ok) throw new Error("Failed to block IP");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-blocked-ips"] });
+      setBlockIp("");
+      setBlockReason("");
+      toast({ title: "IP blocked successfully" });
+    },
+  });
+
+  const unblockMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/blocked-ips/${id}`, {
+        method: "DELETE",
+        headers: apiHeaders(token),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-blocked-ips"] });
+      toast({ title: "IP unblocked" });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            Block IP Address
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="IP address (e.g., 192.168.1.1)"
+              value={blockIp}
+              onChange={(e) => setBlockIp(e.target.value)}
+              className="flex-1"
+              data-testid="input-block-ip"
+            />
+            <Input
+              placeholder="Reason (optional)"
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              className="flex-1"
+              data-testid="input-block-reason"
+            />
+            <Button
+              onClick={() => blockMutation.mutate()}
+              disabled={!blockIp.trim() || blockMutation.isPending}
+              data-testid="button-block-ip"
+            >
+              Block IP
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-red-400" />
+            Blocked IPs ({Array.isArray(blockedIps) ? blockedIps.length : 0})
+          </h3>
+          {blockedLoading ? (
+            <div className="text-center py-4 text-muted-foreground">Loading...</div>
+          ) : !Array.isArray(blockedIps) || blockedIps.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">No blocked IPs</div>
+          ) : (
+            <div className="space-y-2">
+              {blockedIps.map((b: any) => (
+                <div key={b.id} className="flex items-center justify-between bg-muted/30 border border-border rounded-lg px-4 py-3" data-testid={`blocked-ip-${b.id}`}>
+                  <div>
+                    <span className="font-mono text-sm font-bold text-foreground">{b.ip}</span>
+                    <span className="text-xs text-muted-foreground ml-3">{b.reason}</span>
+                    <span className="text-xs text-muted-foreground ml-3">
+                      by {b.blockedBy} · {new Date(b.blockedAt).toLocaleString()}
+                    </span>
+                    {b.expiresAt && (
+                      <Badge className="ml-2 text-[10px] bg-yellow-500/20 text-yellow-400 border-0">
+                        Expires: {new Date(b.expiresAt).toLocaleString()}
+                      </Badge>
+                    )}
+                    {!b.expiresAt && (
+                      <Badge className="ml-2 text-[10px] bg-red-500/20 text-red-400 border-0">
+                        Permanent
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => unblockMutation.mutate(b.id)}
+                    className="text-green-400 hover:bg-green-500/10 text-xs"
+                    data-testid={`button-unblock-${b.id}`}
+                  >
+                    Unblock
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Eye className="w-5 h-5 text-primary" />
+            Recent Login Attempts
+          </h3>
+          {attemptsLoading ? (
+            <div className="text-center py-4 text-muted-foreground">Loading...</div>
+          ) : !Array.isArray(attempts) || attempts.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">No recent login attempts</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th className="py-2 px-3">IP Address</th>
+                    <th className="py-2 px-3">Time</th>
+                    <th className="py-2 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attempts.map((a: any) => (
+                    <tr key={a.id} className="border-b border-border/30" data-testid={`login-attempt-${a.id}`}>
+                      <td className="py-2 px-3 font-mono text-xs">{a.ip}</td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground">{new Date(a.attemptedAt).toLocaleString()}</td>
+                      <td className="py-2 px-3">
+                        {a.success ? (
+                          <Badge className="bg-green-500/20 text-green-400 border-0 text-[10px]">Success</Badge>
+                        ) : (
+                          <Badge className="bg-red-500/20 text-red-400 border-0 text-[10px]">Failed</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ChatModerationTab({ token }: { token: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: chatMessages, isLoading } = useQuery({
+    queryKey: ["admin-chat-messages"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/chat-messages", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: 15000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/chat/${id}`, {
+        method: "DELETE",
+        headers: apiHeaders(token),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-chat-messages"] });
+      toast({ title: "Message deleted" });
+    },
+  });
+
+  const flagMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/chat/flag/${id}`, {
+        method: "POST",
+        headers: apiHeaders(token),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-chat-messages"] });
+      toast({ title: "Message flagged" });
+    },
+  });
+
+  const messages = Array.isArray(chatMessages) ? chatMessages : [];
+  const flaggedMessages = messages.filter((m: any) => m.flagged);
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-red-400" />
+            Flagged Messages ({flaggedMessages.length})
+          </h3>
+          {flaggedMessages.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">No flagged messages</div>
+          ) : (
+            <div className="space-y-2">
+              {flaggedMessages.map((m: any) => (
+                <div key={m.id} className="bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-3" data-testid={`flagged-msg-${m.id}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-foreground">{m.nickname}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">{new Date(m.createdAt).toLocaleString()}</span>
+                      <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(m.id)} className="text-red-400 hover:bg-red-500/10 h-7 px-2" data-testid={`button-delete-chat-${m.id}`}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{m.message}</p>
+                  {m.coinTag && <Badge className="mt-1 text-[10px] bg-primary/20 text-primary border-0">{m.coinTag}</Badge>}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            All Messages ({messages.length})
+          </h3>
+          {isLoading ? (
+            <div className="text-center py-4 text-muted-foreground">Loading...</div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">No chat messages</div>
+          ) : (
+            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+              {messages.map((m: any) => (
+                <div key={m.id} className={`flex items-start justify-between gap-2 rounded-lg px-4 py-2 ${m.flagged ? "bg-red-500/5 border border-red-500/20" : "bg-muted/20 border border-border/30"}`} data-testid={`chat-msg-${m.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">{m.nickname}</span>
+                      {m.coinTag && <Badge className="text-[10px] bg-primary/20 text-primary border-0">{m.coinTag}</Badge>}
+                      {m.flagged && <Badge className="text-[10px] bg-red-500/20 text-red-400 border-0">Flagged</Badge>}
+                      <span className="text-xs text-muted-foreground">{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-0.5 break-words">{m.message}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!m.flagged && (
+                      <Button variant="ghost" size="sm" onClick={() => flagMutation.mutate(m.id)} className="text-yellow-400 hover:bg-yellow-500/10 h-7 px-2" data-testid={`button-flag-chat-${m.id}`}>
+                        <Shield className="w-3 h-3" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => { if (confirm("Delete this message?")) deleteMutation.mutate(m.id); }} className="text-red-400 hover:bg-red-500/10 h-7 px-2" data-testid={`button-delete-chat-${m.id}`}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function AdminTabs({ token }: { token: string }) {
   const { data: messages } = useQuery({
     queryKey: ["admin-messages"],
@@ -1668,6 +1971,8 @@ function AdminTabs({ token }: { token: string }) {
     { value: "airdrops", label: "Airdrops", icon: Gift, badge: pendingAirdropCount > 0 ? pendingAirdropCount : undefined },
     { value: "blog", label: "Blog", icon: FileText },
     { value: "seo", label: "SEO", icon: Search },
+    { value: "security", label: "Security", icon: Shield },
+    { value: "chat", label: "Chat", icon: Users },
   ];
 
   const currentTab = adminTabs.find(t => t.value === activeTab) || adminTabs[0];
@@ -1750,6 +2055,8 @@ function AdminTabs({ token }: { token: string }) {
       {activeTab === "airdrops" && <AirdropsTab token={token} />}
       {activeTab === "blog" && <BlogTab token={token} />}
       {activeTab === "seo" && <SeoTab token={token} />}
+      {activeTab === "security" && <SecurityTab token={token} />}
+      {activeTab === "chat" && <ChatModerationTab token={token} />}
     </div>
   );
 }

@@ -3166,8 +3166,20 @@ export async function registerRoutes(
     }
   });
 
+  const MAX_LOGIN_ATTEMPTS = 5;
+  const LOCKOUT_WINDOW_MINUTES = 15;
+  const AUTO_BLOCK_DURATION_MINUTES = 30;
+
   app.post("/api/admin/login", async (req, res) => {
     try {
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+
+      await storage.cleanExpiredBlocks();
+      const blocked = await storage.isIpBlocked(clientIp);
+      if (blocked) {
+        return res.status(403).json({ error: "Your IP has been temporarily blocked due to too many failed login attempts. Please try again later." });
+      }
+
       const { password } = req.body;
       if (!password || typeof password !== "string") {
         return res.status(400).json({ error: "Password required" });
@@ -3186,8 +3198,23 @@ export async function registerRoutes(
           }
         }
       }
+
+      await storage.recordLoginAttempt({ ip: clientIp, success: valid });
+
       if (!valid) {
-        return res.status(401).json({ error: "Invalid password" });
+        const recentFails = await storage.getRecentFailedAttempts(clientIp, LOCKOUT_WINDOW_MINUTES);
+        if (recentFails >= MAX_LOGIN_ATTEMPTS) {
+          const expiresAt = new Date(Date.now() + AUTO_BLOCK_DURATION_MINUTES * 60 * 1000);
+          await storage.blockIp({
+            ip: clientIp,
+            reason: `Auto-blocked: ${recentFails} failed login attempts in ${LOCKOUT_WINDOW_MINUTES} minutes`,
+            blockedBy: "auto",
+            expiresAt,
+          });
+          return res.status(403).json({ error: `Too many failed attempts. Your IP has been blocked for ${AUTO_BLOCK_DURATION_MINUTES} minutes.` });
+        }
+        const remaining = MAX_LOGIN_ATTEMPTS - recentFails;
+        return res.status(401).json({ error: `Invalid password. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining before lockout.` });
       }
       const token = crypto.randomBytes(32).toString("hex");
       activeSessions.add(token);
@@ -3211,6 +3238,81 @@ export async function registerRoutes(
     try {
       const stats = await storage.getPageViewStats();
       res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/login-attempts", requireAdmin, async (_req, res) => {
+    try {
+      const attempts = await storage.getLoginAttempts(200);
+      res.json(attempts);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/blocked-ips", requireAdmin, async (_req, res) => {
+    try {
+      await storage.cleanExpiredBlocks();
+      const blocked = await storage.getBlockedIps();
+      res.json(blocked);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/block-ip", requireAdmin, async (req, res) => {
+    try {
+      const { ip, reason, permanent } = req.body;
+      if (!ip || typeof ip !== "string") return res.status(400).json({ error: "IP required" });
+      const data: any = {
+        ip: ip.trim(),
+        reason: reason || "Manually blocked by admin",
+        blockedBy: "admin",
+      };
+      if (!permanent) {
+        data.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      }
+      const blocked = await storage.blockIp(data);
+      res.json(blocked);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/blocked-ips/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.unblockIp(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/chat-messages", requireAdmin, async (_req, res) => {
+    try {
+      const messages = await storage.getChatMessages({ limit: 200 });
+      res.json(messages);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/chat/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteChatMessage(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/chat/flag/:id", requireAdmin, async (req, res) => {
+    try {
+      const flagged = req.body.flagged !== false;
+      await storage.flagChatMessage(parseInt(req.params.id), flagged);
+      res.json({ ok: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -3300,6 +3402,61 @@ export async function registerRoutes(
     try {
       await storage.unpinArticle(req.params.articleId);
       res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const PROFANITY_WORDS = ["fuck", "shit", "ass", "bitch", "damn", "cunt", "dick", "nigger", "faggot", "retard"];
+  const chatRateLimit = new Map<string, number>();
+
+  app.get("/api/chat/messages", async (req, res) => {
+    try {
+      const coinTag = typeof req.query.coin === "string" ? req.query.coin : undefined;
+      const before = typeof req.query.before === "string" ? parseInt(req.query.before) : undefined;
+      const messages = await storage.getChatMessages({ coinTag, before, limit: 50 });
+      res.json(messages);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/chat/messages", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const lastSent = chatRateLimit.get(clientIp) || 0;
+      if (Date.now() - lastSent < 5000) {
+        return res.status(429).json({ error: "Please wait a few seconds between messages." });
+      }
+
+      const { nickname, message, coinTag } = req.body;
+      if (!nickname || typeof nickname !== "string" || nickname.trim().length < 1 || nickname.trim().length > 30) {
+        return res.status(400).json({ error: "Nickname must be 1-30 characters." });
+      }
+      if (!message || typeof message !== "string" || message.trim().length < 1 || message.trim().length > 500) {
+        return res.status(400).json({ error: "Message must be 1-500 characters." });
+      }
+
+      const lowerMsg = message.toLowerCase();
+      const hasProfanity = PROFANITY_WORDS.some(w => lowerMsg.includes(w));
+
+      const created = await storage.createChatMessage({
+        nickname: nickname.trim().slice(0, 30),
+        message: message.trim().slice(0, 500),
+        coinTag: coinTag || null,
+        ip: clientIp,
+        flagged: hasProfanity,
+      } as any);
+
+      chatRateLimit.set(clientIp, Date.now());
+      if (chatRateLimit.size > 10000) {
+        const cutoff = Date.now() - 60000;
+        for (const [k, v] of chatRateLimit) {
+          if (v < cutoff) chatRateLimit.delete(k);
+        }
+      }
+
+      res.json({ ...created, ip: null });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

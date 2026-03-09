@@ -166,3 +166,41 @@ export const airdrops = pgTable("airdrops", {
 export const insertAirdropSchema = createInsertSchema(airdrops).omit({ id: true, createdAt: true });
 export type InsertAirdrop = z.infer<typeof insertAirdropSchema>;
 export type Airdrop = typeof airdrops.$inferSelect;
+
+export const loginAttempts = pgTable("login_attempts", {
+  id: serial("id").primaryKey(),
+  ip: text("ip").notNull(),
+  success: boolean("success").notNull().default(false),
+  attemptedAt: timestamp("attempted_at").defaultNow().notNull(),
+});
+
+export const insertLoginAttemptSchema = createInsertSchema(loginAttempts).omit({ id: true, attemptedAt: true });
+export type InsertLoginAttempt = z.infer<typeof insertLoginAttemptSchema>;
+export type LoginAttempt = typeof loginAttempts.$inferSelect;
+
+export const blockedIps = pgTable("blocked_ips", {
+  id: serial("id").primaryKey(),
+  ip: text("ip").notNull(),
+  reason: text("reason").notNull().default("Too many failed login attempts"),
+  blockedBy: text("blocked_by").notNull().default("auto"),
+  blockedAt: timestamp("blocked_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+});
+
+export const insertBlockedIpSchema = createInsertSchema(blockedIps).omit({ id: true, blockedAt: true });
+export type InsertBlockedIp = z.infer<typeof insertBlockedIpSchema>;
+export type BlockedIp = typeof blockedIps.$inferSelect;
+
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  nickname: text("nickname").notNull(),
+  message: text("message").notNull(),
+  coinTag: text("coin_tag"),
+  ip: text("ip"),
+  flagged: boolean("flagged").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, flagged: true, createdAt: true });
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;

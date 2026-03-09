@@ -12,8 +12,12 @@ import {
   type BlogPost, type InsertBlogPost,
   type SeoMeta, type InsertSeoMeta,
   type Airdrop, type InsertAirdrop,
+  type LoginAttempt, type InsertLoginAttempt,
+  type BlockedIp, type InsertBlockedIp,
+  type ChatMessage, type InsertChatMessage,
   users, siteSettings, pageViews, hiddenNews, pinnedNews, exchanges,
   contactMessages, blogPosts, seoMeta, airdrops,
+  loginAttempts, blockedIps, chatMessages,
 } from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -84,6 +88,22 @@ export interface IStorage {
   updateAirdrop(id: number, data: Partial<InsertAirdrop>): Promise<Airdrop | undefined>;
   deleteAirdrop(id: number): Promise<void>;
   getPendingAirdropCount(): Promise<number>;
+
+  recordLoginAttempt(attempt: InsertLoginAttempt): Promise<LoginAttempt>;
+  getRecentFailedAttempts(ip: string, minutes: number): Promise<number>;
+  getLoginAttempts(limit?: number): Promise<LoginAttempt[]>;
+  blockIp(data: InsertBlockedIp): Promise<BlockedIp>;
+  unblockIp(id: number): Promise<void>;
+  getBlockedIps(): Promise<BlockedIp[]>;
+  isIpBlocked(ip: string): Promise<boolean>;
+  cleanExpiredBlocks(): Promise<void>;
+
+  createChatMessage(msg: InsertChatMessage): Promise<ChatMessage>;
+  getChatMessages(opts?: { coinTag?: string; before?: number; limit?: number }): Promise<ChatMessage[]>;
+  flagChatMessage(id: number, flagged: boolean): Promise<void>;
+  deleteChatMessage(id: number): Promise<void>;
+  getFlaggedChatMessages(): Promise<ChatMessage[]>;
+  getChatMessageCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -363,6 +383,91 @@ export class DatabaseStorage implements IStorage {
 
   async getPendingAirdropCount(): Promise<number> {
     const [result] = await db.select({ count: count() }).from(airdrops).where(eq(airdrops.status, "pending"));
+    return result?.count || 0;
+  }
+
+  async recordLoginAttempt(attempt: InsertLoginAttempt): Promise<LoginAttempt> {
+    const [created] = await db.insert(loginAttempts).values(attempt).returning();
+    return created;
+  }
+
+  async getRecentFailedAttempts(ip: string, minutes: number): Promise<number> {
+    const since = new Date(Date.now() - minutes * 60 * 1000);
+    const [result] = await db
+      .select({ count: count() })
+      .from(loginAttempts)
+      .where(sql`${loginAttempts.ip} = ${ip} AND ${loginAttempts.success} = false AND ${loginAttempts.attemptedAt} >= ${since}`);
+    return result?.count || 0;
+  }
+
+  async getLoginAttempts(limit = 100): Promise<LoginAttempt[]> {
+    return db.select().from(loginAttempts).orderBy(desc(loginAttempts.attemptedAt)).limit(limit);
+  }
+
+  async blockIp(data: InsertBlockedIp): Promise<BlockedIp> {
+    const [created] = await db.insert(blockedIps).values(data).returning();
+    return created;
+  }
+
+  async unblockIp(id: number): Promise<void> {
+    await db.delete(blockedIps).where(eq(blockedIps.id, id));
+  }
+
+  async getBlockedIps(): Promise<BlockedIp[]> {
+    return db.select().from(blockedIps).orderBy(desc(blockedIps.blockedAt));
+  }
+
+  async isIpBlocked(ip: string): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(blockedIps)
+      .where(sql`${blockedIps.ip} = ${ip} AND (${blockedIps.expiresAt} IS NULL OR ${blockedIps.expiresAt} > NOW())`);
+    return !!result;
+  }
+
+  async cleanExpiredBlocks(): Promise<void> {
+    await db.delete(blockedIps).where(sql`${blockedIps.expiresAt} IS NOT NULL AND ${blockedIps.expiresAt} <= NOW()`);
+  }
+
+  async createChatMessage(msg: InsertChatMessage): Promise<ChatMessage> {
+    const [created] = await db.insert(chatMessages).values(msg).returning();
+    return created;
+  }
+
+  async getChatMessages(opts: { coinTag?: string; before?: number; limit?: number } = {}): Promise<ChatMessage[]> {
+    const conditions: any[] = [sql`${chatMessages.flagged} = false`];
+    if (opts.coinTag) conditions.push(sql`${chatMessages.coinTag} = ${opts.coinTag}`);
+    if (opts.before) conditions.push(sql`${chatMessages.id} < ${opts.before}`);
+
+    let query = db.select({
+      id: chatMessages.id,
+      nickname: chatMessages.nickname,
+      message: chatMessages.message,
+      coinTag: chatMessages.coinTag,
+      ip: sql<string | null>`NULL`.as("ip"),
+      flagged: chatMessages.flagged,
+      createdAt: chatMessages.createdAt,
+    }).from(chatMessages);
+    query = query.where(sql`${sql.join(conditions, sql` AND `)}`) as any;
+    query = query.orderBy(desc(chatMessages.createdAt)) as any;
+    query = query.limit(opts.limit || 50) as any;
+    return query;
+  }
+
+  async flagChatMessage(id: number, flagged: boolean): Promise<void> {
+    await db.update(chatMessages).set({ flagged }).where(eq(chatMessages.id, id));
+  }
+
+  async deleteChatMessage(id: number): Promise<void> {
+    await db.delete(chatMessages).where(eq(chatMessages.id, id));
+  }
+
+  async getFlaggedChatMessages(): Promise<ChatMessage[]> {
+    return db.select().from(chatMessages).where(eq(chatMessages.flagged, true)).orderBy(desc(chatMessages.createdAt));
+  }
+
+  async getChatMessageCount(): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(chatMessages);
     return result?.count || 0;
   }
 }
