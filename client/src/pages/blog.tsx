@@ -29,7 +29,41 @@ function formatDate(date: string | Date): string {
   });
 }
 
+const categoryGradients: Record<string, string> = {
+  News: "from-blue-600/30 to-cyan-500/20",
+  Tutorial: "from-purple-600/30 to-pink-500/20",
+  Guide: "from-green-600/30 to-emerald-500/20",
+  Analysis: "from-orange-600/30 to-amber-500/20",
+  Opinion: "from-red-600/30 to-rose-500/20",
+};
+
+const categoryIcons: Record<string, string> = {
+  News: "📰",
+  Tutorial: "🔧",
+  Guide: "📘",
+  Analysis: "📊",
+  Opinion: "💬",
+};
+
+function GradientPlaceholder({ featured, gradient, icon }: { featured: boolean; gradient: string; icon: string }) {
+  return (
+    <div className={`${featured ? "h-64 md:h-full" : "h-48"} bg-gradient-to-br ${gradient} flex items-center justify-center relative overflow-hidden`}>
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-4 left-4 w-20 h-20 border border-primary/30 rounded-full" />
+        <div className="absolute bottom-6 right-6 w-32 h-32 border border-primary/20 rounded-full" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border border-primary/20 rounded-lg rotate-45" />
+      </div>
+      <span className="text-5xl group-hover:scale-110 transition-transform">{icon}</span>
+    </div>
+  );
+}
+
 function BlogCard({ post, featured = false }: { post: BlogPost; featured?: boolean }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const gradient = categoryGradients[post.category || ""] || "from-primary/20 to-cyan-500/10";
+  const icon = categoryIcons[post.category || ""] || "📝";
+  const showImage = post.coverImage && !imgFailed;
+
   return (
     <Link href={`/blog/${post.slug}`}>
       <article
@@ -38,18 +72,18 @@ function BlogCard({ post, featured = false }: { post: BlogPost; featured?: boole
         }`}
         data-testid={`card-blog-${post.id}`}
       >
-        {post.coverImage && (
+        {showImage ? (
           <div className={`${featured ? "h-64 md:h-full" : "h-48"} overflow-hidden bg-muted/30`}>
             <img
-              src={post.coverImage}
+              src={post.coverImage!}
               alt={post.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
+              onError={() => setImgFailed(true)}
               data-testid={`img-blog-cover-${post.id}`}
             />
           </div>
+        ) : (
+          <GradientPlaceholder featured={featured} gradient={gradient} icon={icon} />
         )}
         <div className="p-5">
           <div className="flex items-center gap-2 mb-3 flex-wrap">

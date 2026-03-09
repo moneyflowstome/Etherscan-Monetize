@@ -136,7 +136,7 @@ function RelatedPosts({ currentSlug, category }: { currentSlug: string; category
               className="glass-panel rounded-xl overflow-hidden hover:bg-muted/30 transition-all group cursor-pointer"
               data-testid={`card-related-${post.id}`}
             >
-              {post.coverImage && (
+              {post.coverImage ? (
                 <div className="h-36 overflow-hidden bg-muted/30">
                   <img
                     src={post.coverImage}
@@ -146,6 +146,10 @@ function RelatedPosts({ currentSlug, category }: { currentSlug: string; category
                       (e.target as HTMLImageElement).style.display = "none";
                     }}
                   />
+                </div>
+              ) : (
+                <div className="h-36 bg-gradient-to-br from-primary/20 to-cyan-500/10 flex items-center justify-center">
+                  <BookOpen className="w-8 h-8 text-primary/50" />
                 </div>
               )}
               <div className="p-4">
