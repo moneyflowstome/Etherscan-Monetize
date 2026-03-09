@@ -937,24 +937,32 @@ export default function DexPage() {
 
         <AdBanner slot="0123456789" format="horizontal" className="w-full mt-6" />
 
-        <a
-          href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between gap-3 mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:border-cyan-400/40 transition-all group"
-          data-testid="banner-tradingview-dex"
-        >
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-cyan-400" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <a href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:border-cyan-400/40 transition-all group" data-testid="banner-tradingview-dex">
+            <TrendingUp className="w-6 h-6 text-cyan-400 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-foreground">Level Up Your Trading</p>
-              <p className="text-xs text-muted-foreground">Get advanced charts, real-time data & 100+ indicators</p>
+              <p className="text-sm font-semibold text-foreground">TradingView</p>
+              <p className="text-xs text-muted-foreground">Advanced charts & 100+ indicators</p>
             </div>
-          </div>
-          <span className="text-sm font-bold text-cyan-400 group-hover:text-cyan-300 flex items-center gap-1 whitespace-nowrap">
-            Try TradingView <ExternalLink className="w-4 h-4" />
-          </span>
-        </a>
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-cyan-400 shrink-0 ml-auto" />
+          </a>
+          <a href="https://pineify.app/?via=Tokenaltcoin" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 hover:border-green-400/40 transition-all group" data-testid="banner-pineify-dex">
+            <Sparkles className="w-6 h-6 text-green-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Pineify</p>
+              <p className="text-xs text-muted-foreground">Build strategies without code</p>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-green-400 shrink-0 ml-auto" />
+          </a>
+          <a href="https://click.goodcrypto.app/b9EC/ie88jiew?ref=rET1nQ" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:border-purple-400/40 transition-all group" data-testid="banner-goodcrypto-dex">
+            <Flame className="w-6 h-6 text-purple-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Good Crypto</p>
+              <p className="text-xs text-muted-foreground">All-in-one trading app</p>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-purple-400 shrink-0 ml-auto" />
+          </a>
+        </div>
       </div>
       <Footer />
     </div>

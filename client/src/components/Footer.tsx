@@ -22,18 +22,27 @@ export function Footer() {
           <Link href="/blog" className="hover:text-foreground transition-colors" data-testid="footer-link-blog">Blog</Link>
           <Link href="/contact" className="hover:text-foreground transition-colors" data-testid="footer-link-contact">Contact</Link>
         </div>
-        <a
-          href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:border-cyan-400/40 transition-all group"
-          data-testid="footer-link-tradingview"
-        >
-          <span className="text-xs text-muted-foreground">Advanced Charts & Trading Tools</span>
-          <span className="text-xs font-semibold text-cyan-400 group-hover:text-cyan-300 flex items-center gap-1">
-            TradingView <ExternalLink className="w-3 h-3" />
-          </span>
-        </a>
+        <div className="flex flex-wrap justify-center gap-3">
+          {[
+            { name: "TradingView", url: "https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true" },
+            { name: "Coinbase", url: "https://coinbase.com/join/NC7ZTX4?src=ios-link" },
+            { name: "Gemini", url: "https://exchange.gemini.com/register?referral=68zng9ce&type=referral" },
+            { name: "GoMining", url: "https://gomining.com/?ref=8H3M22H" },
+            { name: "Robinhood", url: "https://join.robinhood.com/alexisd4" },
+            { name: "Hostinger", url: "https://www.hostinger.com?REFERRALCODE=IG5MONEYFAMV" },
+          ].map((p) => (
+            <a
+              key={p.name}
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 border border-border/50 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
+              data-testid={`footer-partner-${p.name.toLowerCase()}`}
+            >
+              {p.name} <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          ))}
+        </div>
       </div>
       <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground/50 pb-2">
         <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="footer-link-privacy">Privacy Policy</Link>

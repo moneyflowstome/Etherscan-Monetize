@@ -14,6 +14,7 @@ import {
   Bookmark,
   Trash2,
   Plus,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -655,6 +656,25 @@ export default function StakingPage() {
             })}
           </div>
         </section>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+          <a href="https://gomining.com/?ref=8H3M22H" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 hover:border-orange-400/40 transition-all group" data-testid="banner-gomining-staking">
+            <Coins className="w-8 h-8 text-orange-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">GoMining</p>
+              <p className="text-xs text-muted-foreground">Earn BTC daily with tokenized hashrate — no hardware needed</p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-orange-400 shrink-0" />
+          </a>
+          <a href="https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:border-cyan-400/40 transition-all group" data-testid="banner-tradingview-staking">
+            <TrendingUp className="w-8 h-8 text-cyan-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">TradingView</p>
+              <p className="text-xs text-muted-foreground">Track your staking rewards with professional charts & alerts</p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-cyan-400 shrink-0" />
+          </a>
+        </div>
 
         <AdBanner slot="staking-bottom" className="mt-8" />
       </main>

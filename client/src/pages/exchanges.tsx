@@ -157,6 +157,32 @@ export default function ExchangesPage() {
           </>
         )}
 
+        <div className="space-y-3 mt-8">
+          <h2 className="font-display font-semibold text-sm text-muted-foreground flex items-center gap-2" data-testid="text-partners-heading">
+            <Star className="w-4 h-4 text-primary" /> Recommended Tools & Partners
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { name: "TradingView", desc: "Advanced charts, indicators & real-time data for traders", url: "https://www.tradingview.com/pricing/?share_your_love=moneyflowstome78&mobileapp=true", color: "from-blue-500/10 to-cyan-500/10", border: "border-blue-500/20" },
+              { name: "GoMining", desc: "Bitcoin mining made simple — earn BTC without hardware", url: "https://gomining.com/?ref=8H3M22H", color: "from-orange-500/10 to-yellow-500/10", border: "border-orange-500/20" },
+              { name: "Pineify", desc: "Create TradingView strategies without coding", url: "https://pineify.app/?via=Tokenaltcoin", color: "from-green-500/10 to-emerald-500/10", border: "border-green-500/20" },
+              { name: "Good Crypto", desc: "All-in-one crypto trading app for every exchange", url: "https://click.goodcrypto.app/b9EC/ie88jiew?ref=rET1nQ", color: "from-purple-500/10 to-pink-500/10", border: "border-purple-500/20" },
+              { name: "Hostinger", desc: "Fast, affordable web & VPS hosting for your projects", url: "https://www.hostinger.com?REFERRALCODE=IG5MONEYFAMV", color: "from-indigo-500/10 to-blue-500/10", border: "border-indigo-500/20" },
+              { name: "Robinhood", desc: "Commission-free crypto & stock trading", url: "https://join.robinhood.com/alexisd4", color: "from-green-500/10 to-lime-500/10", border: "border-green-500/20" },
+            ].map((p) => (
+              <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer" className={`block p-4 rounded-xl bg-gradient-to-r ${p.color} border ${p.border} hover:scale-[1.02] transition-all group`} data-testid={`link-partner-${p.name.toLowerCase().replace(/\s/g, "-")}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-display font-semibold text-foreground text-sm">{p.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{p.desc}</p>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 mt-0.5" />
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+
         <AdBanner slot="rectangle" className="mt-6" />
       </main>
       <Footer />

@@ -3095,7 +3095,7 @@ export async function registerRoutes(
       const defaultExchanges = [
         { name: "Binance", url: "https://www.binance.com", description: "World's largest crypto exchange by trading volume", type: "centralized", country: "Global", year: 2017, tradingPairs: 1500, featured: true, sortOrder: 1 },
         { name: "Binance.US", url: "https://www.binance.us", description: "US-regulated version of Binance for American traders", type: "centralized", country: "United States", year: 2019, tradingPairs: 150, featured: false, sortOrder: 2 },
-        { name: "Coinbase", url: "https://www.coinbase.com", description: "US-based regulated crypto exchange, publicly traded (NASDAQ)", type: "centralized", country: "United States", year: 2012, tradingPairs: 500, featured: true, sortOrder: 3 },
+        { name: "Coinbase", url: "https://www.coinbase.com", description: "US-based regulated crypto exchange, publicly traded (NASDAQ)", type: "centralized", country: "United States", year: 2012, tradingPairs: 500, featured: true, sortOrder: 3, affiliateUrl: "https://coinbase.com/join/NC7ZTX4?src=ios-link" },
         { name: "Kraken", url: "https://www.kraken.com", description: "US-based exchange known for security and compliance", type: "centralized", country: "United States", year: 2011, tradingPairs: 600, featured: true, sortOrder: 3 },
         { name: "Bybit", url: "https://www.bybit.com", description: "Leading crypto derivatives and spot exchange", type: "centralized", country: "Dubai", year: 2018, tradingPairs: 800, featured: true, sortOrder: 4 },
         { name: "OKX", url: "https://www.okx.com", description: "Global exchange with advanced trading features and Web3 wallet", type: "centralized", country: "Seychelles", year: 2017, tradingPairs: 700, featured: true, sortOrder: 5 },
@@ -3106,7 +3106,7 @@ export async function registerRoutes(
         { name: "MEXC", url: "https://www.mexc.com", description: "Exchange known for listing new tokens early", type: "centralized", country: "Seychelles", year: 2018, tradingPairs: 2000, featured: false, sortOrder: 10 },
         { name: "Bitget", url: "https://www.bitget.com", description: "Copy trading and derivatives exchange", type: "centralized", country: "Seychelles", year: 2018, tradingPairs: 700, featured: false, sortOrder: 11 },
         { name: "Crypto.com", url: "https://crypto.com", description: "Exchange with Visa card and DeFi wallet integration", type: "centralized", country: "Singapore", year: 2016, tradingPairs: 350, featured: true, sortOrder: 12 },
-        { name: "Gemini", url: "https://www.gemini.com", description: "US-regulated exchange founded by the Winklevoss twins", type: "centralized", country: "United States", year: 2014, tradingPairs: 200, featured: false, sortOrder: 13 },
+        { name: "Gemini", url: "https://www.gemini.com", description: "US-regulated exchange founded by the Winklevoss twins", type: "centralized", country: "United States", year: 2014, tradingPairs: 200, featured: true, sortOrder: 13, affiliateUrl: "https://exchange.gemini.com/register?referral=68zng9ce&type=referral" },
         { name: "Bitstamp", url: "https://www.bitstamp.net", description: "One of the oldest crypto exchanges, EU regulated", type: "centralized", country: "Luxembourg", year: 2011, tradingPairs: 150, featured: false, sortOrder: 14 },
         { name: "Upbit", url: "https://upbit.com", description: "South Korea's largest crypto exchange", type: "centralized", country: "South Korea", year: 2017, tradingPairs: 300, featured: false, sortOrder: 15 },
         { name: "Bittrex", url: "https://www.bittrex.com", description: "US-based exchange with strong security focus", type: "centralized", country: "United States", year: 2014, tradingPairs: 300, featured: false, sortOrder: 16 },
@@ -3146,17 +3146,44 @@ export async function registerRoutes(
         { name: "GMX", url: "https://gmx.io", description: "Decentralized perpetual futures on Arbitrum and Avalanche", type: "decentralized", country: "Global", year: 2021, tradingPairs: 50, featured: false, sortOrder: 50 },
         { name: "Hyperliquid", url: "https://hyperliquid.xyz", description: "High-performance perpetual DEX on its own L1 chain", type: "decentralized", country: "Global", year: 2023, tradingPairs: 150, featured: false, sortOrder: 51 },
         { name: "Cetus", url: "https://www.cetus.zone", description: "Concentrated liquidity DEX on Sui and Aptos", type: "decentralized", country: "Global", year: 2022, tradingPairs: 300, featured: false, sortOrder: 52 },
+        { name: "Robinhood", url: "https://robinhood.com", description: "Commission-free stock and crypto trading platform", type: "centralized", country: "United States", year: 2013, tradingPairs: 20, featured: true, sortOrder: 53, affiliateUrl: "https://join.robinhood.com/alexisd4" },
+        { name: "YoBit", url: "https://yobit.net", description: "Long-running exchange with thousands of altcoin pairs and faucets", type: "centralized", country: "Russia", year: 2014, tradingPairs: 8000, featured: false, sortOrder: 54, affiliateUrl: "https://yobit.net/?bonus=irJzI" },
+        { name: "Coinbase Advanced", url: "https://advanced.coinbase.com", description: "Professional trading platform by Coinbase with advanced charting and order types", type: "centralized", country: "United States", year: 2022, tradingPairs: 500, featured: true, sortOrder: 55, affiliateUrl: "https://advanced.coinbase.com/join/VDZGGVS" },
       ];
       let count = 0;
       for (const ex of defaultExchanges) {
         const slug = ex.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
         if (existingSlugs.has(slug)) continue;
         try {
-          await storage.createExchange({ ...ex, slug, logo: null, affiliateUrl: null, active: true });
+          await storage.createExchange({ ...ex, slug, logo: null, affiliateUrl: (ex as any).affiliateUrl || null, active: true });
           count++;
         } catch { }
       }
       res.json({ message: `Seeded ${count} exchanges`, count });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/exchanges/update-affiliates", requireAdmin, async (_req, res) => {
+    try {
+      const affiliateMap: Record<string, string> = {
+        "coinbase": "https://coinbase.com/join/NC7ZTX4?src=ios-link",
+        "gemini": "https://exchange.gemini.com/register?referral=68zng9ce&type=referral",
+        "robinhood": "https://join.robinhood.com/alexisd4",
+        "yobit": "https://yobit.net/?bonus=irJzI",
+        "coinbase-advanced": "https://advanced.coinbase.com/join/VDZGGVS",
+      };
+      const existing = await storage.getExchanges(false);
+      let count = 0;
+      for (const ex of existing) {
+        const slug = (ex as any).slug;
+        if (slug && affiliateMap[slug] && !(ex as any).affiliateUrl) {
+          await storage.updateExchange((ex as any).id, { affiliateUrl: affiliateMap[slug] });
+          count++;
+        }
+      }
+      res.json({ message: `Updated ${count} exchanges with affiliate URLs`, count });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

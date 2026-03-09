@@ -285,6 +285,25 @@ export default function MasternodesPage() {
 
         <AdBanner slot="7788990011" format="horizontal" className="w-full mt-6" />
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <a href="https://gomining.com/?ref=8H3M22H" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 hover:border-orange-400/40 transition-all group" data-testid="banner-gomining-mn">
+            <Coins className="w-8 h-8 text-orange-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">GoMining</p>
+              <p className="text-xs text-muted-foreground">Mine Bitcoin without the hardware — earn BTC daily with tokenized hashrate</p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-orange-400 shrink-0" />
+          </a>
+          <a href="https://docs.pivx.org" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-violet-500/10 border border-purple-500/20 hover:border-purple-400/40 transition-all group" data-testid="banner-pivx-mn">
+            <Shield className="w-8 h-8 text-purple-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">PIVX</p>
+              <p className="text-xs text-muted-foreground">Privacy-focused proof-of-stake cryptocurrency — explore docs & run a masternode</p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-purple-400 shrink-0" />
+          </a>
+        </div>
+
         <div className="glass-panel rounded-2xl p-6 mt-8">
           <h2 className="text-lg font-display font-bold text-foreground mb-4 flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" /> What is a Masternode?
