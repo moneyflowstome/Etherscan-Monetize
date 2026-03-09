@@ -543,7 +543,7 @@ function NeoExplorer({ chain }: { chain: ChainInfo }) {
                   <Badge variant="outline" className={`text-[10px] ${tx.direction === "received" ? "text-green-400 border-green-400/30" : "text-red-400 border-red-400/30"}`}>{tx.direction === "received" ? "IN" : "OUT"}</Badge>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-mono">{tx.amount}</span></div>
+                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-mono">{tx.amount} {tx.tokenSymbol || ""}</span></div>
                   <div><span className="text-muted-foreground">Block:</span> <span className="font-mono">{tx.blockIndex || "—"}</span></div>
                   <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(Math.floor(tx.timestamp / 1000)) : "—"}</span></div>
                 </div>

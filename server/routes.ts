@@ -1408,18 +1408,89 @@ export async function registerRoutes(
     }
   });
 
-  const NEO_RPC = "https://mainnet1.neo.coz.io:443";
+  const NEO_RPC_NODES = [
+    "http://seed1.neo.org:10332",
+    "http://seed2.neo.org:10332",
+    "https://mainnet1.neo.coz.io:443",
+    "https://mainnet2.neo.coz.io:443",
+  ];
 
   async function neoRpcRequest(method: string, params: any[]) {
-    const response = await fetch(NEO_RPC, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    });
-    if (!response.ok) throw new Error(`NEO RPC error: ${response.status}`);
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message || "NEO RPC error");
-    return data.result;
+    let lastError: Error | null = null;
+    for (const rpcUrl of NEO_RPC_NODES) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) { lastError = new Error(`NEO RPC ${response.status}`); continue; }
+        const data = await response.json();
+        if (data.error) { lastError = new Error(data.error.message || "NEO RPC error"); continue; }
+        return data.result;
+      } catch (e: any) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error("All NEO RPC nodes failed");
+  }
+
+  const neoKnownTokens: Record<string, { name: string; symbol: string; decimals: number }> = {
+    "0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5": { name: "NEO", symbol: "NEO", decimals: 0 },
+    "0xd2a4cff31913016155e38e474a2c06d08be276cf": { name: "GAS", symbol: "GAS", decimals: 8 },
+    "0xf0151f528127558851b39c2cd8aa47da7418ab28": { name: "Flamingo", symbol: "FLM", decimals: 8 },
+    "0xf46719e2d16bf50cddce2deb29cfb2f10562b5b7": { name: "Burger", symbol: "BURGER", decimals: 8 },
+    "0x48c40d4666f93408be1bef038b6722404d9a4c2a": { name: "NeoFS", symbol: "NEOFS", decimals: 12 },
+    "0xa5aef84e3c5a3e27e1400d52f90c8aa90a7a1375": { name: "GrantShares", symbol: "GDT", decimals: 8 },
+    "0x340720c7107ef5721e44ed2ea8e314cce5c130fa": { name: "NEP Token", symbol: "NEP", decimals: 8 },
+  };
+  const neoTokenCache: Record<string, { name: string; symbol: string; decimals: number }> = { ...neoKnownTokens };
+
+  async function resolveNeoToken(assetHash: string): Promise<{ name: string; symbol: string; decimals: number }> {
+    if (neoTokenCache[assetHash]) return neoTokenCache[assetHash];
+    try {
+      const state = await neoRpcRequest("getcontractstate", [assetHash]);
+      const manifest = state?.manifest;
+      if (manifest?.name) {
+        const info = {
+          name: manifest.name,
+          symbol: manifest.name,
+          decimals: 8,
+        };
+        const abiMethods = manifest.abi?.methods || [];
+        const decimalsMethod = abiMethods.find((m: any) => m.name === "decimals");
+        if (decimalsMethod) {
+          try {
+            const invResult = await neoRpcRequest("invokefunction", [assetHash, "decimals", []]);
+            if (invResult?.stack?.[0]?.value) {
+              info.decimals = parseInt(invResult.stack[0].value, 10) || 8;
+            }
+          } catch {}
+        }
+        const symbolMethod = abiMethods.find((m: any) => m.name === "symbol");
+        if (symbolMethod) {
+          try {
+            const invResult = await neoRpcRequest("invokefunction", [assetHash, "symbol", []]);
+            if (invResult?.stack?.[0]?.value) {
+              const raw = invResult.stack[0].value;
+              const decoded = Buffer.from(raw, "base64").toString("utf8");
+              if (decoded && /^[A-Za-z0-9]+$/.test(decoded)) {
+                info.symbol = decoded;
+              }
+            }
+          } catch {}
+        }
+        neoTokenCache[assetHash] = info;
+        return info;
+      }
+    } catch {}
+    const fallback = { name: assetHash.slice(0, 10), symbol: assetHash.slice(0, 6), decimals: 8 };
+    neoTokenCache[assetHash] = fallback;
+    return fallback;
   }
 
   app.get("/api/neo/account/:address", async (req, res) => {
@@ -1431,21 +1502,19 @@ export async function registerRoutes(
 
       const result = await neoRpcRequest("getnep17balances", [address]);
 
-      const balances = (result.balance || []).map((b: any) => {
-        const knownTokens: Record<string, { name: string; symbol: string; decimals: number }> = {
-          "0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5": { name: "NEO", symbol: "NEO", decimals: 0 },
-          "0xd2a4cff31913016155e38e474a2c06d08be276cf": { name: "GAS", symbol: "GAS", decimals: 8 },
-        };
-        const token = knownTokens[b.assethash] || { name: "Unknown", symbol: b.assethash.slice(0, 8), decimals: 8 };
-        const amount = Number(b.amount) / Math.pow(10, token.decimals);
-        return {
-          asset: b.assethash,
-          name: token.name,
-          symbol: token.symbol,
-          amount: amount.toString(),
-          lastUpdatedBlock: b.lastupdatedblock,
-        };
-      });
+      const balances = await Promise.all(
+        (result.balance || []).map(async (b: any) => {
+          const token = await resolveNeoToken(b.assethash);
+          const amount = Number(b.amount) / Math.pow(10, token.decimals);
+          return {
+            asset: b.assethash,
+            name: token.name,
+            symbol: token.symbol,
+            amount: amount.toString(),
+            lastUpdatedBlock: b.lastupdatedblock,
+          };
+        })
+      );
 
       res.json({
         address: result.address || address,
@@ -1453,6 +1522,9 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       const msg = err.message || "Failed to fetch NEO account";
+      if (msg.includes("Invalid params")) {
+        return res.status(404).json({ error: "NEO address not found or not active on N3 network. Make sure this is a valid Neo N3 address." });
+      }
       res.status(500).json({ error: msg });
     }
   });
@@ -1464,29 +1536,28 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid NEO address" });
       }
 
-      const result = await neoRpcRequest("getnep17transfers", [address, 0]);
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const result = await neoRpcRequest("getnep17transfers", [address, thirtyDaysAgo]);
 
-      const sent = (result.sent || []).slice(0, 8).map((t: any) => ({
-        txHash: t.txhash,
-        timestamp: t.timestamp,
-        asset: t.assethash,
-        amount: t.amount,
-        from: t.transferaddress || address,
-        to: t.transferaddress || "",
-        direction: "sent" as const,
-        blockIndex: t.blockindex,
-      }));
+      const processTransfer = async (t: any, direction: "sent" | "received") => {
+        const token = await resolveNeoToken(t.assethash);
+        const amount = Number(t.amount) / Math.pow(10, token.decimals);
+        return {
+          txHash: t.txhash,
+          timestamp: t.timestamp,
+          asset: t.assethash,
+          tokenName: token.name,
+          tokenSymbol: token.symbol,
+          amount: amount.toString(),
+          from: direction === "sent" ? address : (t.transferaddress || ""),
+          to: direction === "received" ? address : (t.transferaddress || ""),
+          direction,
+          blockIndex: t.blockindex,
+        };
+      };
 
-      const received = (result.received || []).slice(0, 8).map((t: any) => ({
-        txHash: t.txhash,
-        timestamp: t.timestamp,
-        asset: t.assethash,
-        amount: t.amount,
-        from: t.transferaddress || "",
-        to: t.transferaddress || address,
-        direction: "received" as const,
-        blockIndex: t.blockindex,
-      }));
+      const sent = await Promise.all((result.sent || []).slice(0, 8).map((t: any) => processTransfer(t, "sent")));
+      const received = await Promise.all((result.received || []).slice(0, 8).map((t: any) => processTransfer(t, "received")));
 
       const transactions = [...sent, ...received]
         .sort((a, b) => b.timestamp - a.timestamp)
@@ -1494,7 +1565,11 @@ export async function registerRoutes(
 
       res.json({ address, transactions });
     } catch (err: any) {
-      res.status(500).json({ error: err.message || "Failed to fetch NEO transactions" });
+      const msg = err.message || "Failed to fetch NEO transactions";
+      if (msg.includes("Invalid params")) {
+        return res.status(404).json({ error: "NEO address not found or not active on N3 network." });
+      }
+      res.status(500).json({ error: msg });
     }
   });
 
