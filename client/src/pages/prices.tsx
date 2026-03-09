@@ -18,7 +18,6 @@ import {
   Globe,
   MessageCircle,
   Send,
-  Users,
   Github,
   ChevronDown,
   ChevronUp,
@@ -519,7 +518,7 @@ function PriceHistoryChart({ coinId }: { coinId: string }) {
 
 function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
   const [showAbout, setShowAbout] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "chart" | "info" | "markets" | "news">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "chart" | "info" | "markets" | "news" | "chat">("overview");
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -622,6 +621,7 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
     { key: "info" as const, label: "Info" },
     { key: "markets" as const, label: "Markets" },
     { key: "news" as const, label: "News" },
+    { key: "chat" as const, label: "Chat" },
   ];
 
   return (
@@ -1369,6 +1369,10 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
           </div>
         )}
 
+        {activeTab === "chat" && (
+          <CoinChatPanel coinId={coin.id} coinName={d.name || coin.name} coinSymbol={(d.symbol || coin.symbol || "").toUpperCase()} />
+        )}
+
         {d.public_notice && (
           <div className="border-t border-border pt-4 mt-4">
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
@@ -1681,18 +1685,6 @@ function MemeCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void 
 
 const LS_NICKNAME_KEY = "tokenaltcoin_chat_nickname";
 
-const CHAT_COIN_TAGS = [
-  { id: "general", symbol: "ALL", name: "General" },
-  { id: "bitcoin", symbol: "BTC", name: "Bitcoin" },
-  { id: "ethereum", symbol: "ETH", name: "Ethereum" },
-  { id: "solana", symbol: "SOL", name: "Solana" },
-  { id: "ripple", symbol: "XRP", name: "XRP" },
-  { id: "binancecoin", symbol: "BNB", name: "BNB" },
-  { id: "dogecoin", symbol: "DOGE", name: "Dogecoin" },
-  { id: "cardano", symbol: "ADA", name: "Cardano" },
-  { id: "litecoin", symbol: "LTC", name: "Litecoin" },
-];
-
 function chatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "now";
@@ -1710,31 +1702,39 @@ function chatAvatarColor(nickname: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function LiveChatWidget() {
+function CoinChatPanel({ coinId, coinName, coinSymbol }: { coinId: string; coinName: string; coinSymbol: string }) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [nickname, setNickname] = useState(() => localStorage.getItem(LS_NICKNAME_KEY) || "");
   const [message, setMessage] = useState("");
-  const [selectedCoin, setSelectedCoin] = useState<string>("general");
-  const [filterCoin, setFilterCoin] = useState<string | null>(null);
   const [needsNickname, setNeedsNickname] = useState(!nickname);
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const messagesQuery = useQuery({
-    queryKey: ["chat-messages", filterCoin],
+    queryKey: ["chat-messages", coinId],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filterCoin) params.set("coin", filterCoin);
+      params.set("coin", coinId);
       const res = await fetch(`/api/chat/messages?${params}`);
       if (!res.ok) throw new Error("Failed to load");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    refetchInterval: open ? 5000 : false,
+    refetchInterval: 5000,
     staleTime: 3000,
-    enabled: open,
+  });
+
+  const allMessagesQuery = useQuery({
+    queryKey: ["chat-messages", null],
+    queryFn: async () => {
+      const res = await fetch(`/api/chat/messages`);
+      if (!res.ok) throw new Error("Failed to load");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    refetchInterval: 8000,
+    staleTime: 5000,
   });
 
   const sendMutation = useMutation({
@@ -1756,11 +1756,12 @@ function LiveChatWidget() {
     onError: (err: Error) => setError(err.message),
   });
 
-  const messages = messagesQuery.data || [];
+  const [viewMode, setViewMode] = useState<"coin" | "all">("coin");
+  const messages = viewMode === "coin" ? (messagesQuery.data || []) : (allMessagesQuery.data || []);
 
   useEffect(() => {
-    if (messagesEndRef.current && open) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, open]);
+    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
 
   const handleSetNickname = () => {
     if (nickname.trim().length < 1 || nickname.trim().length > 30) return;
@@ -1771,151 +1772,124 @@ function LiveChatWidget() {
 
   const handleSend = () => {
     if (!message.trim() || !nickname.trim()) return;
-    sendMutation.mutate({ nickname: nickname.trim(), message: message.trim(), coinTag: selectedCoin === "general" ? null : selectedCoin });
+    sendMutation.mutate({ nickname: nickname.trim(), message: message.trim(), coinTag: coinId });
   };
 
-  const unreadCount = !open && messages.length > 0 ? messages.length : 0;
-
   return (
-    <>
-      <button
-        onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-110 transition-all"
-        data-testid="button-chat-toggle"
-      >
-        {open ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
-        {!open && unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center text-white">{unreadCount > 99 ? "99+" : unreadCount}</span>
-        )}
-      </button>
-
-      {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[500px] max-h-[calc(100vh-8rem)] flex flex-col glass-panel rounded-2xl border border-border shadow-2xl overflow-hidden" data-testid="panel-live-chat">
-          <div className="p-3 border-b border-border bg-muted/20 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <h3 className="text-sm font-display font-semibold text-foreground">Live Chat</h3>
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{messages.length} msgs</span>
-            </div>
-            {nickname && !needsNickname && (
-              <span className="text-[10px] text-primary truncate max-w-24">{nickname}</span>
-            )}
-          </div>
-
-          <div className="flex gap-1 p-2 overflow-x-auto shrink-0 border-b border-border bg-muted/10">
-            {CHAT_COIN_TAGS.map(tag => (
-              <button
-                key={tag.id}
-                onClick={() => setFilterCoin(tag.id === "general" ? null : tag.id)}
-                className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors ${
-                  (filterCoin === null && tag.id === "general") || filterCoin === tag.id
-                    ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground hover:text-foreground border border-transparent"
-                }`}
-                data-testid={`button-chat-filter-${tag.symbol}`}
-              >
-                {tag.symbol}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-2 space-y-0.5 min-h-0">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <MessageCircle className="w-8 h-8 mb-2 opacity-30" />
-                <p className="text-xs">No messages yet — start the conversation!</p>
-              </div>
-            ) : (
-              messages.map((msg: any) => {
-                const coinTag = CHAT_COIN_TAGS.find(t => t.id === msg.coinTag);
-                return (
-                  <div key={msg.id} className="flex gap-2 py-1.5 px-2 hover:bg-muted/10 rounded-lg transition-colors" data-testid={`chat-widget-msg-${msg.id}`}>
-                    <div className={`w-6 h-6 rounded-full ${chatAvatarColor(msg.nickname)} flex items-center justify-center shrink-0 mt-0.5`}>
-                      <span className="text-[9px] font-bold text-white">{msg.nickname.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium text-foreground truncate">{msg.nickname}</span>
-                        {coinTag && coinTag.id !== "general" && (
-                          <span className="text-[9px] text-primary bg-primary/10 px-1 rounded">#{coinTag.symbol}</span>
-                        )}
-                        <span className="text-[9px] text-muted-foreground ml-auto shrink-0">{chatTimeAgo(new Date(msg.createdAt))}</span>
-                      </div>
-                      <p className="text-[11px] text-foreground/85 break-words leading-relaxed">{msg.message}</p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {error && <div className="px-3 py-1 text-[10px] text-red-400 bg-red-500/10 border-t border-red-500/20">{error}</div>}
-
-          <div className="p-2 border-t border-border bg-muted/10 shrink-0">
-            {needsNickname ? (
-              <div className="flex gap-2">
-                <input
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSetNickname()}
-                  placeholder="Pick a nickname..."
-                  maxLength={30}
-                  className="flex-1 bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
-                  data-testid="input-chat-nickname-widget"
-                  autoFocus
-                />
-                <button
-                  onClick={handleSetNickname}
-                  disabled={!nickname.trim()}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-50"
-                  data-testid="button-chat-set-nickname-widget"
-                >
-                  Join
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <div className="flex gap-1 overflow-x-auto">
-                  {CHAT_COIN_TAGS.slice(0, 6).map(tag => (
-                    <button
-                      key={tag.id}
-                      onClick={() => setSelectedCoin(tag.id)}
-                      className={`px-1.5 py-0.5 rounded text-[9px] whitespace-nowrap transition-colors ${
-                        selectedCoin === tag.id ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      data-testid={`button-chat-tag-${tag.symbol}`}
-                    >
-                      {tag.symbol}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                    placeholder="Say something..."
-                    maxLength={500}
-                    className="flex-1 bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
-                    data-testid="input-chat-message-widget"
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!message.trim() || sendMutation.isPending}
-                    className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
-                    data-testid="button-chat-send-widget"
-                  >
-                    <Send className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+    <div data-testid="panel-coin-chat">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live Discussion</h4>
+          <span className="text-[10px] text-muted-foreground">({messages.length} messages)</span>
         </div>
-      )}
-    </>
+        {nickname && !needsNickname && (
+          <span className="text-[10px] text-primary">as {nickname}</span>
+        )}
+      </div>
+
+      <div className="flex gap-1 mb-3">
+        <button
+          onClick={() => setViewMode("coin")}
+          className={`px-3 py-1 rounded-full text-[10px] font-medium transition-colors ${viewMode === "coin" ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground border border-border"}`}
+          data-testid="button-chat-view-coin"
+        >
+          #{coinSymbol}
+        </button>
+        <button
+          onClick={() => setViewMode("all")}
+          className={`px-3 py-1 rounded-full text-[10px] font-medium transition-colors ${viewMode === "all" ? "bg-primary/20 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground border border-border"}`}
+          data-testid="button-chat-view-all"
+        >
+          All Chats
+        </button>
+      </div>
+
+      <div className="bg-muted/10 border border-border rounded-xl overflow-hidden">
+        <div className="max-h-72 overflow-y-auto p-2 space-y-0.5">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <MessageCircle className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-xs">No messages about {coinName} yet</p>
+              <p className="text-[10px] mt-1">Be the first to start the conversation!</p>
+            </div>
+          ) : (
+            messages.map((msg: any) => (
+              <div key={msg.id} className="flex gap-2 py-1.5 px-2 hover:bg-muted/20 rounded-lg transition-colors" data-testid={`chat-coin-msg-${msg.id}`}>
+                <div className={`w-6 h-6 rounded-full ${chatAvatarColor(msg.nickname)} flex items-center justify-center shrink-0 mt-0.5`}>
+                  <span className="text-[9px] font-bold text-white">{msg.nickname.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-foreground truncate">{msg.nickname}</span>
+                    {msg.coinTag && msg.coinTag !== coinId && (
+                      <span className="text-[9px] text-primary bg-primary/10 px-1 rounded">#{(msg.coinTag || "").toUpperCase()}</span>
+                    )}
+                    <span className="text-[9px] text-muted-foreground ml-auto shrink-0">{chatTimeAgo(new Date(msg.createdAt))}</span>
+                  </div>
+                  <p className="text-[11px] text-foreground/85 break-words leading-relaxed">{msg.message}</p>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {error && <div className="px-3 py-1 text-[10px] text-red-400 bg-red-500/10 border-t border-red-500/20">{error}</div>}
+
+        <div className="p-2 border-t border-border bg-muted/5">
+          {needsNickname ? (
+            <div className="flex gap-2">
+              <input
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSetNickname()}
+                placeholder="Pick a nickname to join..."
+                maxLength={30}
+                className="flex-1 bg-muted/30 border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+                data-testid="input-chat-nickname-coin"
+                autoFocus
+              />
+              <button
+                onClick={handleSetNickname}
+                disabled={!nickname.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-50"
+                data-testid="button-chat-join-coin"
+              >
+                Join
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                placeholder={`Discuss ${coinName}...`}
+                maxLength={500}
+                className="flex-1 bg-muted/30 border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+                data-testid="input-chat-message-coin"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!message.trim() || sendMutation.isPending}
+                className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs disabled:opacity-50 flex items-center gap-1"
+                data-testid="button-chat-send-coin"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 text-center">
+        <a href="/chat" className="text-[10px] text-primary hover:underline" data-testid="link-full-chat">
+          Open Full Chat Room →
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -2335,7 +2309,6 @@ export default function PricesPage() {
         </div>
       </div>
       <Footer />
-      <LiveChatWidget />
     </div>
   );
 }
