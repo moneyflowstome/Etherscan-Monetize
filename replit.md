@@ -20,7 +20,10 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Polkadot (DOT) address lookup via Subscan API (free, no key) — balance, locked, reserved, bonded, unbonding + transfer history
 - ERC-20 tokens (LINK, SHIB) link to Wallet Tracker at `/wallet`
 - XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
-- Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration
+- Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration + "My Positions" tracker (localStorage) with accumulated rewards, projections, and progress tracking
+- Wallet Tracker export — CSV and PDF download buttons for transaction and token transfer data (with CSV formula injection sanitization)
+- Coin of the Day — deterministic daily featured coin on explorer homepage with live price, 24h change, and market cap
+- Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks) via settings panel, preferences persisted in localStorage
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
 - Crypto prices page (CoinGecko) with sparklines, trending, and star-to-watchlist

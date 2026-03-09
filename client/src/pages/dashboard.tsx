@@ -15,6 +15,8 @@ import {
   ChevronDown,
   Globe,
   Loader2,
+  Download,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -199,6 +201,137 @@ export default function Dashboard() {
     return `${base}/tx/${hash}`;
   };
 
+  const handleExportCSV = useCallback(() => {
+    const rows: string[][] = [];
+    const sanitize = (val: string) => {
+      if (typeof val === "string" && /^[=+\-@\t\r]/.test(val)) return "'" + val;
+      return val;
+    };
+    rows.push(["Type", "Hash", "From", "To", "Value", "Symbol", "Timestamp"]);
+
+    for (const tx of transactions) {
+      const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
+      const valueEth = parseFloat(tx.value) / 1e18;
+      rows.push([
+        isIncoming ? "Received" : "Sent",
+        sanitize(tx.hash),
+        sanitize(tx.from),
+        sanitize(tx.to),
+        valueEth.toString(),
+        sanitize(selectedChain.symbol),
+        new Date(parseInt(tx.timeStamp) * 1000).toISOString(),
+      ]);
+    }
+
+    if (tokenTransfers.length > 0) {
+      rows.push([]);
+      rows.push(["Type", "Hash", "From", "To", "Value", "Token", "Timestamp"]);
+      for (const tx of tokenTransfers) {
+        const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
+        const decimals = parseInt(tx.tokenDecimal) || 18;
+        const value = parseFloat(tx.value) / Math.pow(10, decimals);
+        rows.push([
+          isIncoming ? "Received" : "Sent",
+          sanitize(tx.hash),
+          sanitize(tx.from),
+          sanitize(tx.to),
+          value.toString(),
+          sanitize(tx.tokenSymbol || "Unknown"),
+          new Date(parseInt(tx.timeStamp) * 1000).toISOString(),
+        ]);
+      }
+    }
+
+    const csvContent = rows.map((r) => r.map((c) => `"${(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `wallet_${formatAddress(trackedAddress)}_${selectedChain.name}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "CSV Exported", description: "Wallet data has been downloaded as CSV." });
+  }, [transactions, tokenTransfers, trackedAddress, selectedChain, toast]);
+
+  const handleExportPDF = useCallback(async () => {
+    const jsPDFModule = await import("jspdf");
+    const jsPDF = jsPDFModule.default;
+    await import("jspdf-autotable");
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("Wallet Report", 14, 20);
+
+    doc.setFontSize(10);
+    doc.text(`Address: ${trackedAddress}`, 14, 30);
+    doc.text(`Chain: ${selectedChain.name.charAt(0).toUpperCase() + selectedChain.name.slice(1)}`, 14, 36);
+    doc.text(`Balance: ${nativeBalance.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${selectedChain.symbol}`, 14, 42);
+    if (ethPrice > 0 && selectedChainId === 1) {
+      doc.text(`USD Value: $${nativeValueUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, 14, 48);
+    }
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 54);
+
+    if (transactions.length > 0) {
+      doc.setFontSize(14);
+      doc.text("Transactions", 14, 66);
+
+      const txRows = transactions.map((tx: any) => {
+        const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
+        const valueEth = parseFloat(tx.value) / 1e18;
+        return [
+          isIncoming ? "IN" : "OUT",
+          `${tx.hash.slice(0, 10)}...`,
+          formatAddress(tx.from),
+          formatAddress(tx.to),
+          `${valueEth.toFixed(4)} ${selectedChain.symbol}`,
+          new Date(parseInt(tx.timeStamp) * 1000).toLocaleDateString(),
+        ];
+      });
+
+      (doc as any).autoTable({
+        startY: 70,
+        head: [["Dir", "Hash", "From", "To", "Value", "Date"]],
+        body: txRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [41, 128, 185] },
+      });
+    }
+
+    if (tokenTransfers.length > 0) {
+      const startY = (doc as any).lastAutoTable?.finalY + 14 || 70;
+      doc.setFontSize(14);
+      doc.text("Token Transfers", 14, startY);
+
+      const tokenRows = tokenTransfers.map((tx: any) => {
+        const isIncoming = tx.to?.toLowerCase() === trackedAddress.toLowerCase();
+        const decimals = parseInt(tx.tokenDecimal) || 18;
+        const value = parseFloat(tx.value) / Math.pow(10, decimals);
+        return [
+          isIncoming ? "IN" : "OUT",
+          tx.tokenSymbol || "?",
+          formatAddress(tx.from),
+          formatAddress(tx.to),
+          value > 1000000 ? `${(value / 1000000).toFixed(2)}M` : value > 1000 ? `${(value / 1000).toFixed(2)}K` : value.toFixed(4),
+          new Date(parseInt(tx.timeStamp) * 1000).toLocaleDateString(),
+        ];
+      });
+
+      (doc as any).autoTable({
+        startY: startY + 4,
+        head: [["Dir", "Token", "From", "To", "Value", "Date"]],
+        body: tokenRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [41, 128, 185] },
+      });
+    }
+
+    doc.save(`wallet_${formatAddress(trackedAddress)}_${selectedChain.name}.pdf`);
+    toast({ title: "PDF Exported", description: "Wallet report has been downloaded as PDF." });
+  }, [transactions, tokenTransfers, trackedAddress, selectedChain, nativeBalance, ethPrice, selectedChainId, nativeValueUsd, toast]);
+
   const getAddressExplorerUrl = (address: string) => {
     const explorers: Record<number, string> = {
       1: "https://etherscan.io",
@@ -341,19 +474,43 @@ export default function Dashboard() {
                       </a>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      balanceQuery.refetch();
-                      txQuery.refetch();
-                      tokenTxQuery.refetch();
-                    }}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    data-testid="button-refresh"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleExportCSV}
+                      disabled={transactions.length === 0 && tokenTransfers.length === 0}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      title="Export CSV"
+                      data-testid="button-export-csv"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleExportPDF}
+                      disabled={transactions.length === 0 && tokenTransfers.length === 0}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      title="Export PDF"
+                      data-testid="button-export-pdf"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        balanceQuery.refetch();
+                        txQuery.refetch();
+                        tokenTxQuery.refetch();
+                      }}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      data-testid="button-refresh"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
 
                 {isLoading ? (

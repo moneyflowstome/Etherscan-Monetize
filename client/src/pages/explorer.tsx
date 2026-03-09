@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -18,6 +18,14 @@ import {
   Info,
   Zap,
   Calculator,
+  Trophy,
+  Star,
+  Settings2,
+  Eye,
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +112,85 @@ function CopyButton({ text, id }: { text: string; id: string }) {
   return (
     <button onClick={() => { navigator.clipboard.writeText(text); toast({ title: "Copied!" }); }} className="text-muted-foreground hover:text-primary transition-colors" data-testid={`button-copy-${id}`}>
       <Copy className="w-3.5 h-3.5" />
+    </button>
+  );
+}
+
+function getCoinOfTheDay(): ChainInfo {
+  const today = new Date().toISOString().split("T")[0];
+  let hash = 0;
+  for (let i = 0; i < today.length; i++) {
+    hash = ((hash << 5) - hash + today.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash) % ALL_CHAINS.length;
+  return ALL_CHAINS[index];
+}
+
+function CoinOfTheDay({ onChainClick }: { onChainClick: (chain: ChainInfo) => void }) {
+  const coinChain = getCoinOfTheDay();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["coin-info", coinChain.coingeckoId],
+    queryFn: async () => {
+      const res = await fetch(`/api/coin/${coinChain.coingeckoId}`);
+      if (!res.ok) throw new Error("Failed to fetch coin info");
+      return res.json();
+    },
+    staleTime: 60000,
+    retry: 2,
+  });
+
+  const priceUp = (data?.price_change_percentage_24h || 0) >= 0;
+
+  return (
+    <button onClick={() => onChainClick(coinChain)} className="w-full text-left group" data-testid="card-coin-of-the-day">
+      <Card className="glass-panel bg-gradient-to-br from-yellow-500/10 via-amber-500/5 to-orange-500/10 border-yellow-500/30 hover:border-yellow-400/60 transition-all duration-300 group-hover:scale-[1.01] overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-yellow-500/10 to-transparent rounded-bl-full" />
+        <CardContent className="p-5 md:p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="w-5 h-5 text-yellow-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-yellow-400" data-testid="text-cotd-label">Coin of the Day</span>
+            <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              {data?.image ? (
+                <img src={data.image} alt={coinChain.name} className="w-12 h-12 rounded-full ring-2 ring-yellow-500/30" data-testid="img-cotd-icon" />
+              ) : (
+                <span className="text-4xl" data-testid="img-cotd-icon">{coinChain.icon}</span>
+              )}
+              <div className="min-w-0">
+                <h3 className="font-display font-bold text-lg md:text-xl truncate" data-testid="text-cotd-name">{coinChain.name}</h3>
+                <p className="text-sm text-muted-foreground">{coinChain.symbol}</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="ml-auto"><Loader2 className="w-5 h-5 animate-spin text-yellow-400" /></div>
+            ) : error ? (
+              <div className="ml-auto text-xs text-muted-foreground">Click to explore {coinChain.symbol} →</div>
+            ) : data ? (
+              <div className="ml-auto flex items-center gap-4 md:gap-6">
+                <div className="text-right">
+                  <p className="font-mono text-xl md:text-2xl font-bold" data-testid="text-cotd-price">
+                    ${data.current_price?.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                  </p>
+                  <span className={`text-sm flex items-center justify-end gap-1 ${priceUp ? "text-green-400" : "text-red-400"}`} data-testid="text-cotd-change">
+                    {priceUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    {Math.abs(data.price_change_percentage_24h || 0).toFixed(2)}%
+                  </span>
+                </div>
+                <div className="hidden md:block text-right">
+                  <p className="text-xs text-muted-foreground mb-1">Market Cap</p>
+                  <p className="font-mono text-sm font-semibold" data-testid="text-cotd-mcap">
+                    ${(data.market_cap || 0).toLocaleString()}
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-yellow-400 transition-colors hidden sm:block" />
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
     </button>
   );
 }
@@ -1048,22 +1135,134 @@ function ChainExplorerView({ chainId }: { chainId: ChainId }) {
   );
 }
 
+interface SectionConfig {
+  id: string;
+  title: string;
+  subtitle: string;
+  chainIds: ChainId[];
+  visible: boolean;
+}
+
+const DEFAULT_SECTIONS: SectionConfig[] = [
+  { id: "top-chains", title: "Top Chains", subtitle: "Top cryptocurrencies by market cap — click to explore", chainIds: TOP_CHAIN_IDS, visible: true },
+  { id: "more-chains", title: "More Chains", subtitle: "Additional blockchains with live market data and address lookup", chainIds: MORE_CHAIN_IDS, visible: true },
+  { id: "evm-chains", title: "EVM Networks", subtitle: "Layer 2 and EVM-compatible chains — tracked via the Wallet Tracker", chainIds: EVM_CHAIN_IDS, visible: true },
+];
+
+const SECTION_PREFS_KEY = "explorer-section-prefs";
+
+function loadSectionPrefs(): SectionConfig[] {
+  try {
+    const saved = localStorage.getItem(SECTION_PREFS_KEY);
+    if (!saved) return DEFAULT_SECTIONS;
+    const parsed = JSON.parse(saved) as { id: string; visible: boolean }[];
+    const ordered: SectionConfig[] = [];
+    for (const pref of parsed) {
+      const def = DEFAULT_SECTIONS.find(s => s.id === pref.id);
+      if (def) ordered.push({ ...def, visible: pref.visible });
+    }
+    for (const def of DEFAULT_SECTIONS) {
+      if (!ordered.find(s => s.id === def.id)) ordered.push(def);
+    }
+    return ordered;
+  } catch {
+    return DEFAULT_SECTIONS;
+  }
+}
+
+function saveSectionPrefs(sections: SectionConfig[]) {
+  localStorage.setItem(SECTION_PREFS_KEY, JSON.stringify(sections.map(s => ({ id: s.id, visible: s.visible }))));
+}
+
+function CustomizePanel({ sections, onChange, onClose }: { sections: SectionConfig[]; onChange: (s: SectionConfig[]) => void; onClose: () => void }) {
+  const toggleVisibility = (id: string) => {
+    const updated = sections.map(s => s.id === id ? { ...s, visible: !s.visible } : s);
+    onChange(updated);
+  };
+
+  const moveUp = (index: number) => {
+    if (index <= 0) return;
+    const updated = [...sections];
+    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+    onChange(updated);
+  };
+
+  const moveDown = (index: number) => {
+    if (index >= sections.length - 1) return;
+    const updated = [...sections];
+    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    onChange(updated);
+  };
+
+  const resetDefaults = () => {
+    onChange(DEFAULT_SECTIONS);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <Card className="glass-panel border-primary/30 w-full max-w-md mx-4" data-testid="panel-customize-sections">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Settings2 className="w-5 h-5 text-primary" />
+              <h3 className="font-display font-bold text-lg">Customize Sections</h3>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-close-customize">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Toggle visibility and reorder sections on the explorer homepage.</p>
+          <div className="space-y-2">
+            {sections.map((section, index) => (
+              <div key={section.id} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${section.visible ? "glass-panel border-border/50" : "bg-muted/20 border-border/20 opacity-60"}`} data-testid={`customize-row-${section.id}`}>
+                <button onClick={() => toggleVisibility(section.id)} className={`shrink-0 transition-colors ${section.visible ? "text-primary" : "text-muted-foreground"}`} data-testid={`button-toggle-${section.id}`}>
+                  {section.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+                <span className="flex-1 font-medium text-sm">{section.title}</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors" data-testid={`button-moveup-${section.id}`}>
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => moveDown(index)} disabled={index === sections.length - 1} className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors" data-testid={`button-movedown-${section.id}`}>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-5">
+            <Button variant="ghost" size="sm" onClick={resetDefaults} data-testid="button-reset-customize">Reset to Default</Button>
+            <Button size="sm" onClick={onClose} data-testid="button-done-customize">Done</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function ExplorerPage() {
   const [view, setView] = useState<ChainId>("overview");
   const [, navigate] = useLocation();
+  const [sections, setSections] = useState<SectionConfig[]>(loadSectionPrefs);
+  const [showCustomize, setShowCustomize] = useState(false);
+
+  const handleSectionsChange = useCallback((updated: SectionConfig[]) => {
+    setSections(updated);
+    saveSectionPrefs(updated);
+  }, []);
 
   const handleChainClick = (chain: ChainInfo) => {
     setView(chain.id);
   };
 
-  const renderSection = (title: string, subtitle: string, chainIds: ChainId[], sectionId: string) => (
-    <section>
-      <h2 className="text-xl font-display font-semibold mb-2 flex items-center gap-2" data-testid={`text-section-${sectionId}`}>
-        <span className="w-2 h-2 rounded-full bg-primary" /> {title}
+  const renderSection = (section: SectionConfig) => (
+    <section key={section.id}>
+      <h2 className="text-xl font-display font-semibold mb-2 flex items-center gap-2" data-testid={`text-section-${section.id}`}>
+        <span className="w-2 h-2 rounded-full bg-primary" /> {section.title}
       </h2>
-      <p className="text-sm text-muted-foreground mb-4">{subtitle}</p>
+      <p className="text-sm text-muted-foreground mb-4">{section.subtitle}</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {chainIds.map(id => {
+        {section.chainIds.map(id => {
           const chain = getChain(id);
           return (
             <button key={id} onClick={() => handleChainClick(chain)} className="text-left group" data-testid={`card-chain-${id}`}>
@@ -1085,13 +1284,23 @@ export default function ExplorerPage() {
     </section>
   );
 
+  const visibleSections = sections.filter(s => s.visible);
+  const adInsertAfterIndex = 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-display font-bold mb-2" data-testid="text-explorer-title">Multi-Chain Explorer</h1>
-          <p className="text-muted-foreground" data-testid="text-explorer-subtitle">Explore wallets and transactions across 24+ blockchains — all built-in, all free</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2" data-testid="text-explorer-title">Multi-Chain Explorer</h1>
+            <p className="text-muted-foreground" data-testid="text-explorer-subtitle">Explore wallets and transactions across 24+ blockchains — all built-in, all free</p>
+          </div>
+          {view === "overview" && (
+            <Button variant="outline" size="sm" onClick={() => setShowCustomize(true)} className="shrink-0 mt-1" data-testid="button-customize-sections">
+              <Settings2 className="w-4 h-4 mr-1.5" /> Customize
+            </Button>
+          )}
         </div>
 
         {view !== "overview" && (
@@ -1100,10 +1309,13 @@ export default function ExplorerPage() {
 
         {view === "overview" && (
           <>
-            {renderSection("Top Chains", "Top cryptocurrencies by market cap — click to explore", TOP_CHAIN_IDS, "top-chains")}
-            <AdBanner slot="explorer-mid" className="my-6" />
-            {renderSection("More Chains", "Additional blockchains with live market data and address lookup", MORE_CHAIN_IDS, "more-chains")}
-            {renderSection("EVM Networks", "Layer 2 and EVM-compatible chains — tracked via the Wallet Tracker", EVM_CHAIN_IDS, "evm-chains")}
+            <CoinOfTheDay onChainClick={handleChainClick} />
+            {visibleSections.map((section, idx) => (
+              <div key={section.id}>
+                {renderSection(section)}
+                {idx === adInsertAfterIndex && <AdBanner slot="explorer-mid" className="my-6" />}
+              </div>
+            ))}
           </>
         )}
 
@@ -1111,6 +1323,9 @@ export default function ExplorerPage() {
 
         <AdBanner slot="explorer-bottom" className="mt-8" />
       </main>
+      {showCustomize && (
+        <CustomizePanel sections={sections} onChange={handleSectionsChange} onClose={() => setShowCustomize(false)} />
+      )}
       <Footer />
     </div>
   );

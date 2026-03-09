@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Calculator,
@@ -11,6 +11,9 @@ import {
   Percent,
   Calendar,
   RefreshCw,
+  Bookmark,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +62,37 @@ interface StakingResult {
   usdTotalValue: number | null;
 }
 
+interface StakingPosition {
+  id: string;
+  coinSymbol: string;
+  coinName: string;
+  coinIcon: string;
+  coinColor: string;
+  coingeckoId: string;
+  amount: number;
+  apy: number;
+  compounding: string;
+  compoundingPeriodsPerYear: number;
+  durationDays: number;
+  durationLabel: string;
+  startDate: string;
+}
+
+const POSITIONS_KEY = "staking-positions";
+
+function loadPositions(): StakingPosition[] {
+  try {
+    const raw = localStorage.getItem(POSITIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePositions(positions: StakingPosition[]) {
+  localStorage.setItem(POSITIONS_KEY, JSON.stringify(positions));
+}
+
 function calculateStaking(
   amount: number,
   apy: number,
@@ -101,6 +135,7 @@ export default function StakingPage() {
   const [result, setResult] = useState<StakingResult | null>(null);
   const [coinDropdownOpen, setCoinDropdownOpen] = useState(false);
   const [amountError, setAmountError] = useState("");
+  const [positions, setPositions] = useState<StakingPosition[]>(loadPositions);
 
   const selectedCoin = STAKING_COINS[selectedCoinIndex];
   const selectedDuration = DURATIONS[durationIndex];
@@ -150,6 +185,56 @@ export default function StakingPage() {
       usdRewards: price ? calcResult.estimatedRewards * price : null,
       usdTotalValue: price ? calcResult.totalValue * price : null,
     });
+  };
+
+  const handleTrackPosition = () => {
+    const parsedAmount = parseFloat(amount);
+    if (!result || isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount < selectedCoin.minStake) {
+      return;
+    }
+    const newPosition: StakingPosition = {
+      id: Date.now().toString(),
+      coinSymbol: selectedCoin.symbol,
+      coinName: selectedCoin.name,
+      coinIcon: selectedCoin.icon,
+      coinColor: selectedCoin.color,
+      coingeckoId: selectedCoin.coingeckoId,
+      amount: parsedAmount,
+      apy: selectedCoin.apy,
+      compounding: selectedCompounding.label,
+      compoundingPeriodsPerYear: selectedCompounding.periodsPerYear,
+      durationDays: selectedDuration.days,
+      durationLabel: selectedDuration.label,
+      startDate: new Date().toISOString(),
+    };
+    const updated = [...positions, newPosition];
+    setPositions(updated);
+    savePositions(updated);
+  };
+
+  const handleRemovePosition = (id: string) => {
+    const updated = positions.filter((p) => p.id !== id);
+    setPositions(updated);
+    savePositions(updated);
+  };
+
+  const getPositionRewards = (pos: StakingPosition) => {
+    const elapsedMs = Date.now() - new Date(pos.startDate).getTime();
+    const elapsedDays = Math.max(elapsedMs / (1000 * 60 * 60 * 24), 0);
+    const daysToCalc = Math.min(elapsedDays, pos.durationDays);
+    const projected = calculateStaking(pos.amount, pos.apy, pos.durationDays, pos.compoundingPeriodsPerYear);
+    const soFar = calculateStaking(pos.amount, pos.apy, daysToCalc, pos.compoundingPeriodsPerYear);
+    const price = getCurrentPrice(pos.coingeckoId);
+    return {
+      accumulatedRewards: soFar.estimatedRewards,
+      accumulatedUsd: price ? soFar.estimatedRewards * price : null,
+      projectedTotal: projected.estimatedRewards,
+      dailyReward: projected.dailyReward,
+      monthlyReward: projected.monthlyReward,
+      elapsedDays: Math.floor(daysToCalc),
+      remainingDays: Math.max(0, Math.ceil(pos.durationDays - daysToCalc)),
+      progress: Math.min((daysToCalc / pos.durationDays) * 100, 100),
+    };
   };
 
   return (
@@ -391,6 +476,16 @@ export default function StakingPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <Button
+                  onClick={handleTrackPosition}
+                  variant="outline"
+                  className="w-full border-primary/30 hover:bg-primary/10"
+                  data-testid="button-track-position"
+                >
+                  <Bookmark className="w-4 h-4 mr-2" />
+                  Track This Position
+                </Button>
               </>
             ) : (
               <Card className="glass-panel border-border/30">
@@ -404,6 +499,93 @@ export default function StakingPage() {
             )}
           </div>
         </div>
+
+        {positions.length > 0 && (
+          <section data-testid="section-my-positions">
+            <h2 className="text-xl font-display font-semibold mb-4 flex items-center gap-2" data-testid="text-my-positions-title">
+              <Bookmark className="w-5 h-5 text-primary" />
+              My Staking Positions
+              <Badge variant="secondary" className="ml-2">{positions.length}</Badge>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {positions.map((pos) => {
+                const rewards = getPositionRewards(pos);
+                return (
+                  <Card key={pos.id} className="glass-panel border-border/50 hover:border-primary/30 transition-all" data-testid={`card-position-${pos.id}`}>
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-lg ${pos.coinColor}`}>{pos.coinIcon}</span>
+                          <div>
+                            <span className="font-display font-semibold text-foreground">{pos.coinName}</span>
+                            <span className="text-muted-foreground text-sm ml-1">({pos.coinSymbol})</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemovePosition(pos.id)}
+                          className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                          data-testid={`button-remove-position-${pos.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Staked Amount</p>
+                          <p className="font-mono font-medium text-foreground" data-testid={`text-position-amount-${pos.id}`}>
+                            {pos.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} {pos.coinSymbol}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">APY / Compounding</p>
+                          <p className="font-mono font-medium text-primary">{pos.apy}% / {pos.compounding}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Accumulated Rewards</p>
+                          <p className="font-mono font-medium text-green-400" data-testid={`text-position-accumulated-${pos.id}`}>
+                            +{rewards.accumulatedRewards.toLocaleString(undefined, { maximumFractionDigits: 6 })} {pos.coinSymbol}
+                          </p>
+                          {rewards.accumulatedUsd !== null && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              ≈ ${rewards.accumulatedUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Projected Total</p>
+                          <p className="font-mono font-medium text-foreground" data-testid={`text-position-projected-${pos.id}`}>
+                            +{rewards.projectedTotal.toLocaleString(undefined, { maximumFractionDigits: 6 })} {pos.coinSymbol}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Daily: <span className="text-green-400 font-mono">+{rewards.dailyReward.toLocaleString(undefined, { maximumFractionDigits: 6 })} {pos.coinSymbol}</span></span>
+                          <span>Monthly: <span className="text-green-400 font-mono">+{rewards.monthlyReward.toLocaleString(undefined, { maximumFractionDigits: 6 })} {pos.coinSymbol}</span></span>
+                        </div>
+                        <div className="w-full bg-muted/30 rounded-full h-1.5">
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all"
+                            style={{ width: `${rewards.progress}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>{rewards.elapsedDays}d elapsed</span>
+                          <span>{pos.durationLabel} ({rewards.remainingDays}d remaining)</span>
+                        </div>
+                        <p className="text-muted-foreground/60">
+                          Started {new Date(pos.startDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <AdBanner slot="staking-mid" className="my-6" />
 
