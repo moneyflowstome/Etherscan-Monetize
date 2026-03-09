@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 const BLOCKCHAINS = ["All", "Ethereum", "BSC", "Polygon", "Solana", "Arbitrum", "Optimism", "Base", "Avalanche", "Fantom", "Cosmos", "Sui", "Aptos", "Other"];
 const REWARD_TYPES = ["All", "Task", "Signup", "Hold", "Social", "Testnet", "Other"];
@@ -519,7 +521,15 @@ export default function AirdropsPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <main className="flex-1">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0" style={{
+            background: "radial-gradient(ellipse at 50% 0%, rgba(0,200,255,0.08) 0%, transparent 70%)",
+          }} />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 py-8 relative z-10 space-y-8">
       <div className="text-center space-y-3">
         <div className="flex items-center justify-center gap-3">
           <Gift className="w-8 h-8 text-primary" />
@@ -652,7 +662,11 @@ export default function AirdropsPage() {
         </div>
       </div>
 
+
       <SubmitAirdropModal open={submitOpen} onClose={() => setSubmitOpen(false)} />
+      </div>
+      </main>
+      <Footer />
     </div>
   );
 }
