@@ -32,6 +32,9 @@ import {
   Menu,
   ChevronDown,
   Gift,
+  Wand2,
+  Sparkles,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +44,49 @@ import { useToast } from "@/hooks/use-toast";
 
 function apiHeaders(token: string) {
   return { "Content-Type": "application/json", "x-admin-token": token };
+}
+
+function GooglePreview({ title, description, url }: { title: string; description: string; url: string }) {
+  const displayUrl = url || "https://tokenaltcoin.com";
+  const displayTitle = title || "Page Title";
+  const displayDesc = description || "Page description will appear here...";
+  const truncTitle = displayTitle.length > 60 ? displayTitle.slice(0, 57) + "..." : displayTitle;
+  const truncDesc = displayDesc.length > 160 ? displayDesc.slice(0, 157) + "..." : displayDesc;
+
+  return (
+    <Card className="bg-white dark:bg-[#202124] border-border/50 overflow-hidden" data-testid="google-preview">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Monitor className="w-4 h-4 text-primary" />
+          <span className="text-xs font-bold text-primary">Google Search Preview</span>
+        </div>
+        <div className="rounded-lg p-4" style={{ fontFamily: "Arial, sans-serif" }}>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-[#4d5156] dark:text-[#bdc1c6] truncate">{displayUrl}</div>
+            </div>
+          </div>
+          <h3
+            className="text-lg leading-snug mb-1 cursor-pointer hover:underline"
+            style={{ color: "#1a0dab", fontFamily: "Arial, sans-serif", fontWeight: 400 }}
+            data-testid="google-preview-title"
+          >
+            {truncTitle}
+          </h3>
+          <p
+            className="text-sm leading-relaxed m-0"
+            style={{ color: "#4d5156", fontFamily: "Arial, sans-serif" }}
+            data-testid="google-preview-description"
+          >
+            {truncDesc}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function LoginForm({ onLogin }: { onLogin: (token: string) => void }) {
@@ -931,9 +977,14 @@ function BlogTab({ token }: { token: string }) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [genTopic, setGenTopic] = useState("");
+  const [genCategory, setGenCategory] = useState("Guide");
+  const [genTone, setGenTone] = useState("professional");
+  const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState({
     title: "", slug: "", content: "", excerpt: "", category: "News",
-    tags: "", coverImage: "", metaTitle: "", metaDescription: "",
+    tags: "", coverImage: "", metaTitle: "", metaDescription: "", metaKeywords: "",
     published: false, featured: false,
   });
 
@@ -951,7 +1002,7 @@ function BlogTab({ token }: { token: string }) {
   };
 
   const resetForm = () => {
-    setForm({ title: "", slug: "", content: "", excerpt: "", category: "News", tags: "", coverImage: "", metaTitle: "", metaDescription: "", published: false, featured: false });
+    setForm({ title: "", slug: "", content: "", excerpt: "", category: "News", tags: "", coverImage: "", metaTitle: "", metaDescription: "", metaKeywords: "", published: false, featured: false });
     setEditingId(null);
     setShowForm(false);
   };
@@ -992,7 +1043,7 @@ function BlogTab({ token }: { token: string }) {
       excerpt: post.excerpt || "", category: post.category || "News",
       tags: Array.isArray(post.tags) ? post.tags.join(", ") : (post.tags || ""),
       coverImage: post.coverImage || "", metaTitle: post.metaTitle || "",
-      metaDescription: post.metaDescription || "",
+      metaDescription: post.metaDescription || "", metaKeywords: post.metaKeywords || "",
       published: post.published || false, featured: post.featured || false,
     });
     setEditingId(post.id);
@@ -1009,6 +1060,62 @@ function BlogTab({ token }: { token: string }) {
     });
   };
 
+  const handleGenerate = async () => {
+    if (!genTopic.trim()) return;
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/blog/generate", {
+        method: "POST",
+        headers: apiHeaders(token),
+        body: JSON.stringify({ topic: genTopic, category: genCategory, tone: genTone }),
+      });
+      if (!res.ok) throw new Error("Generation failed");
+      const generated = await res.json();
+      setForm({
+        title: generated.title,
+        slug: generated.slug,
+        content: generated.content,
+        excerpt: generated.excerpt,
+        category: generated.category,
+        tags: Array.isArray(generated.tags) ? generated.tags.join(", ") : (generated.tags || ""),
+        coverImage: generated.coverImage || "",
+        metaTitle: generated.metaTitle || "",
+        metaDescription: generated.metaDescription || "",
+        metaKeywords: generated.metaKeywords || "",
+        published: false,
+        featured: false,
+      });
+      setShowGenerator(false);
+      setShowForm(true);
+      setEditingId(null);
+      toast({ title: "Blog post generated! Review and publish when ready." });
+    } catch {
+      toast({ title: "Error", description: "Failed to generate blog post.", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const autoFillSeo = () => {
+    if (!form.title) return;
+    const cleanContent = form.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const words = cleanContent.split(" ");
+    const autoExcerpt = words.slice(0, 35).join(" ") + (words.length > 35 ? "..." : "");
+    const metaTitle = `${form.title} | TokenAltcoin`.slice(0, 60);
+    const metaDesc = (form.excerpt || autoExcerpt).slice(0, 155);
+    const tagList = form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
+    const autoKeywords = tagList.length > 0 ? tagList.join(", ") : "crypto, blockchain, " + form.title.toLowerCase().split(" ").slice(0, 3).join(", ");
+
+    setForm(p => ({
+      ...p,
+      excerpt: p.excerpt || autoExcerpt,
+      metaTitle: metaTitle,
+      metaDescription: metaDesc,
+      metaKeywords: autoKeywords,
+    }));
+    toast({ title: "SEO fields auto-filled from content" });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1019,12 +1126,84 @@ function BlogTab({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-blog-admin-title">Manage Blog</h2>
-        <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }} className="bg-primary hover:bg-primary/90" data-testid="button-add-post">
-          <Plus className="w-4 h-4 mr-1" /> New Post
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowGenerator(!showGenerator)} className="border-primary/30 text-primary hover:bg-primary/10" data-testid="button-ai-generator">
+            <Wand2 className="w-4 h-4 mr-1" /> AI Generator
+          </Button>
+          <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }} className="bg-primary hover:bg-primary/90" data-testid="button-add-post">
+            <Plus className="w-4 h-4 mr-1" /> New Post
+          </Button>
+        </div>
       </div>
+
+      {showGenerator && (
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20" data-testid="ai-generator-panel">
+          <CardContent className="p-5 space-y-4">
+            <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2">
+              <Sparkles className="w-4 h-4" /> AI Blog Post Generator
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Enter a topic and the generator will create a full blog post with SEO tags, excerpt, and meta fields — all auto-filled and ready to review.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-3">
+                <label className="text-xs text-muted-foreground mb-1 block">Topic / Title *</label>
+                <Input
+                  value={genTopic}
+                  onChange={(e) => setGenTopic(e.target.value)}
+                  placeholder="e.g., How to Stake Ethereum in 2026, DeFi Yield Farming Guide, Bitcoin Halving Impact..."
+                  className="bg-muted/30 border-border"
+                  data-testid="input-gen-topic"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Category</label>
+                <select value={genCategory} onChange={(e) => setGenCategory(e.target.value)} className="w-full h-9 rounded-md border border-border bg-muted/30 px-3 text-sm text-foreground" data-testid="select-gen-category">
+                  <option value="News">News</option>
+                  <option value="Tutorial">Tutorial</option>
+                  <option value="Guide">Guide</option>
+                  <option value="Analysis">Analysis</option>
+                  <option value="Opinion">Opinion</option>
+                  <option value="Review">Review</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tone</label>
+                <select value={genTone} onChange={(e) => setGenTone(e.target.value)} className="w-full h-9 rounded-md border border-border bg-muted/30 px-3 text-sm text-foreground" data-testid="select-gen-tone">
+                  <option value="professional">Professional</option>
+                  <option value="casual">Casual</option>
+                  <option value="beginner">Beginner-Friendly</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  onClick={handleGenerate}
+                  disabled={!genTopic.trim() || generating}
+                  className="w-full bg-primary hover:bg-primary/90"
+                  data-testid="button-generate-post"
+                >
+                  {generating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                  {generating ? "Generating..." : "Generate Post"}
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {["Bitcoin Halving Impact 2026", "Top 10 DeFi Protocols", "How to Use a Hardware Wallet", "Ethereum Layer 2 Scaling Guide", "Crypto Tax Guide for Beginners", "NFT Market Trends", "Stablecoin Comparison", "Web3 Gaming Future"].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => setGenTopic(suggestion)}
+                  className="text-[10px] text-left px-2 py-1.5 rounded-md bg-muted/30 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors truncate"
+                  data-testid={`button-suggestion-${suggestion.slice(0, 20).replace(/\s+/g, "-").toLowerCase()}`}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {showForm && (
         <Card className="bg-primary/5 border-primary/20">
@@ -1080,14 +1259,34 @@ function BlogTab({ token }: { token: string }) {
                 <label className="text-xs text-muted-foreground mb-1 block">Cover Image URL</label>
                 <Input value={form.coverImage} onChange={(e) => updateField("coverImage", e.target.value)} placeholder="https://example.com/image.jpg" className="bg-muted/30 border-border" data-testid="input-blog-cover" />
               </div>
+              <div className="md:col-span-2 flex items-center gap-2 pt-2 border-t border-border/30">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold text-primary">SEO & Meta</span>
+                <Button type="button" size="sm" variant="outline" onClick={autoFillSeo} disabled={!form.title} className="ml-auto border-primary/30 text-primary hover:bg-primary/10 text-xs h-7" data-testid="button-auto-seo">
+                  <Wand2 className="w-3 h-3 mr-1" /> Auto-Fill SEO
+                </Button>
+              </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Meta Title</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Meta Title ({(form.metaTitle || "").length}/60)</label>
                 <Input value={form.metaTitle} onChange={(e) => updateField("metaTitle", e.target.value)} placeholder="SEO title" className="bg-muted/30 border-border" data-testid="input-blog-meta-title" />
               </div>
-              <div className="md:col-span-2">
-                <label className="text-xs text-muted-foreground mb-1 block">Meta Description</label>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Meta Description ({(form.metaDescription || "").length}/160)</label>
                 <Input value={form.metaDescription} onChange={(e) => updateField("metaDescription", e.target.value)} placeholder="SEO description" className="bg-muted/30 border-border" data-testid="input-blog-meta-desc" />
               </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Meta Keywords</label>
+                <Input value={form.metaKeywords} onChange={(e) => updateField("metaKeywords", e.target.value)} placeholder="crypto, bitcoin, blockchain" className="bg-muted/30 border-border" data-testid="input-blog-meta-keywords" />
+              </div>
+              {(form.metaTitle || form.title) && (
+                <div className="md:col-span-2">
+                  <GooglePreview
+                    title={form.metaTitle || form.title}
+                    description={form.metaDescription || form.excerpt || ""}
+                    url={`https://tokenaltcoin.com/blog/${form.slug || "post-slug"}`}
+                  />
+                </div>
+              )}
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                   <input type="checkbox" checked={form.published} onChange={(e) => updateField("published", e.target.checked)} className="accent-primary" data-testid="checkbox-blog-published" />
@@ -1159,11 +1358,19 @@ function SeoTab({ token }: { token: string }) {
     { path: "/wallet", label: "Wallet Tracker" },
     { path: "/prices", label: "Prices" },
     { path: "/blog", label: "Blog" },
-    { path: "/contact", label: "Contact" },
     { path: "/news", label: "News" },
     { path: "/exchanges", label: "Exchanges" },
     { path: "/staking", label: "Staking" },
     { path: "/masternodes", label: "Masternodes" },
+    { path: "/arbitrage", label: "Arbitrage" },
+    { path: "/swap", label: "Swap" },
+    { path: "/dex", label: "DEX Screener" },
+    { path: "/calculator", label: "Calculator" },
+    { path: "/chat", label: "Chat" },
+    { path: "/dashboard", label: "Dashboard" },
+    { path: "/airdrops", label: "Airdrops" },
+    { path: "/gold", label: "Gold" },
+    { path: "/contact", label: "Contact" },
   ];
 
   const [seoData, setSeoData] = useState<Record<string, any>>({});
@@ -1249,6 +1456,44 @@ function SeoTab({ token }: { token: string }) {
     }));
   };
 
+  const [autoFilling, setAutoFilling] = useState<string | null>(null);
+
+  const autoFillPage = async (pagePath: string, pageLabel: string) => {
+    setAutoFilling(pagePath);
+    try {
+      const res = await fetch("/api/admin/seo/auto-fill", {
+        method: "POST",
+        headers: apiHeaders(token),
+        body: JSON.stringify({ pagePath, pageLabel }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setSeoData((prev) => ({
+        ...prev,
+        [pagePath]: { ...(prev[pagePath] || {}), pagePath, ...data },
+      }));
+      toast({ title: `SEO auto-filled for ${pageLabel}` });
+    } catch {
+      toast({ title: "Error", description: "Auto-fill failed.", variant: "destructive" });
+    } finally {
+      setAutoFilling(null);
+    }
+  };
+
+  const autoFillAllPages = async () => {
+    let success = 0;
+    let failed = 0;
+    for (const page of defaultPages) {
+      try {
+        await autoFillPage(page.path, page.label);
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    toast({ title: failed > 0 ? `Auto-filled ${success}/${defaultPages.length} pages (${failed} failed)` : `All ${success} pages auto-filled!` });
+  };
+
   const getSeoScore = (pageData: any) => {
     if (!pageData) return { score: 0, issues: ["No SEO data configured"] };
     const issues: string[] = [];
@@ -1285,18 +1530,30 @@ function SeoTab({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-seo-title">SEO Manager</h2>
-        <Button
-          size="sm"
-          onClick={() => saveSeoMutation.mutate()}
-          disabled={saveSeoMutation.isPending}
-          className="bg-primary hover:bg-primary/90"
-          data-testid="button-save-seo"
-        >
-          {saveSeoMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-          Save All SEO
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={autoFillAllPages}
+            disabled={!!autoFilling}
+            className="border-primary/30 text-primary hover:bg-primary/10"
+            data-testid="button-auto-fill-all-seo"
+          >
+            <Wand2 className="w-4 h-4 mr-1" /> Auto-Fill All Pages
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => saveSeoMutation.mutate()}
+            disabled={saveSeoMutation.isPending}
+            className="bg-primary hover:bg-primary/90"
+            data-testid="button-save-seo"
+          >
+            {saveSeoMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Save All SEO
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -1327,6 +1584,19 @@ function SeoTab({ token }: { token: string }) {
                 </button>
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+                    <div className="flex justify-end mb-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => autoFillPage(page.path, page.label)}
+                        disabled={autoFilling === page.path}
+                        className="border-primary/30 text-primary hover:bg-primary/10 text-xs h-7"
+                        data-testid={`button-auto-fill-${page.path.replace(/\//g, "-") || "home"}`}
+                      >
+                        {autoFilling === page.path ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <Wand2 className="w-3 h-3 mr-1" />}
+                        Auto-Fill
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-muted-foreground mb-1 block">Meta Title ({(pageData.metaTitle || "").length} chars)</label>
@@ -1399,6 +1669,13 @@ function SeoTab({ token }: { token: string }) {
                         />
                       </div>
                     </div>
+                    {(pageData.metaTitle || pageData.ogTitle) && (
+                      <GooglePreview
+                        title={pageData.metaTitle || pageData.ogTitle || page.label}
+                        description={pageData.metaDescription || pageData.ogDescription || ""}
+                        url={`https://tokenaltcoin.com${page.path}`}
+                      />
+                    )}
                     <Card className={`border-0 ${score >= 80 ? "bg-green-500/10" : score >= 50 ? "bg-yellow-500/10" : "bg-red-500/10"}`}>
                       <CardContent className="p-3">
                         <h4 className="text-xs font-bold text-foreground mb-1 flex items-center gap-1">

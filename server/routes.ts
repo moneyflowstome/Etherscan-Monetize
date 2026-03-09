@@ -3896,6 +3896,237 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/blog/generate", requireAdmin, async (req, res) => {
+    try {
+      const { topic, category, tone } = req.body;
+      if (!topic || typeof topic !== "string") {
+        return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const cat = category || "Guide";
+      const toneStyle = tone || "professional";
+
+      const TOPIC_TEMPLATES: Record<string, { intros: string[]; sections: string[][]; conclusions: string[] }> = {
+        default: {
+          intros: [
+            `The world of cryptocurrency continues to evolve at a remarkable pace. In this ${cat.toLowerCase()}, we explore ${topic} — a subject that has captured the attention of investors, developers, and enthusiasts worldwide.`,
+            `Understanding ${topic} is essential for anyone looking to navigate the rapidly changing crypto landscape. Whether you're a seasoned trader or just getting started, this comprehensive ${cat.toLowerCase()} will provide valuable insights.`,
+            `${topic} represents one of the most significant developments in the blockchain space today. As the crypto market matures, understanding this concept becomes increasingly important for making informed decisions.`,
+          ],
+          sections: [
+            [
+              `<h2>What You Need to Know About ${topic}</h2>`,
+              `<p>At its core, ${topic} addresses fundamental challenges in the cryptocurrency ecosystem. The technology behind it leverages blockchain's inherent strengths — decentralization, transparency, and security — while pushing the boundaries of what's possible in digital finance.</p>`,
+              `<p>Market analysts have noted growing interest in this area, with trading volumes and adoption metrics showing consistent upward trends. This growth reflects a broader shift toward more sophisticated crypto solutions that cater to both retail and institutional investors.</p>`,
+            ],
+            [
+              `<h2>Key Benefits and Opportunities</h2>`,
+              `<p>One of the primary advantages of ${topic} is the potential for enhanced efficiency in crypto operations. By leveraging modern blockchain protocols, users can access faster transaction speeds, lower fees, and improved security compared to traditional systems.</p>`,
+              `<p>For investors, this opens up new avenues for portfolio diversification and risk management. The ability to participate in emerging crypto sectors early often yields significant returns, though it's important to approach any investment with careful research and risk awareness.</p>`,
+              `<p>Developers and builders in the space are also finding new opportunities, as the infrastructure supporting ${topic} continues to expand. Open-source tools, developer grants, and growing community support make it easier than ever to contribute to and benefit from these innovations.</p>`,
+            ],
+            [
+              `<h2>Risks and Considerations</h2>`,
+              `<p>While the potential upside is significant, it's crucial to understand the risks involved. Market volatility remains a constant factor in cryptocurrency, and ${topic} is no exception. Prices can fluctuate dramatically in short periods, making it important to only invest what you can afford to lose.</p>`,
+              `<p>Regulatory uncertainty is another consideration. Different jurisdictions have varying approaches to crypto regulation, which can impact the accessibility and legality of certain activities related to ${topic}. Staying informed about regulatory developments in your region is essential.</p>`,
+              `<p>Security is paramount in the crypto space. Always use reputable platforms, enable two-factor authentication, and store significant holdings in hardware wallets. Never share your private keys or seed phrases with anyone.</p>`,
+            ],
+            [
+              `<h2>How to Get Started</h2>`,
+              `<p>Getting started with ${topic} doesn't have to be complicated. Begin by educating yourself through reputable sources — whitepapers, official documentation, and established crypto news outlets are excellent starting points.</p>`,
+              `<p>Next, consider using tools like TokenAltcoin's multi-chain explorer and wallet tracker to monitor market conditions and track your assets across different blockchains. These free tools provide real-time data and analytics that can inform your decisions.</p>`,
+              `<p>Start small and scale gradually as you build confidence and understanding. The crypto space rewards patience and continuous learning, so take the time to develop a solid foundation before making significant commitments.</p>`,
+            ],
+            [
+              `<h2>Market Outlook and Future Trends</h2>`,
+              `<p>The future outlook for ${topic} appears promising, with several major developments on the horizon. Institutional adoption continues to grow, bringing increased liquidity and legitimacy to the market.</p>`,
+              `<p>Technological advancements, including improvements in blockchain scalability, interoperability, and user experience, are making crypto more accessible to mainstream users. These developments are likely to accelerate adoption and drive innovation in the coming years.</p>`,
+              `<p>As the ecosystem matures, expect to see more sophisticated products, better regulatory clarity, and increased integration with traditional financial systems. The intersection of DeFi, NFTs, and real-world assets is creating new paradigms that could reshape how we think about digital ownership and value transfer.</p>`,
+            ],
+          ],
+          conclusions: [
+            `<h2>Final Thoughts</h2><p>${topic} represents an exciting frontier in the cryptocurrency space. By staying informed, practicing due diligence, and using the right tools, you can position yourself to benefit from the opportunities this area presents. Remember to always do your own research (DYOR) and never invest more than you can afford to lose.</p><p>Use TokenAltcoin's free tools — including our multi-chain explorer, arbitrage scanner, and real-time price tracker — to stay ahead of market movements and make informed decisions.</p>`,
+            `<h2>Summary</h2><p>As we've explored in this ${cat.toLowerCase()}, ${topic} is a multifaceted subject with significant implications for the broader crypto ecosystem. The key takeaway is that knowledge and preparation are your greatest assets in navigating this space.</p><p>Bookmark TokenAltcoin for daily updates, real-time market data, and comprehensive analysis across 50+ blockchain networks. Our platform is designed to give you the edge you need in the fast-moving world of cryptocurrency.</p>`,
+          ],
+        },
+      };
+
+      const template = TOPIC_TEMPLATES.default;
+      const pickRandom = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+      const toneAdjust = (text: string) => {
+        if (toneStyle === "casual") {
+          return text.replace(/It is crucial/g, "It's really important").replace(/essential/g, "super helpful").replace(/significant/g, "huge").replace(/Furthermore/g, "Plus").replace(/However/g, "But").replace(/represents/g, "is basically");
+        }
+        if (toneStyle === "beginner") {
+          return text.replace(/leverages/g, "uses").replace(/paradigms/g, "ideas").replace(/ecosystem/g, "world").replace(/infrastructure/g, "systems").replace(/multifaceted/g, "complex");
+        }
+        return text;
+      };
+
+      const numSections = 3 + Math.floor(Math.random() * 2);
+      const shuffled = [...template.sections].sort(() => Math.random() - 0.5);
+      const selectedSections = shuffled.slice(0, numSections);
+
+      const contentParts = [
+        `<p>${toneAdjust(pickRandom(template.intros))}</p>`,
+        ...selectedSections.map(s => toneAdjust(s.join("\n"))),
+        toneAdjust(pickRandom(template.conclusions)),
+      ];
+      const content = contentParts.join("\n\n");
+
+      const cleanText = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const words = cleanText.split(" ");
+      const excerpt = words.slice(0, 35).join(" ") + "...";
+
+      const tagPool = ["crypto", "blockchain", "bitcoin", "ethereum", "defi", "trading", "investing", "altcoins", "web3", "nft", "staking", "wallet", "exchange", "market", "analysis", "tokenomics", "mining", "yield", "dex", "security"];
+      const topicWords = topic.toLowerCase().split(/\s+/);
+      const relevantTags = tagPool.filter(t => topicWords.some(w => t.includes(w) || w.includes(t)));
+      const randomTags = tagPool.filter(t => !relevantTags.includes(t)).sort(() => Math.random() - 0.5).slice(0, 4 - relevantTags.length);
+      const tags = [...new Set([...relevantTags, ...randomTags])].slice(0, 5);
+
+      const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+      const metaTitle = `${topic} — ${cat} | TokenAltcoin`.slice(0, 60);
+      const metaDescription = excerpt.slice(0, 155) + (excerpt.length > 155 ? "..." : "");
+      const metaKeywords = tags.join(", ");
+
+      res.json({
+        title: topic,
+        slug,
+        content,
+        excerpt,
+        category: cat,
+        tags,
+        metaTitle,
+        metaDescription,
+        metaKeywords,
+        published: false,
+        featured: false,
+        coverImage: "",
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/seo/auto-fill", requireAdmin, async (req, res) => {
+    try {
+      const { pagePath, pageLabel, siteUrl } = req.body;
+      if (!pagePath || !pageLabel) {
+        return res.status(400).json({ error: "pagePath and pageLabel required" });
+      }
+
+      const baseUrl = siteUrl || "https://tokenaltcoin.com";
+
+      const PAGE_SEO: Record<string, { title: string; description: string; keywords: string }> = {
+        "/": {
+          title: "TokenAltcoin — Free Multi-Chain Crypto Explorer & Portfolio Tracker",
+          description: "Track wallets, explore 50+ blockchains, monitor live crypto prices, scan arbitrage opportunities, and manage your portfolio. All free, no sign-up required.",
+          keywords: "crypto explorer, blockchain explorer, wallet tracker, crypto prices, bitcoin, ethereum, portfolio tracker, defi, multi-chain",
+        },
+        "/wallet": {
+          title: "EVM Wallet Tracker — Multi-Chain Balance & Transaction History",
+          description: "Track any EVM wallet across Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, and Avalanche. View balances, transactions, and token transfers in real-time.",
+          keywords: "wallet tracker, ethereum wallet, evm wallet, multi-chain wallet, transaction history, token transfers, portfolio",
+        },
+        "/prices": {
+          title: "Live Crypto Prices — 2,500+ Coins with Market Data & Charts",
+          description: "Real-time cryptocurrency prices for 2,500+ coins. Market cap, volume, 24h changes, gainers & losers, Fear & Greed Index, and interactive price charts.",
+          keywords: "crypto prices, bitcoin price, ethereum price, cryptocurrency market, market cap, trading volume, coin prices",
+        },
+        "/blog": {
+          title: "TokenAltcoin Blog — Crypto News, Guides & Market Analysis",
+          description: "Expert crypto guides, market analysis, trading tutorials, and blockchain news. Stay informed with TokenAltcoin's comprehensive crypto blog.",
+          keywords: "crypto blog, blockchain news, crypto guides, trading tutorials, market analysis, defi guides, bitcoin news",
+        },
+        "/contact": {
+          title: "Contact TokenAltcoin — Get in Touch With Our Team",
+          description: "Have questions or feedback? Contact the TokenAltcoin team. We're here to help with crypto tools, partnerships, and platform support.",
+          keywords: "contact tokenaltcoin, crypto support, feedback, partnership, help",
+        },
+        "/news": {
+          title: "Crypto & World News — Latest Headlines & Market Sentiment",
+          description: "Breaking cryptocurrency news, world headlines, and market sentiment analysis. Filter by category, track sentiment trends, and stay ahead of the market.",
+          keywords: "crypto news, bitcoin news, blockchain news, market sentiment, breaking crypto, world news",
+        },
+        "/exchanges": {
+          title: "Crypto Exchanges Directory — 50+ CEX & DEX Platforms Compared",
+          description: "Compare 50+ cryptocurrency exchanges worldwide. Find the best CEX and DEX platforms with features, fees, and trusted affiliate links.",
+          keywords: "crypto exchanges, best exchange, coinbase, binance, dex, cex, trading platform, crypto trading",
+        },
+        "/staking": {
+          title: "Crypto Staking Calculator — Estimate PoS Rewards & Earnings",
+          description: "Calculate staking rewards for 10+ proof-of-stake cryptocurrencies. Compound interest projections, track positions, and maximize your passive crypto income.",
+          keywords: "staking calculator, crypto staking, proof of stake, staking rewards, passive income, ethereum staking, cardano staking",
+        },
+        "/masternodes": {
+          title: "Masternode Tracker — Collateral, ROI & Validator Statistics",
+          description: "Track masternode requirements, ROI, and live validator stats for major PoS networks. Real-time staking data for ETH, SOL, ATOM, ADA, DOT, and more.",
+          keywords: "masternode tracker, validator stats, staking apy, masternode roi, proof of stake, crypto nodes",
+        },
+        "/arbitrage": {
+          title: "Crypto Arbitrage Scanner — Find Cross-Exchange Price Differences",
+          description: "Real-time arbitrage opportunities across 20+ exchanges. Compare prices for 40 cryptocurrencies, calculate profits, and find the best spreads instantly.",
+          keywords: "crypto arbitrage, price difference, cross-exchange trading, arbitrage scanner, bitcoin arbitrage, spread trading",
+        },
+        "/swap": {
+          title: "Crypto Swap — Exchange 900+ Coins Instantly with Best Rates",
+          description: "Swap cryptocurrencies instantly across 900+ coins. Real-time exchange rates, low fees, and 3-step exchange process powered by ChangeNOW.",
+          keywords: "crypto swap, coin exchange, token swap, changenow, cryptocurrency exchange, instant swap",
+        },
+        "/dex": {
+          title: "DEX Screener — Real-Time DEX Pair Analytics & Trending Tokens",
+          description: "Track trending DEX tokens, search pairs across 80+ blockchains, view real-time price changes, volume, and liquidity data for decentralized exchanges.",
+          keywords: "dex screener, dex analytics, trending tokens, uniswap, defi pairs, liquidity, dex trading",
+        },
+        "/calculator": {
+          title: "Crypto Calculator — Real-Time Crypto-to-Fiat Converter",
+          description: "Convert between 12 popular cryptocurrencies and 8 fiat currencies in real-time. Quick conversion shortcuts and live popular exchange rates.",
+          keywords: "crypto calculator, bitcoin converter, crypto to fiat, ethereum converter, currency converter, exchange rate",
+        },
+        "/chat": {
+          title: "Community Chat — Discuss Crypto Markets & Trading Ideas",
+          description: "Join the TokenAltcoin community chat. Discuss crypto markets, share trading ideas, and connect with fellow crypto enthusiasts in real-time.",
+          keywords: "crypto chat, community, trading discussion, crypto forum, market talk, bitcoin chat",
+        },
+        "/dashboard": {
+          title: "Crypto Dashboard — Customizable Market Overview & Widgets",
+          description: "Your personalized crypto command center. Drag-and-drop widgets for market overview, portfolio, alerts, watchlist, Fear & Greed, and trending coins.",
+          keywords: "crypto dashboard, market overview, portfolio widget, crypto widgets, customizable dashboard",
+        },
+        "/airdrops": {
+          title: "Free Crypto Airdrops — Verified Token Giveaways & Rewards",
+          description: "Discover verified crypto airdrops and token giveaways. Step-by-step guides, requirements, and deadlines for the latest free crypto opportunities.",
+          keywords: "crypto airdrops, free crypto, token giveaway, airdrop list, free tokens, crypto rewards",
+        },
+        "/gold": {
+          title: "Gold & Precious Metals — Live Spot Prices & Tokenized Gold",
+          description: "Live gold and silver spot prices, gold-backed token market data, weight calculator, and tokenized gold news. Track PAXG, XAUT, and more.",
+          keywords: "gold price, tokenized gold, paxg, xaut, precious metals, gold backed crypto, silver price",
+        },
+      };
+
+      const seo = PAGE_SEO[pagePath] || {
+        title: `${pageLabel} — TokenAltcoin`,
+        description: `Explore ${pageLabel.toLowerCase()} on TokenAltcoin — your free multi-chain crypto platform with live data, analytics, and portfolio tools.`,
+        keywords: `${pageLabel.toLowerCase()}, crypto, blockchain, tokenaltcoin`,
+      };
+
+      res.json({
+        metaTitle: seo.title,
+        metaDescription: seo.description,
+        metaKeywords: seo.keywords,
+        ogTitle: seo.title,
+        ogDescription: seo.description,
+        ogImage: `${baseUrl}/opengraph.jpg`,
+        canonical: `${baseUrl}${pagePath}`,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/admin/blog", requireAdmin, async (req, res) => {
     try {
       const parsed = insertBlogPostSchema.safeParse(req.body);
