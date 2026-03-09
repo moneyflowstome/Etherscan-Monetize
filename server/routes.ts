@@ -704,6 +704,92 @@ export async function registerRoutes(
     }
   });
 
+  const braveSearchCache: Record<string, { data: any; timestamp: number }> = {};
+  const BRAVE_SEARCH_CACHE_TTL = 300000;
+
+  app.get("/api/news/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string) || "cryptocurrency";
+      const cacheKey = `brave-search-${q.toLowerCase().trim()}`;
+
+      if (braveSearchCache[cacheKey] && Date.now() - braveSearchCache[cacheKey].timestamp < BRAVE_SEARCH_CACHE_TTL) {
+        return res.json(braveSearchCache[cacheKey].data);
+      }
+
+      let articles: any[] = [];
+      let source = "brave";
+
+      const braveKey = process.env.BRAVE_API_KEY;
+      if (braveKey) {
+        try {
+          const response = await fetch(
+            `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q + " crypto news")}&count=20`,
+            {
+              headers: {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip",
+                "X-Subscription-Token": braveKey,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const webResults = data.web?.results || [];
+            articles = webResults.map((item: any) => ({
+              id: item.url,
+              title: item.title,
+              body: item.description || "",
+              url: item.url,
+              imageUrl: item.thumbnail?.src || null,
+              source: (item.meta_url?.hostname || new URL(item.url).hostname).replace("www.", ""),
+              publishedAt: item.age ? Date.now() : Date.now(),
+              categories: "crypto",
+              tags: [],
+            }));
+          }
+        } catch {}
+      }
+
+      if (articles.length === 0) {
+        try {
+          const ccUrl = `https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=popular&categories=${encodeURIComponent(q)}`;
+          const ccRes = await fetch(ccUrl);
+          if (ccRes.ok) {
+            const ccData = await ccRes.json();
+            if (ccData.Data && Array.isArray(ccData.Data)) {
+              const keyword = q.toLowerCase();
+              const filtered = ccData.Data.filter((item: any) => {
+                const text = `${item.title || ""} ${item.body || ""} ${item.categories || ""} ${item.tags || ""}`.toLowerCase();
+                return text.includes(keyword);
+              });
+              articles = (filtered.length > 0 ? filtered : ccData.Data).slice(0, 20).map((item: any) => ({
+                id: item.id,
+                title: item.title,
+                body: item.body?.substring(0, 200) + "...",
+                url: item.url,
+                imageUrl: item.imageurl,
+                source: item.source_info?.name || item.source,
+                publishedAt: item.published_on * 1000,
+                categories: item.categories,
+                tags: item.tags?.split("|").slice(0, 5) || [],
+              }));
+              source = "cryptocompare";
+            }
+          }
+        } catch {}
+      }
+
+      const result = { articles, source, timestamp: Date.now() };
+      braveSearchCache[cacheKey] = { data: result, timestamp: Date.now() };
+      res.json(result);
+    } catch (err: any) {
+      const cacheKey = `brave-search-${((req.query.q as string) || "cryptocurrency").toLowerCase().trim()}`;
+      if (braveSearchCache[cacheKey]) return res.json(braveSearchCache[cacheKey].data);
+      res.json({ articles: [], source: "fallback", error: err.message });
+    }
+  });
+
   async function xrplRequest(method: string, params: any[] = [{}]) {
     const response = await fetch(XRPL_RPC, {
       method: "POST",

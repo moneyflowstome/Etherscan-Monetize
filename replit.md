@@ -72,6 +72,23 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - AdBanner returns null when unfilled (no empty space)
 - Replace `ca-pub-XXXXXXXXXXXXXXXX` with real publisher ID
 - Admin panel allows managing ad slot IDs via settings
+- **Affiliate Links** placed across site:
+  - TradingView: coin detail panel, chart tab, DEX page, staking page, prices page, footer
+  - Coinbase: exchanges (DB), prices page, footer
+  - Coinbase Advanced: exchanges (DB)
+  - Gemini: exchanges (DB, featured), footer
+  - Robinhood: exchanges (DB, featured), exchanges partners section, footer
+  - GoMining: masternodes page, staking page, exchanges partners section, footer
+  - Pineify: DEX page, prices page, exchanges partners section
+  - Good Crypto: DEX page, prices page, exchanges partners section
+  - Hostinger: exchanges partners section, footer
+  - YoBit: exchanges (DB)
+  - PIVX: masternodes page (docs link)
+  - Brave: news search page, footer (download referral via app.adjust.com/3bipw7n)
+- **News Search** at `/api/news/search?q=` — Brave Search API (primary, if valid key) with CryptoCompare fallback, 5min cache
+- Exchanges page has "Recommended Tools & Partners" section with 6 affiliate cards
+- Footer shows partner links row (TradingView, Coinbase, Gemini, GoMining, Robinhood, Brave, Hostinger)
+- Admin route `POST /api/admin/exchanges/update-affiliates` to batch-update existing exchange rows with affiliate URLs
 
 ## API Routes
 ### Public

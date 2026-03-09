@@ -29,6 +29,7 @@ export function Footer() {
             { name: "Gemini", url: "https://exchange.gemini.com/register?referral=68zng9ce&type=referral" },
             { name: "GoMining", url: "https://gomining.com/?ref=8H3M22H" },
             { name: "Robinhood", url: "https://join.robinhood.com/alexisd4" },
+            { name: "Brave", url: "https://app.adjust.com/3bipw7n" },
             { name: "Hostinger", url: "https://www.hostinger.com?REFERRALCODE=IG5MONEYFAMV" },
           ].map((p) => (
             <a

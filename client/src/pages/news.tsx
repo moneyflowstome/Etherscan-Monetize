@@ -14,7 +14,9 @@ import {
   TrendingDown,
   Minus,
   BarChart3,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
@@ -203,13 +205,14 @@ function getCryptoCategoryCounts(articles: any[]): Record<string, number> {
   return counts;
 }
 
-type FeedType = "crypto" | "world" | "usa";
+type FeedType = "crypto" | "world" | "usa" | "search";
 type SentimentFilter = "all" | "bullish" | "bearish" | "neutral";
 
 const FEED_TABS: { key: FeedType; label: string; icon: any; description: string }[] = [
   { key: "crypto", label: "Crypto", icon: Bitcoin, description: "Cryptocurrency & blockchain news" },
   { key: "world", label: "World", icon: Globe, description: "International headlines" },
   { key: "usa", label: "USA", icon: Flag, description: "United States news & trending" },
+  { key: "search", label: "Search", icon: Search, description: "Search news powered by Brave" },
 ];
 
 const SENTIMENT_FILTERS: { key: SentimentFilter; label: string; icon: any; color: string; activeColor: string }[] = [
@@ -287,6 +290,20 @@ export default function NewsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [viewMode, setViewMode] = useState<"latest" | "archive">("latest");
   const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("cryptocurrency");
+  const [searchInput, setSearchInput] = useState("");
+
+  const searchNewsQuery = useQuery({
+    queryKey: ["/api/news/search", searchQuery],
+    queryFn: async () => {
+      const res = await fetch(`/api/news/search?q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error("Failed to search news");
+      return res.json();
+    },
+    refetchInterval: 300000,
+    staleTime: 120000,
+    enabled: feedType === "search",
+  });
 
   const cryptoQuery = useQuery({
     queryKey: ["/api/news"],
@@ -385,6 +402,14 @@ export default function NewsPage() {
     isLoading = usaQuery.isLoading;
     pageTitle = "USA News";
     pageDescription = `${usaArticles.length} articles from US sources`;
+  } else if (feedType === "search") {
+    const searchArticles = searchNewsQuery.data?.articles || [];
+    displayArticles = searchArticles;
+    isLoading = searchNewsQuery.isLoading;
+    pageTitle = "News Search";
+    pageDescription = searchArticles.length > 0
+      ? `${searchArticles.length} results for "${searchQuery}" — powered by Brave Search`
+      : `Search crypto news — powered by Brave Search`;
   }
 
   const articlesBeforeSentimentFilter = displayArticles;
@@ -479,7 +504,8 @@ export default function NewsPage() {
             const count =
               tab.key === "crypto" ? cryptoArticles.length
               : tab.key === "world" ? worldArticles.length
-              : usaArticles.length;
+              : tab.key === "usa" ? usaArticles.length
+              : (searchNewsQuery.data?.articles || []).length;
             return (
               <Button
                 key={tab.key}
@@ -502,6 +528,36 @@ export default function NewsPage() {
             );
           })}
         </div>
+
+        {feedType === "search" && (
+          <div className="mb-5">
+            <form onSubmit={(e) => { e.preventDefault(); if (searchInput.trim()) setSearchQuery(searchInput.trim()); }} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search crypto news (e.g. Bitcoin ETF, Ethereum merge, DeFi)..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="pl-9 bg-card border-border"
+                  data-testid="input-news-search"
+                />
+              </div>
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" data-testid="button-news-search">
+                <Search className="w-4 h-4 mr-1.5" /> Search
+              </Button>
+            </form>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] text-muted-foreground">Powered by</span>
+              <a href="https://app.adjust.com/3bipw7n" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors" data-testid="link-brave-search">
+                Brave Search <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+              <span className="text-[10px] text-muted-foreground mx-1">|</span>
+              <a href="https://app.adjust.com/3bipw7n" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors" data-testid="link-brave-download">
+                Download Brave Browser <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+          </div>
+        )}
 
         {showCryptoCategories && (
           <div className="flex gap-2 flex-wrap mb-6" data-testid="news-category-tabs">
