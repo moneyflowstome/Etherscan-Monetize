@@ -13,10 +13,10 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 ## Key Features
 - Wallet address lookup with real-time balance display
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
-- Multi-Chain Explorer hub at `/explorer` — 24+ chains in 3 sections: "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
-- Bitcoin Explorer — address balance + recent transactions via Blockstream API (free, no key)
-- Solana Explorer — account balance + recent transaction signatures via Solana public RPC (free, no key)
-- Dogecoin Explorer — address balance + recent transactions via Blockcypher API (free, no key)
+- Multi-Chain Explorer hub at `/explorer` — 24+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base)
+- Every chain shows live CoinGecko coin info (price, market cap, volume, ATH, supply, description) via `/api/coin/:id`
+- Address lookup built-in for: BTC (Blockstream), SOL (Solana RPC), DOGE/LTC/BCH (Blockcypher), TRX (TronGrid), XLM (Stellar Horizon), XEM (NEM NIS), NEO (NEO N3 RPC)
+- Chains without address APIs (ADA, DOT, TON, ATOM, NEAR) show full coin info; ERC-20 tokens (LINK, SHIB) link to Wallet Tracker
 - XRP Explorer at `/xrp` — wallet lookup, transaction history, token holdings (trust lines), NFTs, and live ledger stats (all free via XRPL public JSON-RPC)
 - Staking Calculator at `/staking` — compound interest calculator for 10 PoS coins with live price integration
 - Transaction history + token transfer tracking
@@ -66,6 +66,19 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/sol/transactions/:address` - Solana recent transaction signatures (last 15) via public RPC
 - `GET /api/doge/address/:address` - Dogecoin address info (balance, tx count, received/sent) via Blockcypher
 - `GET /api/doge/transactions/:address` - Dogecoin recent transactions (last 15) via Blockcypher
+- `GET /api/ltc/address/:address` - Litecoin address info via Blockcypher
+- `GET /api/ltc/transactions/:address` - Litecoin recent transactions via Blockcypher
+- `GET /api/bch/address/:address` - Bitcoin Cash address info via Blockcypher
+- `GET /api/bch/transactions/:address` - Bitcoin Cash recent transactions via Blockcypher
+- `GET /api/trx/account/:address` - TRON account info (balance, bandwidth, energy) via TronGrid
+- `GET /api/trx/transactions/:address` - TRON recent transactions via TronGrid
+- `GET /api/xlm/account/:address` - Stellar account info (balances, subentries) via Horizon
+- `GET /api/xlm/transactions/:address` - Stellar recent transactions via Horizon
+- `GET /api/xem/account/:address` - NEM account info (balance, vested, importance) via NIS
+- `GET /api/xem/transactions/:address` - NEM recent transactions via NIS
+- `GET /api/neo/account/:address` - NEO N3 token balances (NEO, GAS) via RPC
+- `GET /api/neo/transactions/:address` - NEO N3 recent transfers via RPC
+- `GET /api/coin/:id` - Detailed coin info from CoinGecko (price, market cap, ATH, supply, description)
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data

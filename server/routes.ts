@@ -993,6 +993,511 @@ export async function registerRoutes(
     }
   });
 
+  const coinInfoCache: Record<string, { data: any; timestamp: number }> = {};
+  const COIN_INFO_CACHE_TTL = 60000;
+
+  app.get("/api/coin/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!id || !/^[a-z0-9\-]+$/.test(id)) {
+        return res.status(400).json({ error: "Invalid coin ID" });
+      }
+
+      const cached = coinInfoCache[id];
+      if (cached && Date.now() - cached.timestamp < COIN_INFO_CACHE_TTL) {
+        return res.json(cached.data);
+      }
+
+      const url = `${COINGECKO_BASE}/coins/${id}?localization=false&tickers=false&community_data=false&developer_data=false`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return res.status(404).json({ error: "Coin not found" });
+        throw new Error(`CoinGecko API error: ${response.status}`);
+      }
+      const raw = await response.json();
+
+      const md = raw.market_data || {};
+      const desc = raw.description?.en || "";
+      const data = {
+        name: raw.name,
+        symbol: raw.symbol,
+        image: raw.image?.large || raw.image?.small || null,
+        current_price: md.current_price?.usd ?? null,
+        market_cap: md.market_cap?.usd ?? null,
+        market_cap_rank: raw.market_cap_rank ?? null,
+        total_volume: md.total_volume?.usd ?? null,
+        price_change_24h: md.price_change_24h ?? null,
+        price_change_percentage_24h: md.price_change_percentage_24h ?? null,
+        ath: md.ath?.usd ?? null,
+        ath_date: md.ath_date?.usd ?? null,
+        atl: md.atl?.usd ?? null,
+        atl_date: md.atl_date?.usd ?? null,
+        circulating_supply: md.circulating_supply ?? null,
+        total_supply: md.total_supply ?? null,
+        max_supply: md.max_supply ?? null,
+        description: desc.substring(0, 300),
+        links: {
+          homepage: raw.links?.homepage?.filter(Boolean) || [],
+          blockchain_site: raw.links?.blockchain_site?.filter(Boolean) || [],
+        },
+      };
+
+      coinInfoCache[id] = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const BLOCKCYPHER_LTC_BASE = "https://api.blockcypher.com/v1/ltc/main";
+
+  function isValidLtcAddress(address: string): boolean {
+    if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
+    if (/^ltc1[a-zA-HJ-NP-Z0-9]{25,89}$/.test(address)) return true;
+    return false;
+  }
+
+  app.get("/api/ltc/address/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidLtcAddress(address)) {
+        return res.status(400).json({ error: "Invalid Litecoin address. Must start with L, M, 3, or ltc1." });
+      }
+
+      const response = await fetch(`${BLOCKCYPHER_LTC_BASE}/addrs/${address}/balance`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Litecoin address" });
+        throw new Error(`Blockcypher API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      res.json({
+        address: data.address,
+        balance: (data.balance / 100000000).toFixed(8),
+        balanceSats: data.balance,
+        totalReceived: (data.total_received / 100000000).toFixed(8),
+        totalReceivedSats: data.total_received,
+        totalSent: (data.total_sent / 100000000).toFixed(8),
+        totalSentSats: data.total_sent,
+        txCount: data.n_tx,
+        unconfirmedBalance: (data.unconfirmed_balance / 100000000).toFixed(8),
+        unconfirmedTxCount: data.unconfirmed_n_tx,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/ltc/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidLtcAddress(address)) {
+        return res.status(400).json({ error: "Invalid Litecoin address. Must start with L, M, 3, or ltc1." });
+      }
+
+      const response = await fetch(`${BLOCKCYPHER_LTC_BASE}/addrs/${address}?limit=15`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Litecoin address" });
+        throw new Error(`Blockcypher API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const transactions = (data.txrefs || []).map((tx: any) => ({
+        txid: tx.tx_hash,
+        blockHeight: tx.block_height,
+        value: (tx.value / 100000000).toFixed(8),
+        valueSats: tx.value,
+        confirmed: tx.confirmations > 0,
+        confirmations: tx.confirmations,
+        time: tx.confirmed ? new Date(tx.confirmed).getTime() : null,
+        confirmedAt: tx.confirmed || null,
+        txInputN: tx.tx_input_n,
+        txOutputN: tx.tx_output_n,
+        spent: tx.spent || false,
+        doubleSpend: tx.double_spend || false,
+      }));
+
+      res.json({ address: data.address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const BLOCKCYPHER_BCH_BASE = "https://api.blockcypher.com/v1/bch/main";
+
+  function isValidBchAddress(address: string): boolean {
+    if (/^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address)) return true;
+    if (/^[qp][a-z0-9]{25,49}$/.test(address)) return true;
+    return false;
+  }
+
+  app.get("/api/bch/address/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidBchAddress(address)) {
+        return res.status(400).json({ error: "Invalid Bitcoin Cash address. Must start with 1, 3, q, or p." });
+      }
+
+      const response = await fetch(`${BLOCKCYPHER_BCH_BASE}/addrs/${address}/balance`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Bitcoin Cash address" });
+        throw new Error(`Blockcypher API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      res.json({
+        address: data.address,
+        balance: (data.balance / 100000000).toFixed(8),
+        balanceSats: data.balance,
+        totalReceived: (data.total_received / 100000000).toFixed(8),
+        totalReceivedSats: data.total_received,
+        totalSent: (data.total_sent / 100000000).toFixed(8),
+        totalSentSats: data.total_sent,
+        txCount: data.n_tx,
+        unconfirmedBalance: (data.unconfirmed_balance / 100000000).toFixed(8),
+        unconfirmedTxCount: data.unconfirmed_n_tx,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/bch/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidBchAddress(address)) {
+        return res.status(400).json({ error: "Invalid Bitcoin Cash address. Must start with 1, 3, q, or p." });
+      }
+
+      const response = await fetch(`${BLOCKCYPHER_BCH_BASE}/addrs/${address}?limit=15`);
+      if (!response.ok) {
+        if (response.status === 400) return res.status(400).json({ error: "Invalid Bitcoin Cash address" });
+        throw new Error(`Blockcypher API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const transactions = (data.txrefs || []).map((tx: any) => ({
+        txid: tx.tx_hash,
+        blockHeight: tx.block_height,
+        value: (tx.value / 100000000).toFixed(8),
+        valueSats: tx.value,
+        confirmed: tx.confirmations > 0,
+        confirmations: tx.confirmations,
+        time: tx.confirmed ? new Date(tx.confirmed).getTime() : null,
+        confirmedAt: tx.confirmed || null,
+        txInputN: tx.tx_input_n,
+        txOutputN: tx.tx_output_n,
+        spent: tx.spent || false,
+        doubleSpend: tx.double_spend || false,
+      }));
+
+      res.json({ address: data.address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  function isValidTrxAddress(address: string): boolean {
+    return /^T[a-zA-Z0-9]{33}$/.test(address);
+  }
+
+  app.get("/api/trx/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidTrxAddress(address)) {
+        return res.status(400).json({ error: "Invalid TRON address. Must start with T and be 34 characters." });
+      }
+
+      const response = await fetch(`https://api.trongrid.io/v1/accounts/${address}`);
+      if (!response.ok) {
+        throw new Error(`TronGrid API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      if (!data.data || data.data.length === 0) {
+        return res.status(404).json({ error: "Account not found on TRON network" });
+      }
+
+      const acct = data.data[0];
+      const balanceSun = acct.balance || 0;
+      const frozenBalance = (acct.frozen || []).reduce((sum: number, f: any) => sum + (f.frozen_balance || 0), 0);
+
+      res.json({
+        address: acct.address,
+        balance: (balanceSun / 1000000).toFixed(6),
+        balanceSun,
+        bandwidth: acct.free_net_usage || 0,
+        energy: acct.energy_usage || 0,
+        frozenBalance: (frozenBalance / 1000000).toFixed(6),
+        frozenBalanceSun: frozenBalance,
+        createTime: acct.create_time || null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/trx/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidTrxAddress(address)) {
+        return res.status(400).json({ error: "Invalid TRON address. Must start with T and be 34 characters." });
+      }
+
+      const response = await fetch(`https://api.trongrid.io/v1/accounts/${address}/transactions?limit=15`);
+      if (!response.ok) {
+        throw new Error(`TronGrid API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const transactions = (data.data || []).map((tx: any) => {
+        const contract = tx.raw_data?.contract?.[0] || {};
+        const value = contract.parameter?.value || {};
+        return {
+          txID: tx.txID,
+          blockNumber: tx.blockNumber,
+          timestamp: tx.block_timestamp || null,
+          from: value.owner_address || null,
+          to: value.to_address || null,
+          amount: value.amount ? (value.amount / 1000000).toFixed(6) : null,
+          type: contract.type || null,
+          confirmed: tx.ret?.[0]?.contractRet === "SUCCESS",
+        };
+      });
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  function isValidXlmAddress(address: string): boolean {
+    return /^G[A-Z2-7]{55}$/.test(address);
+  }
+
+  app.get("/api/xlm/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidXlmAddress(address)) {
+        return res.status(400).json({ error: "Invalid Stellar address. Must start with G and be 56 characters." });
+      }
+
+      const response = await fetch(`https://horizon.stellar.org/accounts/${address}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return res.status(404).json({ error: "Account not found on Stellar network" });
+        }
+        throw new Error(`Horizon API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const balances = (data.balances || []).map((b: any) => ({
+        asset_type: b.asset_type,
+        asset_code: b.asset_code || null,
+        asset_issuer: b.asset_issuer || null,
+        balance: b.balance,
+      }));
+
+      res.json({
+        account_id: data.account_id,
+        sequence: data.sequence,
+        balances,
+        subentry_count: data.subentry_count,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/xlm/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isValidXlmAddress(address)) {
+        return res.status(400).json({ error: "Invalid Stellar address. Must start with G and be 56 characters." });
+      }
+
+      const response = await fetch(`https://horizon.stellar.org/accounts/${address}/transactions?limit=15&order=desc`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return res.status(404).json({ error: "Account not found on Stellar network" });
+        }
+        throw new Error(`Horizon API error: ${response.status}`);
+      }
+      const data = await response.json();
+
+      const transactions = (data._embedded?.records || []).map((tx: any) => ({
+        id: tx.id,
+        hash: tx.hash,
+        created_at: tx.created_at,
+        source_account: tx.source_account,
+        fee_charged: tx.fee_charged,
+        operation_count: tx.operation_count,
+        successful: tx.successful,
+        memo: tx.memo || null,
+      }));
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const NEM_NODE = "https://nem.peernode.net:7891";
+
+  app.get("/api/xem/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      const cleaned = address.replace(/-/g, "").toUpperCase();
+      if (!cleaned.startsWith("N") || cleaned.length !== 40) {
+        return res.status(400).json({ error: "Invalid NEM address. Must start with N and be 40 characters." });
+      }
+
+      const response = await fetch(`${NEM_NODE}/account/get?address=${cleaned}`);
+      if (!response.ok) throw new Error(`NEM API error: ${response.status}`);
+      const data = await response.json();
+
+      if (!data.account) throw new Error("Account not found");
+
+      const account = data.account;
+      res.json({
+        address: account.address,
+        balance: (account.balance / 1000000).toFixed(6),
+        vestedBalance: ((account.vestedBalance || 0) / 1000000).toFixed(6),
+        importance: account.importance || 0,
+        publicKey: account.publicKey || null,
+        harvestedBlocks: account.harvestedBlocks || 0,
+      });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch NEM account";
+      if (msg.includes("not found")) return res.status(404).json({ error: "Account not found on NEM network" });
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/xem/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      const cleaned = address.replace(/-/g, "").toUpperCase();
+      if (!cleaned.startsWith("N") || cleaned.length !== 40) {
+        return res.status(400).json({ error: "Invalid NEM address" });
+      }
+
+      const response = await fetch(`${NEM_NODE}/account/transfers/all?address=${cleaned}`);
+      if (!response.ok) throw new Error(`NEM API error: ${response.status}`);
+      const data = await response.json();
+
+      const transactions = (data.data || []).slice(0, 15).map((entry: any) => {
+        const tx = entry.transaction;
+        const meta = entry.meta;
+        return {
+          hash: meta?.hash?.data || meta?.innerHash?.data || "",
+          height: meta?.height || 0,
+          timestamp: tx.timeStamp ? (tx.timeStamp + 1427587585) * 1000 : 0,
+          type: tx.type,
+          amount: tx.amount ? (tx.amount / 1000000).toFixed(6) : "0",
+          fee: tx.fee ? (tx.fee / 1000000).toFixed(6) : "0",
+          recipient: tx.recipient || "",
+          sender: tx.signer || "",
+          message: tx.message?.payload ? Buffer.from(tx.message.payload, "hex").toString("utf8") : null,
+        };
+      });
+
+      res.json({ address: cleaned, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch NEM transactions" });
+    }
+  });
+
+  const NEO_RPC = "https://mainnet1.neo.coz.io:443";
+
+  async function neoRpcRequest(method: string, params: any[]) {
+    const response = await fetch(NEO_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    });
+    if (!response.ok) throw new Error(`NEO RPC error: ${response.status}`);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message || "NEO RPC error");
+    return data.result;
+  }
+
+  app.get("/api/neo/account/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address.startsWith("N") || address.length !== 34) {
+        return res.status(400).json({ error: "Invalid NEO address. Must start with N and be 34 characters." });
+      }
+
+      const result = await neoRpcRequest("getnep17balances", [address]);
+
+      const balances = (result.balance || []).map((b: any) => {
+        const knownTokens: Record<string, { name: string; symbol: string; decimals: number }> = {
+          "0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5": { name: "NEO", symbol: "NEO", decimals: 0 },
+          "0xd2a4cff31913016155e38e474a2c06d08be276cf": { name: "GAS", symbol: "GAS", decimals: 8 },
+        };
+        const token = knownTokens[b.assethash] || { name: "Unknown", symbol: b.assethash.slice(0, 8), decimals: 8 };
+        const amount = Number(b.amount) / Math.pow(10, token.decimals);
+        return {
+          asset: b.assethash,
+          name: token.name,
+          symbol: token.symbol,
+          amount: amount.toString(),
+          lastUpdatedBlock: b.lastupdatedblock,
+        };
+      });
+
+      res.json({
+        address: result.address || address,
+        balances,
+      });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch NEO account";
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  app.get("/api/neo/transactions/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address.startsWith("N") || address.length !== 34) {
+        return res.status(400).json({ error: "Invalid NEO address" });
+      }
+
+      const result = await neoRpcRequest("getnep17transfers", [address, 0]);
+
+      const sent = (result.sent || []).slice(0, 8).map((t: any) => ({
+        txHash: t.txhash,
+        timestamp: t.timestamp,
+        asset: t.assethash,
+        amount: t.amount,
+        from: t.transferaddress || address,
+        to: t.transferaddress || "",
+        direction: "sent" as const,
+        blockIndex: t.blockindex,
+      }));
+
+      const received = (result.received || []).slice(0, 8).map((t: any) => ({
+        txHash: t.txhash,
+        timestamp: t.timestamp,
+        asset: t.assethash,
+        amount: t.amount,
+        from: t.transferaddress || "",
+        to: t.transferaddress || address,
+        direction: "received" as const,
+        blockIndex: t.blockindex,
+      }));
+
+      const transactions = [...sent, ...received]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 15);
+
+      res.json({ address, transactions });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to fetch NEO transactions" });
+    }
+  });
+
   app.get("/api/masternodes", async (_req, res) => {
     try {
       if (masternodeCache && Date.now() - masternodeCache.timestamp < MASTERNODE_CACHE_TTL) {
