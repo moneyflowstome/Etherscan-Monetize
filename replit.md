@@ -26,6 +26,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Fear & Greed Index — live gauge widget on explorer homepage (compact) and prices page (full), powered by Alternative.me API, 7-day history bar chart, cached 10 min via `/api/fear-greed`
 - Market Overview widget on prices page — total market cap, 24h volume, BTC dominance bar, BTC/ETH live prices
 - Price Alerts at `/alerts` — search any coin, set upper/lower price thresholds, stored in localStorage, polls every 60s, toast notifications when triggered, active/triggered sections
+- Compare Coins at `/compare` — side-by-side analysis of up to 4 cryptocurrencies, comparing price, market cap, rank, volume, 24h change, ATH, ATL, supply; crown icon highlights best value per metric; mobile-friendly card layout; quick-add suggestion buttons
 - Portfolio Tracker at `/portfolio` — search any of 10,000+ coins via CoinGecko search API, add holdings (quantity + purchase price), live P&L tracking, allocation pie chart (Recharts), total value/cost/return summary, localStorage persistence
 - News Sentiment Analysis on `/news` — keyword-based bullish/bearish/neutral scoring, sentiment badges on each article, sentiment filter buttons, market sentiment summary bar at top
 - Customizable Dashboard at `/dashboard` — 7 widgets (Market Overview, Fear & Greed, Portfolio Summary, Price Alerts, Watchlist, Trending, News Headlines), show/hide and reorder, drag-and-drop support, localStorage persistence
