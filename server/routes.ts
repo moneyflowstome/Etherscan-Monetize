@@ -1122,6 +1122,41 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/sol/tokens/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!address || address.length < 32 || address.length > 44) {
+        return res.status(400).json({ error: "Invalid Solana address" });
+      }
+
+      const result = await solanaRpcRequest("getTokenAccountsByOwner", [
+        address,
+        { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { encoding: "jsonParsed" },
+      ]);
+
+      const tokens = (result.value || [])
+        .map((item: any) => {
+          const info = item.account?.data?.parsed?.info;
+          if (!info) return null;
+          const amount = info.tokenAmount;
+          if (!amount || parseFloat(amount.uiAmountString || "0") === 0) return null;
+          return {
+            mint: info.mint,
+            balance: amount.uiAmountString || "0",
+            decimals: amount.decimals || 0,
+            rawAmount: amount.amount || "0",
+          };
+        })
+        .filter(Boolean);
+
+      res.json({ address, tokens });
+    } catch (err: any) {
+      const msg = err.message || "Failed to fetch SPL tokens";
+      res.status(500).json({ error: msg });
+    }
+  });
+
   const BLOCKSTREAM_BASE = "https://blockstream.info/api";
 
   app.get("/api/btc/address/:address", async (req, res) => {

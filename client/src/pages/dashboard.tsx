@@ -17,6 +17,8 @@ import {
   Loader2,
   Download,
   FileText,
+  XCircle,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,15 +31,16 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
 const CHAIN_OPTIONS = [
-  { name: "ethereum", id: 1, symbol: "ETH", color: "bg-blue-500/20 text-blue-400 border-blue-500/30", isTron: false },
-  { name: "bsc", id: 56, symbol: "BNB", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", isTron: false },
-  { name: "polygon", id: 137, symbol: "MATIC", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", isTron: false },
-  { name: "arbitrum", id: 42161, symbol: "ETH", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", isTron: false },
-  { name: "optimism", id: 10, symbol: "ETH", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: false },
-  { name: "base", id: 8453, symbol: "ETH", color: "bg-blue-400/20 text-blue-300 border-blue-400/30", isTron: false },
-  { name: "avalanche", id: 43114, symbol: "AVAX", color: "bg-red-600/20 text-red-400 border-red-600/30", isTron: false },
-  { name: "flare", id: 14, symbol: "FLR", color: "bg-rose-500/20 text-rose-400 border-rose-500/30", isTron: false },
-  { name: "tron", id: -1, symbol: "TRX", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: true },
+  { name: "ethereum", id: 1, symbol: "ETH", color: "bg-blue-500/20 text-blue-400 border-blue-500/30", isTron: false, isSolana: false },
+  { name: "bsc", id: 56, symbol: "BNB", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", isTron: false, isSolana: false },
+  { name: "polygon", id: 137, symbol: "MATIC", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", isTron: false, isSolana: false },
+  { name: "arbitrum", id: 42161, symbol: "ETH", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", isTron: false, isSolana: false },
+  { name: "optimism", id: 10, symbol: "ETH", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: false, isSolana: false },
+  { name: "base", id: 8453, symbol: "ETH", color: "bg-blue-400/20 text-blue-300 border-blue-400/30", isTron: false, isSolana: false },
+  { name: "avalanche", id: 43114, symbol: "AVAX", color: "bg-red-600/20 text-red-400 border-red-600/30", isTron: false, isSolana: false },
+  { name: "flare", id: 14, symbol: "FLR", color: "bg-rose-500/20 text-rose-400 border-rose-500/30", isTron: false, isSolana: false },
+  { name: "solana", id: -2, symbol: "SOL", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", isTron: false, isSolana: true },
+  { name: "tron", id: -1, symbol: "TRX", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: true, isSolana: false },
 ];
 
 function formatAddress(address: string): string {
@@ -61,8 +64,16 @@ function isValidTronAddress(address: string): boolean {
   return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
 }
 
-function isValidAddress(address: string, isTron: boolean): boolean {
-  return isTron ? isValidTronAddress(address) : isValidEvmAddress(address);
+function isValidSolanaAddress(address: string): boolean {
+  if (address.startsWith("0x")) return false;
+  if (isValidTronAddress(address)) return false;
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+}
+
+function isValidAddress(address: string, isTron: boolean, isSolana: boolean): boolean {
+  if (isTron) return isValidTronAddress(address);
+  if (isSolana) return isValidSolanaAddress(address);
+  return isValidEvmAddress(address);
 }
 
 export default function Dashboard() {
@@ -77,10 +88,35 @@ export default function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const chainParam = params.get("chain");
+    const addressParam = params.get("address");
     if (chainParam) {
       const chainId = parseInt(chainParam, 10);
-      if (CHAIN_OPTIONS.some((c) => c.id === chainId)) {
+      const chain = CHAIN_OPTIONS.find((c) => c.id === chainId);
+      if (chain) {
         setSelectedChainId(chainId);
+        if (addressParam) {
+          const addr = addressParam.trim();
+          if (isValidAddress(addr, !!chain.isTron, !!chain.isSolana)) {
+            setWalletInput(addr);
+            setTrackedAddress(addr);
+          }
+        }
+      }
+    } else if (addressParam) {
+      const addr = addressParam.trim();
+      if (isValidTronAddress(addr)) {
+        const tronChain = CHAIN_OPTIONS.find((c) => c.isTron);
+        if (tronChain) setSelectedChainId(tronChain.id);
+        setWalletInput(addr);
+        setTrackedAddress(addr);
+      } else if (isValidSolanaAddress(addr)) {
+        const solChain = CHAIN_OPTIONS.find((c) => c.isSolana);
+        if (solChain) setSelectedChainId(solChain.id);
+        setWalletInput(addr);
+        setTrackedAddress(addr);
+      } else if (isValidEvmAddress(addr)) {
+        setWalletInput(addr);
+        setTrackedAddress(addr);
       }
     }
   }, []);
@@ -96,16 +132,22 @@ export default function Dashboard() {
       return;
     }
     if (isValidEvmAddress(address)) {
-      if (selectedChain.isTron) setSelectedChainId(1);
+      if (selectedChain.isTron || selectedChain.isSolana) setSelectedChainId(1);
+      setTrackedAddress(address);
+      return;
+    }
+    if (isValidSolanaAddress(address)) {
+      const solChain = CHAIN_OPTIONS.find((c) => c.isSolana);
+      if (solChain) setSelectedChainId(solChain.id);
       setTrackedAddress(address);
       return;
     }
     toast({
       title: "Invalid address",
-      description: "Enter a valid EVM address (0x...) or TRON address (T...)",
+      description: "Enter a valid EVM (0x...), TRON (T...), or Solana address",
       variant: "destructive",
     });
-  }, [walletInput, toast, selectedChain.isTron]);
+  }, [walletInput, toast, selectedChain.isTron, selectedChain.isSolana]);
 
   const handleConnectTronLink = useCallback(async () => {
     try {
@@ -133,6 +175,52 @@ export default function Dashboard() {
     }
   }, [toast]);
 
+  const handleConnectSolflare = useCallback(async () => {
+    try {
+      const solflare = (window as any).solflare;
+      if (!solflare) {
+        toast({ title: "Solflare not found", description: "Please install the Solflare browser extension.", variant: "destructive" });
+        return;
+      }
+      await solflare.connect();
+      const pubkey = solflare.publicKey?.toString();
+      if (!pubkey) {
+        toast({ title: "Connection failed", description: "Could not get public key from Solflare.", variant: "destructive" });
+        return;
+      }
+      setWalletInput(pubkey);
+      const solChain = CHAIN_OPTIONS.find((c) => c.isSolana);
+      if (solChain) setSelectedChainId(solChain.id);
+      setTrackedAddress(pubkey);
+      toast({ title: "Solflare Connected", description: `Tracking ${formatAddress(pubkey)}` });
+    } catch {
+      toast({ title: "Connection failed", description: "Could not connect to Solflare.", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const handleConnectPhantom = useCallback(async () => {
+    try {
+      const phantom = (window as any).phantom?.solana || (window as any).solana;
+      if (!phantom || !phantom.isPhantom) {
+        toast({ title: "Phantom not found", description: "Please install the Phantom browser extension.", variant: "destructive" });
+        return;
+      }
+      const resp = await phantom.connect();
+      const pubkey = resp.publicKey?.toString();
+      if (!pubkey) {
+        toast({ title: "Connection failed", description: "Could not get public key from Phantom.", variant: "destructive" });
+        return;
+      }
+      setWalletInput(pubkey);
+      const solChain = CHAIN_OPTIONS.find((c) => c.isSolana);
+      if (solChain) setSelectedChainId(solChain.id);
+      setTrackedAddress(pubkey);
+      toast({ title: "Phantom Connected", description: `Tracking ${formatAddress(pubkey)}` });
+    } catch {
+      toast({ title: "Connection failed", description: "Could not connect to Phantom.", variant: "destructive" });
+    }
+  }, [toast]);
+
   const handleCopyAddress = useCallback(() => {
     if (trackedAddress) {
       navigator.clipboard.writeText(trackedAddress);
@@ -142,6 +230,7 @@ export default function Dashboard() {
   }, [trackedAddress]);
 
   const isTronChain = selectedChain.isTron;
+  const isSolanaChain = selectedChain.isSolana;
 
   const ethPriceQuery = useQuery({
     queryKey: ["/api/eth-price"],
@@ -150,12 +239,17 @@ export default function Dashboard() {
   });
 
   const balanceQuery = useQuery({
-    queryKey: [isTronChain ? "/api/trx/account" : "/api/balance", trackedAddress, selectedChainId],
+    queryKey: [isTronChain ? "/api/trx/account" : isSolanaChain ? "/api/sol/account" : "/api/balance", trackedAddress, selectedChainId],
     queryFn: async () => {
       if (!trackedAddress) return null;
       if (isTronChain) {
         const res = await fetch(`/api/trx/account/${trackedAddress}`);
         if (!res.ok) throw new Error("Failed to fetch TRON account");
+        return res.json();
+      }
+      if (isSolanaChain) {
+        const res = await fetch(`/api/sol/account/${trackedAddress}`);
+        if (!res.ok) throw new Error("Failed to fetch Solana account");
         return res.json();
       }
       const res = await fetch(`/api/balance/${trackedAddress}?chainId=${selectedChainId}`);
@@ -167,7 +261,7 @@ export default function Dashboard() {
   });
 
   const txQuery = useQuery({
-    queryKey: [isTronChain ? "/api/trx/transactions" : "/api/transactions", trackedAddress, selectedChainId],
+    queryKey: [isTronChain ? "/api/trx/transactions" : isSolanaChain ? "/api/sol/transactions" : "/api/transactions", trackedAddress, selectedChainId],
     queryFn: async () => {
       if (!trackedAddress) return null;
       if (isTronChain) {
@@ -175,11 +269,28 @@ export default function Dashboard() {
         if (!res.ok) throw new Error("Failed to fetch TRON transactions");
         return res.json();
       }
+      if (isSolanaChain) {
+        const res = await fetch(`/api/sol/transactions/${trackedAddress}`);
+        if (!res.ok) throw new Error("Failed to fetch Solana transactions");
+        return res.json();
+      }
       const res = await fetch(`/api/transactions/${trackedAddress}?chainId=${selectedChainId}`);
       if (!res.ok) throw new Error("Failed to fetch transactions");
       return res.json();
     },
     enabled: !!trackedAddress,
+    refetchInterval: 60000,
+  });
+
+  const solTokensQuery = useQuery({
+    queryKey: ["/api/sol/tokens", trackedAddress],
+    queryFn: async () => {
+      if (!trackedAddress) return null;
+      const res = await fetch(`/api/sol/tokens/${trackedAddress}`);
+      if (!res.ok) return { tokens: [] };
+      return res.json();
+    },
+    enabled: !!trackedAddress && isSolanaChain,
     refetchInterval: 60000,
   });
 
@@ -191,7 +302,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Failed to fetch token transfers");
       return res.json();
     },
-    enabled: !!trackedAddress && !isTronChain,
+    enabled: !!trackedAddress && !isTronChain && !isSolanaChain,
     refetchInterval: 60000,
   });
 
@@ -202,7 +313,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Failed to fetch gas");
       return res.json();
     },
-    enabled: !isTronChain,
+    enabled: !isTronChain && !isSolanaChain,
     refetchInterval: 15000,
     staleTime: 10000,
   });
@@ -212,8 +323,11 @@ export default function Dashboard() {
     : 0;
 
   const tronAccount = isTronChain ? balanceQuery.data : null;
+  const solanaAccount = isSolanaChain ? balanceQuery.data : null;
   const nativeBalance = isTronChain
     ? (tronAccount?.balance ? parseFloat(tronAccount.balance) : 0)
+    : isSolanaChain
+    ? (solanaAccount?.balance ? parseFloat(solanaAccount.balance) : 0)
     : (balanceQuery.data?.result ? parseFloat(balanceQuery.data.result) / 1e18 : 0);
 
   const nativeValueUsd = nativeBalance * ethPrice;
@@ -222,7 +336,15 @@ export default function Dashboard() {
     ? txQuery.data.transactions.slice(0, 15)
     : [];
 
-  const transactions = isTronChain
+  const solanaTransactions = isSolanaChain && txQuery.data?.transactions && Array.isArray(txQuery.data.transactions)
+    ? txQuery.data.transactions.slice(0, 15)
+    : [];
+
+  const solanaTokens = isSolanaChain && solTokensQuery.data?.tokens && Array.isArray(solTokensQuery.data.tokens)
+    ? solTokensQuery.data.tokens
+    : [];
+
+  const transactions = isTronChain || isSolanaChain
     ? []
     : (txQuery.data?.result && Array.isArray(txQuery.data.result) ? txQuery.data.result.slice(0, 15) : []);
 
@@ -230,7 +352,7 @@ export default function Dashboard() {
     ? tokenTxQuery.data.result.slice(0, 15)
     : [];
 
-  const gasData = isTronChain ? null : gasQuery.data?.result;
+  const gasData = (isTronChain || isSolanaChain) ? null : gasQuery.data?.result;
 
   const uniqueTokens = new Map<string, { name: string; symbol: string; decimals: number; contract: string }>();
   if (tokenTxQuery.data?.result && Array.isArray(tokenTxQuery.data.result)) {
@@ -250,6 +372,7 @@ export default function Dashboard() {
 
   const getExplorerUrl = (hash: string) => {
     if (isTronChain) return `https://tronscan.org/#/transaction/${hash}`;
+    if (isSolanaChain) return `https://solscan.io/tx/${hash}`;
     const explorers: Record<number, string> = {
       1: "https://etherscan.io",
       56: "https://bscscan.com",
@@ -271,7 +394,18 @@ export default function Dashboard() {
       return val;
     };
 
-    if (isTronChain) {
+    if (isSolanaChain) {
+      rows.push(["Status", "Signature", "Slot", "Confirmation", "Timestamp"]);
+      for (const tx of solanaTransactions) {
+        rows.push([
+          tx.err ? "Failed" : "Success",
+          sanitize(tx.signature || ""),
+          String(tx.slot || ""),
+          tx.confirmationStatus || "confirmed",
+          tx.blockTime ? new Date(tx.blockTime * 1000).toISOString() : "",
+        ]);
+      }
+    } else if (isTronChain) {
       rows.push(["Type", "TxID", "From", "To", "Amount (TRX)", "Contract Type", "Timestamp"]);
       for (const tx of tronTransactions) {
         const isIncoming = tx.to === trackedAddress;
@@ -330,7 +464,7 @@ export default function Dashboard() {
     link.click();
     URL.revokeObjectURL(url);
     toast({ title: "CSV Exported", description: "Wallet data has been downloaded as CSV." });
-  }, [transactions, tokenTransfers, tronTransactions, trackedAddress, selectedChain, isTronChain, toast]);
+  }, [transactions, tokenTransfers, tronTransactions, solanaTransactions, trackedAddress, selectedChain, isTronChain, isSolanaChain, toast]);
 
   const handleExportPDF = useCallback(async () => {
     const jsPDFModule = await import("jspdf");
@@ -351,7 +485,27 @@ export default function Dashboard() {
     }
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 54);
 
-    if (isTronChain && tronTransactions.length > 0) {
+    if (isSolanaChain && solanaTransactions.length > 0) {
+      doc.setFontSize(14);
+      doc.text("Solana Transactions", 14, 66);
+
+      const txRows = solanaTransactions.map((tx: any) => [
+        tx.err ? "FAIL" : "OK",
+        `${(tx.signature || "").slice(0, 12)}...`,
+        String(tx.slot || ""),
+        tx.confirmationStatus || "confirmed",
+        tx.blockTime ? new Date(tx.blockTime * 1000).toLocaleDateString() : "—",
+      ]);
+
+      (doc as any).autoTable({
+        startY: 70,
+        head: [["Status", "Signature", "Slot", "Confirm", "Date"]],
+        body: txRows,
+        theme: "grid",
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [128, 0, 255] },
+      });
+    } else if (isTronChain && tronTransactions.length > 0) {
       doc.setFontSize(14);
       doc.text("TRON Transactions", 14, 66);
 
@@ -437,6 +591,7 @@ export default function Dashboard() {
 
   const getAddressExplorerUrl = (address: string) => {
     if (isTronChain) return `https://tronscan.org/#/address/${address}`;
+    if (isSolanaChain) return `https://solscan.io/account/${address}`;
     const explorers: Record<number, string> = {
       1: "https://etherscan.io",
       56: "https://bscscan.com",
@@ -508,10 +663,12 @@ export default function Dashboard() {
                         setShowChainSelector(false);
                         if (trackedAddress) {
                           const addrIsTron = isValidTronAddress(trackedAddress);
-                          if (chain.isTron && !addrIsTron) {
-                            setTrackedAddress("");
-                            setWalletInput("");
-                          } else if (!chain.isTron && addrIsTron) {
+                          const addrIsSolana = isValidSolanaAddress(trackedAddress);
+                          const targetIsTron = !!chain.isTron;
+                          const targetIsSolana = chain.id === -2;
+                          const targetIsEvm = !targetIsTron && !targetIsSolana;
+                          const addrIsEvm = !addrIsTron && !addrIsSolana;
+                          if ((targetIsTron && !addrIsTron) || (targetIsSolana && !addrIsSolana) || (targetIsEvm && !addrIsEvm)) {
                             setTrackedAddress("");
                             setWalletInput("");
                           }
@@ -550,25 +707,47 @@ export default function Dashboard() {
               </div>
               <h2 className="text-2xl font-display font-bold text-foreground mb-3" data-testid="text-welcome-title">Track Any Wallet - 100% Free</h2>
               <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Enter any EVM or TRON address above to view real-time balances, transactions, and token activity across multiple chains. Completely free to use.
+                Enter any EVM, TRON, or Solana address above to view real-time balances, transactions, and token activity across multiple chains. Completely free to use.
               </p>
               <div className="flex flex-wrap gap-2 justify-center mb-4">
-                {["Ethereum", "BSC", "Arbitrum", "Base", "Polygon", "TRON"].map((chain) => (
-                  <Badge key={chain} variant="outline" className={`bg-muted/30 border-border text-muted-foreground ${chain === "TRON" ? "bg-red-500/10 text-red-400 border-red-500/20" : ""}`}>
+                {["Ethereum", "BSC", "Arbitrum", "Base", "Polygon", "Solana", "TRON"].map((chain) => (
+                  <Badge key={chain} variant="outline" className={`bg-muted/30 border-border text-muted-foreground ${chain === "TRON" ? "bg-red-500/10 text-red-400 border-red-500/20" : chain === "Solana" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : ""}`}>
                     {chain}
                   </Badge>
                 ))}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleConnectTronLink}
-                className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
-                data-testid="button-connect-tronlink"
-              >
-                <Wallet className="w-4 h-4" />
-                Connect TronLink
-              </Button>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleConnectSolflare}
+                  className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
+                  data-testid="button-connect-solflare"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Connect Solflare
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleConnectPhantom}
+                  className="bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
+                  data-testid="button-connect-phantom"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Connect Phantom
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleConnectTronLink}
+                  className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                  data-testid="button-connect-tronlink"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Connect TronLink
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -604,7 +783,7 @@ export default function Dashboard() {
                       variant="ghost"
                       size="icon"
                       onClick={handleExportCSV}
-                      disabled={transactions.length === 0 && tokenTransfers.length === 0 && tronTransactions.length === 0}
+                      disabled={transactions.length === 0 && tokenTransfers.length === 0 && tronTransactions.length === 0 && solanaTransactions.length === 0}
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       title="Export CSV"
                       data-testid="button-export-csv"
@@ -615,7 +794,7 @@ export default function Dashboard() {
                       variant="ghost"
                       size="icon"
                       onClick={handleExportPDF}
-                      disabled={transactions.length === 0 && tokenTransfers.length === 0 && tronTransactions.length === 0}
+                      disabled={transactions.length === 0 && tokenTransfers.length === 0 && tronTransactions.length === 0 && solanaTransactions.length === 0}
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       title="Export PDF"
                       data-testid="button-export-pdf"
@@ -629,6 +808,7 @@ export default function Dashboard() {
                         balanceQuery.refetch();
                         txQuery.refetch();
                         tokenTxQuery.refetch();
+                        if (isSolanaChain) solTokensQuery.refetch();
                       }}
                       className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       data-testid="button-refresh"
@@ -690,7 +870,7 @@ export default function Dashboard() {
                       >
                         <Activity className="w-4 h-4 mr-2" /> Transactions
                       </TabsTrigger>
-                      {!isTronChain && (
+                      {!isTronChain && !isSolanaChain && (
                         <TabsTrigger
                           value="tokens"
                           className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 px-1 text-muted-foreground"
@@ -765,6 +945,57 @@ export default function Dashboard() {
                                   </div>
                                   <a
                                     href={getExplorerUrl(tx.txID)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : isSolanaChain ? (
+                      solanaTransactions.length === 0 ? (
+                        <div className="p-8 text-center text-muted-foreground">
+                          No transactions found on Solana
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border">
+                          {solanaTransactions.map((tx: any, i: number) => {
+                            const txTime = tx.blockTime ? new Date(tx.blockTime * 1000).toLocaleString() : "—";
+                            const isFailed = !!tx.err;
+                            return (
+                              <div
+                                key={`sol-tx-${i}`}
+                                className="flex items-center justify-between p-3 md:p-4 hover:bg-muted/20 transition-colors group"
+                                data-testid={`row-sol-tx-${i}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isFailed ? "bg-red-500/20 text-red-400" : "bg-purple-500/20 text-purple-400"}`}>
+                                    {isFailed ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                                      {isFailed ? "Failed" : "Transaction"}
+                                      <Badge variant="outline" className={`text-[10px] ${isFailed ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-green-500/10 text-green-400 border-green-500/20"}`}>
+                                        {tx.confirmationStatus || "confirmed"}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-mono truncate max-w-[180px]">
+                                      {tx.signature?.slice(0, 12)}...{tx.signature?.slice(-8)}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right flex items-center gap-3">
+                                  <div>
+                                    <div className="text-xs text-muted-foreground font-mono">Slot {tx.slot?.toLocaleString()}</div>
+                                    <div className="text-[10px] text-muted-foreground">{txTime}</div>
+                                  </div>
+                                  <a
+                                    href={getExplorerUrl(tx.signature)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
@@ -953,7 +1184,54 @@ export default function Dashboard() {
         {/* Right Sidebar */}
         <div className="space-y-6 md:space-y-8">
 
-          {isTronChain ? (
+          {isSolanaChain ? (
+            <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500" data-testid="card-solana-connect">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">Solana Network</span>
+                  <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20 text-[10px]">SOL</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">Connect your Solana wallet for instant tracking</p>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleConnectSolflare}
+                    className="w-full bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
+                    data-testid="button-sidebar-connect-solflare"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Connect Solflare
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleConnectPhantom}
+                    className="w-full bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
+                    data-testid="button-sidebar-connect-phantom"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Connect Phantom
+                  </Button>
+                </div>
+                {solanaTokens.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium mb-2">SPL Tokens ({solanaTokens.length})</p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {solanaTokens.slice(0, 15).map((token: any, i: number) => (
+                        <div key={token.mint} className="flex items-center justify-between text-xs" data-testid={`sidebar-sol-token-${i}`}>
+                          <a href={`https://solscan.io/token/${token.mint}`} target="_blank" rel="noopener noreferrer" className="font-mono text-muted-foreground hover:text-primary truncate max-w-[120px]">
+                            {token.mint.slice(0, 6)}...{token.mint.slice(-4)}
+                          </a>
+                          <span className="font-mono text-foreground">{parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : isTronChain ? (
             <Card className="glass-panel border-border overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500" data-testid="card-tron-connect">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">

@@ -20,6 +20,7 @@ import {
   Calculator,
   Trophy,
   Star,
+  Coins,
   Settings2,
   Eye,
   EyeOff,
@@ -499,6 +500,7 @@ function BlockcypherExplorer({ chain, symbol, addressApiPrefix, txApiPrefix, exp
 function SolExplorer({ chain }: { chain: ChainInfo }) {
   const [input, setInput] = useState("");
   const [address, setAddress] = useState("");
+  const { toast } = useToast();
 
   const { data: accountData, isLoading, error } = useQuery({
     queryKey: ["sol-account", address],
@@ -512,20 +514,94 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
     enabled: !!address,
   });
 
+  const { data: tokenData } = useQuery({
+    queryKey: ["sol-tokens", address],
+    queryFn: async () => { const res = await fetch(`/api/sol/tokens/${address}`); if (!res.ok) return { tokens: [] }; return res.json(); },
+    enabled: !!address,
+  });
+
   const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
+
+  const handleConnectSolflare = async () => {
+    try {
+      const solflare = (window as any).solflare;
+      if (!solflare) {
+        toast({ title: "Solflare not found", description: "Install the Solflare wallet extension to connect.", variant: "destructive" });
+        return;
+      }
+      await solflare.connect();
+      const pubkey = solflare.publicKey?.toString();
+      if (!pubkey) {
+        toast({ title: "Connection failed", description: "Could not get public key from Solflare.", variant: "destructive" });
+        return;
+      }
+      setInput(pubkey);
+      setAddress(pubkey);
+      toast({ title: "Solflare Connected", description: `Tracking ${pubkey.slice(0, 6)}...${pubkey.slice(-4)}` });
+    } catch {
+      toast({ title: "Connection failed", description: "Could not connect to Solflare wallet.", variant: "destructive" });
+    }
+  };
+
+  const handleConnectPhantom = async () => {
+    try {
+      const phantom = (window as any).phantom?.solana || (window as any).solana;
+      if (!phantom || !phantom.isPhantom) {
+        toast({ title: "Phantom not found", description: "Install the Phantom wallet extension to connect.", variant: "destructive" });
+        return;
+      }
+      const resp = await phantom.connect();
+      const pubkey = resp.publicKey?.toString();
+      if (!pubkey) {
+        toast({ title: "Connection failed", description: "Could not get public key from Phantom.", variant: "destructive" });
+        return;
+      }
+      setInput(pubkey);
+      setAddress(pubkey);
+      toast({ title: "Phantom Connected", description: `Tracking ${pubkey.slice(0, 6)}...${pubkey.slice(-4)}` });
+    } catch {
+      toast({ title: "Connection failed", description: "Could not connect to Phantom wallet.", variant: "destructive" });
+    }
+  };
+
+  const splTokens = tokenData?.tokens || [];
 
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <Input placeholder="Enter Solana address (e.g. 7v91N...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-sol-address" />
+        <Input placeholder="Enter Solana address (e.g. 7v91N...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border flex-1" data-testid="input-sol-address" />
         <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-sol-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={handleConnectSolflare} className="text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" data-testid="button-connect-solflare">
+          <Wallet className="w-3.5 h-3.5" /> Connect Solflare
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleConnectPhantom} className="text-xs gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10" data-testid="button-connect-phantom">
+          <Wallet className="w-3.5 h-3.5" /> Connect Phantom
+        </Button>
+        {address && (
+          <a
+            href={`/wallet?chain=-2&address=${address}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-primary/30 text-xs text-primary hover:bg-primary/10 transition-colors"
+            data-testid="link-track-sol-wallet"
+          >
+            <ArrowRightLeft className="w-3 h-3" /> Track in Wallet Dashboard
+          </a>
+        )}
+      </div>
+
       {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
       {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-sol-error">{(error as Error).message}</div>}
       {accountData && (
         <Card className="glass-panel border-purple-500/20">
           <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-purple-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2"><Wallet className="w-5 h-5 text-purple-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+              <a href={`https://solscan.io/account/${address}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1" data-testid="link-solscan-account">
+                Solscan <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-purple-400" data-testid="text-sol-balance">{accountData.balance} SOL</p></div>
               <div><p className="text-xs text-muted-foreground">Lamports</p><p className="font-mono text-sm" data-testid="text-sol-lamports">{accountData.lamports?.toLocaleString()}</p></div>
@@ -534,6 +610,28 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
           </CardContent>
         </Card>
       )}
+
+      {splTokens.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2"><Coins className="w-4 h-4 text-purple-400" /><h3 className="font-display font-semibold text-sm">SPL Tokens</h3><Badge variant="secondary" className="text-xs">{splTokens.length}</Badge></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {splTokens.slice(0, 20).map((token: any, i: number) => (
+              <Card key={token.mint} className="glass-panel border-border/50" data-testid={`card-sol-token-${i}`}>
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-medium text-foreground">{parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                    <a href={`https://solscan.io/token/${token.mint}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-muted-foreground font-mono hover:text-primary truncate block" data-testid={`link-sol-token-${i}`}>
+                      {token.mint.slice(0, 8)}...{token.mint.slice(-6)}
+                    </a>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-500/30">SPL</Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {txData?.transactions?.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-purple-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.transactions.length}</Badge></div>
@@ -541,13 +639,19 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
             <Card key={tx.signature} className="glass-panel border-border/50" data-testid={`card-sol-tx-${i}`}>
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.signature)}</span><CopyButton text={tx.signature} id={`sol-tx-${i}`} /></div>
+                  <div className="flex items-center gap-2">
+                    <a href={`https://solscan.io/tx/${tx.signature}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-primary hover:underline" data-testid={`link-sol-tx-${i}`}>
+                      {truncateHash(tx.signature)}
+                    </a>
+                    <CopyButton text={tx.signature} id={`sol-tx-${i}`} />
+                  </div>
                   {tx.err ? (<Badge variant="outline" className="text-red-400 border-red-400/30 text-[10px]"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>) : (<Badge variant="outline" className="text-green-400 border-green-400/30 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />{tx.confirmationStatus}</Badge>)}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div><span className="text-muted-foreground">Slot:</span> <span className="font-mono">{tx.slot?.toLocaleString()}</span></div>
                   <div><span className="text-muted-foreground">Time:</span> <span>{tx.blockTime ? timeAgo(tx.blockTime) : "—"}</span></div>
                 </div>
+                {tx.memo && <div className="text-[10px] text-muted-foreground mt-1">Memo: {tx.memo}</div>}
               </CardContent>
             </Card>
           ))}
