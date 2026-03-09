@@ -1458,7 +1458,7 @@ function SeoTab({ token }: { token: string }) {
 
   const [autoFilling, setAutoFilling] = useState<string | null>(null);
 
-  const autoFillPage = async (pagePath: string, pageLabel: string) => {
+  const autoFillPage = async (pagePath: string, pageLabel: string, silent = false): Promise<boolean> => {
     setAutoFilling(pagePath);
     try {
       const res = await fetch("/api/admin/seo/auto-fill", {
@@ -1472,9 +1472,11 @@ function SeoTab({ token }: { token: string }) {
         ...prev,
         [pagePath]: { ...(prev[pagePath] || {}), pagePath, ...data },
       }));
-      toast({ title: `SEO auto-filled for ${pageLabel}` });
+      if (!silent) toast({ title: `SEO auto-filled for ${pageLabel}` });
+      return true;
     } catch {
-      toast({ title: "Error", description: "Auto-fill failed.", variant: "destructive" });
+      if (!silent) toast({ title: "Error", description: "Auto-fill failed.", variant: "destructive" });
+      return false;
     } finally {
       setAutoFilling(null);
     }
@@ -1484,12 +1486,9 @@ function SeoTab({ token }: { token: string }) {
     let success = 0;
     let failed = 0;
     for (const page of defaultPages) {
-      try {
-        await autoFillPage(page.path, page.label);
-        success++;
-      } catch {
-        failed++;
-      }
+      const ok = await autoFillPage(page.path, page.label, true);
+      if (ok) success++;
+      else failed++;
     }
     toast({ title: failed > 0 ? `Auto-filled ${success}/${defaultPages.length} pages (${failed} failed)` : `All ${success} pages auto-filled!` });
   };
