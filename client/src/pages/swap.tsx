@@ -16,6 +16,8 @@ import {
   Check,
   X,
   ChevronDown,
+  History,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,51 @@ interface ExchangeResult {
   expectedAmountTo: number;
   status: string;
   payinExtraId?: string;
+}
+
+interface SavedTransaction {
+  id: string;
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmount: string;
+  expectedAmountTo: string;
+  payinAddress: string;
+  payoutAddress: string;
+  status: string;
+  createdAt: number;
+}
+
+const SWAP_HISTORY_KEY = "tokenaltcoin_swap_history";
+const MAX_HISTORY = 20;
+
+function loadSwapHistory(): SavedTransaction[] {
+  try {
+    const raw = localStorage.getItem(SWAP_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveSwapHistory(txns: SavedTransaction[]) {
+  localStorage.setItem(SWAP_HISTORY_KEY, JSON.stringify(txns.slice(0, MAX_HISTORY)));
+}
+
+function addToSwapHistory(txn: SavedTransaction) {
+  const existing = loadSwapHistory();
+  const filtered = existing.filter((t) => t.id !== txn.id);
+  saveSwapHistory([txn, ...filtered]);
+}
+
+function updateSwapHistoryStatus(id: string, status: string) {
+  const existing = loadSwapHistory();
+  const updated = existing.map((t) => t.id === id ? { ...t, status } : t);
+  saveSwapHistory(updated);
+}
+
+function removeFromSwapHistory(id: string) {
+  const existing = loadSwapHistory();
+  saveSwapHistory(existing.filter((t) => t.id !== id));
 }
 
 const POPULAR_TICKERS = ["btc", "eth", "usdt", "sol", "xrp", "bnb", "ada", "doge", "dot", "avax", "matic", "ltc", "trx", "atom"];
@@ -168,7 +215,10 @@ export default function SwapPage() {
   const [extraId, setExtraId] = useState("");
   const [exchange, setExchange] = useState<ExchangeResult | null>(null);
   const [copied, setCopied] = useState(false);
-  const [step, setStep] = useState<"swap" | "confirm" | "status">("swap");
+  const [step, setStep] = useState<"swap" | "confirm" | "status" | "track">("swap");
+  const [trackId, setTrackId] = useState("");
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [swapHistory, setSwapHistory] = useState<SavedTransaction[]>(() => loadSwapHistory());
 
   const { data: currencies = [], isLoading: currenciesLoading } = useQuery<Currency[]>({
     queryKey: ["/api/swap/currencies"],
@@ -240,6 +290,19 @@ export default function SwapPage() {
     onSuccess: (data) => {
       setExchange(data);
       setStep("status");
+      const saved: SavedTransaction = {
+        id: data.id,
+        fromCurrency: fromCurrency?.ticker.toUpperCase() || "",
+        toCurrency: toCurrency?.ticker.toUpperCase() || "",
+        fromAmount,
+        expectedAmountTo: String(data.expectedAmountTo || ""),
+        payinAddress: data.payinAddress,
+        payoutAddress: data.payoutAddress,
+        status: data.status || "waiting",
+        createdAt: Date.now(),
+      };
+      addToSwapHistory(saved);
+      setSwapHistory(loadSwapHistory());
       toast({ title: "Exchange created!", description: `Send ${fromAmount} ${fromCurrency?.ticker.toUpperCase()} to the provided address` });
     },
     onError: (err: Error) => {
@@ -252,7 +315,12 @@ export default function SwapPage() {
     queryFn: async () => {
       const res = await fetch(`/api/swap/status/${exchange!.id}`);
       if (!res.ok) throw new Error("Failed to check status");
-      return res.json();
+      const data = await res.json();
+      if (data?.status && exchange?.id) {
+        updateSwapHistoryStatus(exchange.id, data.status);
+        setSwapHistory(loadSwapHistory());
+      }
+      return data;
     },
     enabled: !!exchange?.id && step === "status",
     refetchInterval: 15000,
@@ -287,6 +355,68 @@ export default function SwapPage() {
     setExtraId("");
   };
 
+  const handleTrackTransaction = async () => {
+    const id = trackId.trim();
+    if (!id) return;
+    setTrackLoading(true);
+    try {
+      const res = await fetch(`/api/swap/status/${encodeURIComponent(id)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Transaction not found");
+      }
+      const data = await res.json();
+      setExchange({
+        id: data.id || id,
+        payinAddress: data.payinAddress || data.depositAddress || "",
+        payoutAddress: data.payoutAddress || data.withdrawalAddress || "",
+        fromCurrency: data.fromCurrency || "",
+        toCurrency: data.toCurrency || "",
+        expectedAmountFrom: data.expectedAmountFrom || data.amountFrom || 0,
+        expectedAmountTo: data.expectedAmountTo || data.amountTo || 0,
+        status: data.status || "unknown",
+      });
+      const saved: SavedTransaction = {
+        id: data.id || id,
+        fromCurrency: (data.fromCurrency || "").toUpperCase(),
+        toCurrency: (data.toCurrency || "").toUpperCase(),
+        fromAmount: String(data.expectedAmountFrom || data.amountFrom || ""),
+        expectedAmountTo: String(data.expectedAmountTo || data.amountTo || ""),
+        payinAddress: data.payinAddress || data.depositAddress || "",
+        payoutAddress: data.payoutAddress || data.withdrawalAddress || "",
+        status: data.status || "unknown",
+        createdAt: Date.now(),
+      };
+      addToSwapHistory(saved);
+      setSwapHistory(loadSwapHistory());
+      setStep("status");
+      setTrackId("");
+    } catch (err: any) {
+      toast({ title: "Not found", description: err.message, variant: "destructive" });
+    } finally {
+      setTrackLoading(false);
+    }
+  };
+
+  const handleResumeTransaction = (txn: SavedTransaction) => {
+    setExchange({
+      id: txn.id,
+      payinAddress: txn.payinAddress,
+      payoutAddress: txn.payoutAddress,
+      fromCurrency: txn.fromCurrency,
+      toCurrency: txn.toCurrency,
+      expectedAmountFrom: parseFloat(txn.fromAmount) || 0,
+      expectedAmountTo: parseFloat(txn.expectedAmountTo) || 0,
+      status: txn.status,
+    });
+    setStep("status");
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    removeFromSwapHistory(id);
+    setSwapHistory(loadSwapHistory());
+  };
+
   return (
     <div className="min-h-screen bg-background" data-testid="swap-page">
       <div
@@ -301,13 +431,43 @@ export default function SwapPage() {
         <AdBanner slot="8899001122" format="horizontal" className="w-full mb-6" />
 
         <div className="mb-8" data-testid="swap-header">
-          <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3" data-testid="text-page-title">
-            <ArrowLeftRight className="w-8 h-8 text-primary" />
-            Crypto Swap
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1" data-testid="text-page-subtitle">
-            Swap cryptocurrencies instantly with best rates across 900+ coins
-          </p>
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3" data-testid="text-page-title">
+                <ArrowLeftRight className="w-8 h-8 text-primary" />
+                Crypto Swap
+              </h1>
+              <p className="text-muted-foreground text-sm mt-1" data-testid="text-page-subtitle">
+                Swap cryptocurrencies instantly with best rates across 900+ coins
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {step !== "track" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("track")}
+                  className="text-xs gap-1.5"
+                  data-testid="button-track-transaction"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  Track Transaction
+                </Button>
+              )}
+              {step !== "swap" && step !== "track" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetExchange}
+                  className="text-xs gap-1.5"
+                  data-testid="button-new-swap"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  New Swap
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="max-w-lg mx-auto">
@@ -508,7 +668,7 @@ export default function SwapPage() {
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Send exactly</p>
                     <p className="text-xl font-mono font-bold text-primary" data-testid="text-send-amount">
-                      {exchange.expectedAmountFrom || fromAmount} {fromCurrency?.ticker.toUpperCase()}
+                      {exchange.expectedAmountFrom || fromAmount} {(fromCurrency?.ticker || exchange.fromCurrency || "").toUpperCase()}
                     </p>
                   </div>
 
@@ -540,7 +700,7 @@ export default function SwapPage() {
                   <div className="text-center pt-2 border-t border-border/50">
                     <p className="text-xs text-muted-foreground mb-1">You will receive approximately</p>
                     <p className="text-lg font-mono font-bold text-green-400" data-testid="text-receive-amount">
-                      ≈ {exchange.expectedAmountTo || estimate?.toAmount || "—"} {toCurrency?.ticker.toUpperCase()}
+                      ≈ {exchange.expectedAmountTo || estimate?.toAmount || "—"} {(toCurrency?.ticker || exchange.toCurrency || "").toUpperCase()}
                     </p>
                   </div>
                 </div>
@@ -570,6 +730,45 @@ export default function SwapPage() {
               </CardContent>
             </Card>
           )}
+
+          {step === "track" && (
+            <Card className="glass-panel border-border" data-testid="track-transaction-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-display font-bold text-foreground flex items-center gap-2" data-testid="text-track-title">
+                    <Search className="w-5 h-5 text-primary" />
+                    Track Transaction
+                  </h3>
+                  <button onClick={() => setStep("swap")} className="text-muted-foreground hover:text-foreground" data-testid="button-back-from-track">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Enter your ChangeNOW transaction ID to check the status of your swap.
+                </p>
+
+                <div className="flex gap-2">
+                  <Input
+                    value={trackId}
+                    onChange={(e) => setTrackId(e.target.value)}
+                    placeholder="Enter transaction ID"
+                    className="bg-muted/30 border-border font-mono text-sm flex-1"
+                    onKeyDown={(e) => e.key === "Enter" && handleTrackTransaction()}
+                    data-testid="input-track-id"
+                  />
+                  <Button
+                    onClick={handleTrackTransaction}
+                    disabled={!trackId.trim() || trackLoading}
+                    className="bg-primary hover:bg-primary/90"
+                    data-testid="button-track-submit"
+                  >
+                    {trackLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Track"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10" data-testid="swap-info-cards">
@@ -593,6 +792,69 @@ export default function SwapPage() {
             </div>
           ))}
         </div>
+
+        {swapHistory.length > 0 && (
+          <div className="glass-panel rounded-2xl p-6 mt-8" data-testid="swap-history">
+            <h2 className="text-lg font-display font-bold text-foreground mb-4 flex items-center gap-2" data-testid="text-history-title">
+              <History className="w-5 h-5 text-primary" />
+              Transaction History
+            </h2>
+            <div className="space-y-2">
+              {swapHistory.map((txn) => {
+                const statusColor = txn.status === "finished" ? "text-green-400"
+                  : ["waiting", "confirming", "exchanging", "sending"].includes(txn.status) ? "text-yellow-400"
+                  : ["failed", "refunded", "expired"].includes(txn.status) ? "text-red-400"
+                  : "text-muted-foreground";
+                return (
+                  <div
+                    key={txn.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/10 border border-border/50 hover:border-primary/30 transition-colors group"
+                    data-testid={`history-item-${txn.id}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-mono text-foreground">{txn.fromAmount} {txn.fromCurrency}</span>
+                        <ArrowLeftRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        <span className="font-mono text-foreground">{txn.expectedAmountTo ? `${parseFloat(txn.expectedAmountTo).toFixed(6)} ` : ""}{txn.toCurrency}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] font-mono text-muted-foreground truncate">{txn.id}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(txn.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`${statusColor} border-current/30 text-[10px] flex-shrink-0`}>
+                      {txn.status.toUpperCase()}
+                    </Badge>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 opacity-60 hover:opacity-100"
+                        onClick={() => handleResumeTransaction(txn)}
+                        title="View status"
+                        data-testid={`button-resume-${txn.id}`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 opacity-40 hover:opacity-100 hover:text-red-400"
+                        onClick={() => handleDeleteTransaction(txn.id)}
+                        title="Remove from history"
+                        data-testid={`button-delete-${txn.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="glass-panel rounded-2xl p-6 mt-8" data-testid="swap-how-it-works">
           <h2 className="text-lg font-display font-bold text-foreground mb-6 flex items-center gap-2" data-testid="text-how-it-works-title">
