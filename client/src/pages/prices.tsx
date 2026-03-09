@@ -356,6 +356,32 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
     enabled: activeTab === "markets",
   });
 
+  const cmcQuoteQuery = useQuery({
+    queryKey: ["/api/cmc/quote", coin.symbol],
+    queryFn: async () => {
+      const sym = (coin.symbol || "").toUpperCase();
+      const res = await fetch(`/api/cmc/quote/${sym}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 300000,
+    enabled: !!coin.symbol && (activeTab === "overview" || activeTab === "info"),
+    retry: 1,
+  });
+
+  const cmcInfoQuery = useQuery({
+    queryKey: ["/api/cmc/info", coin.symbol],
+    queryFn: async () => {
+      const sym = (coin.symbol || "").toUpperCase();
+      const res = await fetch(`/api/cmc/info/${sym}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 600000,
+    enabled: !!coin.symbol && activeTab === "info",
+    retry: 1,
+  });
+
   const newsQuery = useQuery({
     queryKey: ["/api/news/coin", coin.id],
     queryFn: async () => {
@@ -898,6 +924,131 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
                 </div>
               </div>
             )}
+
+            {(() => {
+              const cmc = cmcQuoteQuery.data;
+              const cmcInfo = cmcInfoQuery.data;
+              if (!cmc && !cmcInfo) {
+                if (cmcInfoQuery.isLoading || cmcQuoteQuery.isLoading) return (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Loading CoinMarketCap data...
+                  </div>
+                );
+                if (cmcInfoQuery.isError && cmcQuoteQuery.isError) return (
+                  <div className="text-[11px] text-muted-foreground/60 py-2">CMC data unavailable for this coin</div>
+                );
+                return null;
+              }
+
+              const cmcUrls = cmcInfo?.urls || {};
+              function getHost(url: string): string {
+                try { return new URL(url).hostname.replace("www.", "").toLowerCase(); } catch { return ""; }
+              }
+              function dedupLinks(cmcLinks: string[], existingLinks: string[]): string[] {
+                const existingHosts = new Set(existingLinks.map(e => getHost(e)).filter(Boolean));
+                return (cmcLinks || []).filter((u: string) => {
+                  const safe = safeUrl(u);
+                  if (!safe) return false;
+                  const host = getHost(safe);
+                  return host && !existingHosts.has(host);
+                });
+              }
+              const cmcExtraWebsites = dedupLinks(cmcUrls.website || [], links.homepage || []);
+              const cmcExtraExplorers = dedupLinks(cmcUrls.explorer || [], links.blockchain_site || []);
+              const cmcTechDocs = (cmcUrls.technicalDoc || []).filter((u: string) => safeUrl(u));
+              const cmcAnnouncements = dedupLinks(cmcUrls.announcement || [], links.announcement_url || []);
+              const cmcChat = dedupLinks(cmcUrls.chat || [], links.chat_url || []);
+              const cmcSourceCode = dedupLinks(cmcUrls.sourceCode || [], links.repos_url?.github || []);
+              const hasExtraLinks = cmcExtraWebsites.length > 0 || cmcExtraExplorers.length > 0 || cmcTechDocs.length > 0 || cmcAnnouncements.length > 0 || cmcChat.length > 0 || cmcSourceCode.length > 0;
+
+              return (
+                <div className="border-t border-border pt-4 space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <ExternalLink className="w-3 h-3" /> CoinMarketCap Data
+                  </h4>
+
+                  {cmc && (
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                      {cmc.cmcRank != null && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">CMC Rank</span><span className="font-mono text-sm font-semibold text-foreground">#{cmc.cmcRank}</span></div>}
+                      {cmc.numMarketPairs != null && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Market Pairs</span><span className="font-mono text-sm font-semibold text-foreground">{cmc.numMarketPairs?.toLocaleString()}</span></div>}
+                      {cmc.marketCapDominance != null && cmc.marketCapDominance > 0 && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Market Dominance</span><span className="font-mono text-sm font-semibold text-primary">{cmc.marketCapDominance.toFixed(4)}%</span></div>}
+                      {cmc.volumeChange24h != null && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Volume Change 24h</span><span className={`font-mono text-sm font-semibold ${(cmc.volumeChange24h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>{cmc.volumeChange24h >= 0 ? "+" : ""}{cmc.volumeChange24h?.toFixed(2)}%</span></div>}
+                      {cmc.percentChange60d != null && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Change 60d</span><span className={`font-mono text-sm font-semibold ${(cmc.percentChange60d || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>{cmc.percentChange60d >= 0 ? "+" : ""}{cmc.percentChange60d?.toFixed(2)}%</span></div>}
+                      {cmc.percentChange90d != null && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Change 90d</span><span className={`font-mono text-sm font-semibold ${(cmc.percentChange90d || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>{cmc.percentChange90d >= 0 ? "+" : ""}{cmc.percentChange90d?.toFixed(2)}%</span></div>}
+                      {cmc.dateAdded && <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Added to CMC</span><span className="font-mono text-sm font-semibold text-foreground">{new Date(cmc.dateAdded).toLocaleDateString()}</span></div>}
+                    </div>
+                  )}
+
+                  {cmcInfo?.tags && cmcInfo.tags.length > 0 && (
+                    <div>
+                      <span className="text-[11px] text-muted-foreground block mb-1.5">CMC Tags</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cmcInfo.tags.slice(0, 15).map((tag: string) => (
+                          <Badge key={tag} variant="outline" className="text-[10px] border-blue-500/30 text-blue-400">{tag.replace(/-/g, " ")}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {cmcInfo?.platform && (
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                      <div className="flex flex-col"><span className="text-[11px] text-muted-foreground">Platform</span><span className="font-mono text-sm font-semibold text-foreground">{cmcInfo.platform.name} ({cmcInfo.platform.symbol})</span></div>
+                      {cmcInfo.platform.tokenAddress && <div className="flex flex-col col-span-2"><span className="text-[11px] text-muted-foreground">Token Address</span><span className="font-mono text-[11px] text-foreground truncate">{cmcInfo.platform.tokenAddress}</span></div>}
+                    </div>
+                  )}
+
+                  {hasExtraLinks && (
+                    <div>
+                      <span className="text-[11px] text-muted-foreground block mb-1.5">Additional Links from CMC</span>
+                      <div className="flex flex-wrap gap-2">
+                        {cmcExtraWebsites.map((url: string) => {
+                          const safe = safeUrl(url);
+                          if (!safe) return null;
+                          let host = ""; try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                          return <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-xs text-foreground hover:bg-blue-500/20 transition-colors" data-testid={`link-cmc-web-${host}`}><Globe className="w-3 h-3 text-blue-400" /> {host || "Website"}</a>;
+                        })}
+                        {cmcTechDocs.map((url: string) => {
+                          const safe = safeUrl(url);
+                          if (!safe) return null;
+                          return <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-xs text-foreground hover:bg-blue-500/20 transition-colors" data-testid="link-cmc-techdoc"><ExternalLink className="w-3 h-3 text-blue-400" /> Technical Doc</a>;
+                        })}
+                        {cmcAnnouncements.map((url: string) => {
+                          const safe = safeUrl(url);
+                          if (!safe) return null;
+                          let host = ""; try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                          return <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-xs text-foreground hover:bg-blue-500/20 transition-colors" data-testid="link-cmc-announce"><ExternalLink className="w-3 h-3 text-blue-400" /> {host || "Announcement"}</a>;
+                        })}
+                        {cmcChat.map((url: string) => {
+                          const safe = safeUrl(url);
+                          if (!safe) return null;
+                          let host = ""; try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                          return <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-xs text-foreground hover:bg-blue-500/20 transition-colors" data-testid="link-cmc-chat"><MessageCircle className="w-3 h-3 text-blue-400" /> {host || "Chat"}</a>;
+                        })}
+                        {cmcExtraExplorers.map((url: string) => {
+                          const safe = safeUrl(url);
+                          if (!safe) return null;
+                          let host = ""; try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                          return <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-xs text-foreground hover:bg-blue-500/20 transition-colors" data-testid={`link-cmc-explorer-${host}`}><ExternalLink className="w-3 h-3 text-blue-400" /> {host || "Explorer"}</a>;
+                        })}
+                        {cmcSourceCode.map((url: string) => {
+                          const safe = safeUrl(url);
+                          if (!safe) return null;
+                          const parts = safe.split("/");
+                          const repoName = parts[parts.length - 1] || parts[parts.length - 2] || "Source";
+                          return <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-xs text-foreground hover:bg-blue-500/20 transition-colors" data-testid={`link-cmc-source-${repoName}`}><Github className="w-3 h-3 text-blue-400" /> {repoName}</a>;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {cmcInfo?.notice && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                      <p className="text-xs text-yellow-400">{cmcInfo.notice}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 

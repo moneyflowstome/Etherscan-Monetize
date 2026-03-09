@@ -8,6 +8,8 @@ import { XMLParser } from "fast-xml-parser";
 
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
+const CMC_API_KEY = process.env.CMC_API_KEY || "";
+const CMC_BASE = "https://pro-api.coinmarketcap.com";
 
 const CHAIN_IDS: Record<string, number> = {
   ethereum: 1,
@@ -1312,6 +1314,207 @@ export async function registerRoutes(
       const data = { tickers };
       tickerCache[id] = { data, timestamp: Date.now() };
       res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const cmcMapCache: { data: Map<string, number>; timestamp: number } = { data: new Map(), timestamp: 0 };
+  const CMC_MAP_TTL = 86400000;
+  const cmcQuoteCache: Record<string, { data: any; timestamp: number }> = {};
+  const CMC_QUOTE_TTL = 300000;
+  const cmcInfoCache: Record<string, { data: any; timestamp: number }> = {};
+  const CMC_INFO_TTL = 600000;
+
+  async function cmcFetch(path: string, params: Record<string, string> = {}) {
+    if (!CMC_API_KEY) throw new Error("CMC API key not configured");
+    const qs = new URLSearchParams(params).toString();
+    const url = `${CMC_BASE}${path}${qs ? "?" + qs : ""}`;
+    const res = await fetch(url, {
+      headers: { "X-CMC_PRO_API_KEY": CMC_API_KEY, "Accept": "application/json" },
+    });
+    if (!res.ok) throw new Error(`CMC API error: ${res.status}`);
+    const json = await res.json();
+    if (json.status?.error_code && json.status.error_code !== 0) {
+      throw new Error(json.status.error_message || "CMC API error");
+    }
+    return json.data;
+  }
+
+  async function getCmcIdBySymbol(symbol: string): Promise<number | null> {
+    const sym = symbol.toUpperCase();
+    if (cmcMapCache.data.has(sym) && Date.now() - cmcMapCache.timestamp < CMC_MAP_TTL) {
+      return cmcMapCache.data.get(sym) || null;
+    }
+    try {
+      const data = await cmcFetch("/v1/cryptocurrency/map", { symbol: sym, limit: "1" });
+      if (Array.isArray(data) && data.length > 0) {
+        cmcMapCache.data.set(sym, data[0].id);
+        cmcMapCache.timestamp = Date.now();
+        return data[0].id;
+      }
+    } catch {}
+    return null;
+  }
+
+  app.get("/api/cmc/quote/:symbol", async (req, res) => {
+    try {
+      const symbol = (req.params.symbol || "").toUpperCase();
+      if (!symbol || !/^[A-Z0-9]+$/.test(symbol)) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const cached = cmcQuoteCache[symbol];
+      if (cached && Date.now() - cached.timestamp < CMC_QUOTE_TTL) {
+        return res.json(cached.data);
+      }
+
+      const data = await cmcFetch("/v1/cryptocurrency/quotes/latest", { symbol, convert: "USD" });
+      const coinData = data?.[symbol];
+      if (!coinData) {
+        return res.status(404).json({ error: "Coin not found on CMC" });
+      }
+
+      const quote = coinData.quote?.USD || {};
+      const result = {
+        id: coinData.id,
+        name: coinData.name,
+        symbol: coinData.symbol,
+        slug: coinData.slug,
+        cmcRank: coinData.cmc_rank,
+        numMarketPairs: coinData.num_market_pairs,
+        maxSupply: coinData.max_supply,
+        circulatingSupply: coinData.circulating_supply,
+        totalSupply: coinData.total_supply,
+        isActive: coinData.is_active,
+        dateAdded: coinData.date_added,
+        tags: coinData.tags || [],
+        price: quote.price,
+        volume24h: quote.volume_24h,
+        volumeChange24h: quote.volume_change_24h,
+        percentChange1h: quote.percent_change_1h,
+        percentChange24h: quote.percent_change_24h,
+        percentChange7d: quote.percent_change_7d,
+        percentChange30d: quote.percent_change_30d,
+        percentChange60d: quote.percent_change_60d,
+        percentChange90d: quote.percent_change_90d,
+        marketCap: quote.market_cap,
+        marketCapDominance: quote.market_cap_dominance,
+        fullyDilutedMarketCap: quote.fully_diluted_market_cap,
+        lastUpdated: quote.last_updated,
+      };
+
+      cmcQuoteCache[symbol] = { data: result, timestamp: Date.now() };
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/cmc/info/:symbol", async (req, res) => {
+    try {
+      const symbol = (req.params.symbol || "").toUpperCase();
+      if (!symbol || !/^[A-Z0-9]+$/.test(symbol)) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const cached = cmcInfoCache[symbol];
+      if (cached && Date.now() - cached.timestamp < CMC_INFO_TTL) {
+        return res.json(cached.data);
+      }
+
+      const data = await cmcFetch("/v1/cryptocurrency/info", { symbol });
+      const coinData = data?.[symbol];
+      if (!coinData) {
+        return res.status(404).json({ error: "Coin not found on CMC" });
+      }
+
+      const result = {
+        id: coinData.id,
+        name: coinData.name,
+        symbol: coinData.symbol,
+        slug: coinData.slug,
+        category: coinData.category,
+        description: coinData.description,
+        logo: coinData.logo,
+        dateAdded: coinData.date_added,
+        dateLaunched: coinData.date_launched,
+        tags: coinData.tags || [],
+        tagNames: coinData["tag-names"] || [],
+        tagGroups: coinData["tag-groups"] || [],
+        urls: {
+          website: coinData.urls?.website || [],
+          technicalDoc: coinData.urls?.technical_doc || [],
+          twitter: coinData.urls?.twitter || [],
+          reddit: coinData.urls?.reddit || [],
+          messageBoard: coinData.urls?.message_board || [],
+          announcement: coinData.urls?.announcement || [],
+          chat: coinData.urls?.chat || [],
+          explorer: coinData.urls?.explorer || [],
+          sourceCode: coinData.urls?.source_code || [],
+        },
+        platform: coinData.platform ? {
+          name: coinData.platform.name,
+          symbol: coinData.platform.symbol,
+          tokenAddress: coinData.platform.token_address,
+        } : null,
+        selfReportedCirculatingSupply: coinData.self_reported_circulating_supply,
+        selfReportedMarketCap: coinData.self_reported_market_cap,
+        selfReportedTags: coinData.self_reported_tags || [],
+        isHidden: coinData.is_hidden || 0,
+        notice: coinData.notice || "",
+      };
+
+      cmcInfoCache[symbol] = { data: result, timestamp: Date.now() };
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/cmc/listings", async (req, res) => {
+    try {
+      const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit)) || 20));
+      const start = Math.max(1, parseInt(String(req.query.start)) || 1);
+
+      const cacheKey = `listings-${start}-${limit}`;
+      const cached = cmcQuoteCache[cacheKey];
+      if (cached && Date.now() - cached.timestamp < CMC_QUOTE_TTL) {
+        return res.json(cached.data);
+      }
+
+      const data = await cmcFetch("/v1/cryptocurrency/listings/latest", {
+        start: String(start),
+        limit: String(limit),
+        convert: "USD",
+        sort: "market_cap",
+        sort_dir: "desc",
+      });
+
+      const coins = Array.isArray(data) ? data.map((c: any) => {
+        const q = c.quote?.USD || {};
+        return {
+          id: c.id,
+          name: c.name,
+          symbol: c.symbol,
+          slug: c.slug,
+          cmcRank: c.cmc_rank,
+          price: q.price,
+          percentChange1h: q.percent_change_1h,
+          percentChange24h: q.percent_change_24h,
+          percentChange7d: q.percent_change_7d,
+          marketCap: q.market_cap,
+          volume24h: q.volume_24h,
+          circulatingSupply: c.circulating_supply,
+          totalSupply: c.total_supply,
+          maxSupply: c.max_supply,
+          marketCapDominance: q.market_cap_dominance,
+          dateAdded: c.date_added,
+        };
+      }) : [];
+
+      cmcQuoteCache[cacheKey] = { data: coins, timestamp: Date.now() };
+      res.json(coins);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
