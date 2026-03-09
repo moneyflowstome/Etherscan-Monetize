@@ -1595,19 +1595,54 @@ export async function registerRoutes(
     }
   });
 
-  const arbitrageCache: { data: any; timestamp: number } | { data?: undefined; timestamp?: undefined } = {};
+  const arbitrageCache: Record<string, { data: any; timestamp: number }> = {};
   const ARBITRAGE_CACHE_TTL = 90000;
-  const ARBITRAGE_COINS = ["bitcoin", "ethereum", "solana", "ripple", "binancecoin", "dogecoin", "cardano", "polkadot", "avalanche-2", "chainlink", "litecoin", "tron"];
+  const ARBITRAGE_DEFAULT_COINS = [
+    "bitcoin", "ethereum", "solana", "ripple", "binancecoin", "dogecoin", "cardano",
+    "polkadot", "avalanche-2", "chainlink", "litecoin", "tron", "uniswap", "stellar",
+    "near", "sui", "aptos", "arbitrum", "optimism", "render-token"
+  ];
+  const ARBITRAGE_EXTRA_COINS: Record<string, { symbol: string; name: string }> = {
+    "pepe": { symbol: "PEPE", name: "Pepe" },
+    "shiba-inu": { symbol: "SHIB", name: "Shiba Inu" },
+    "polygon-ecosystem-token": { symbol: "POL", name: "Polygon" },
+    "cosmos": { symbol: "ATOM", name: "Cosmos" },
+    "filecoin": { symbol: "FIL", name: "Filecoin" },
+    "immutable-x": { symbol: "IMX", name: "Immutable" },
+    "injective-protocol": { symbol: "INJ", name: "Injective" },
+    "the-graph": { symbol: "GRT", name: "The Graph" },
+    "aave": { symbol: "AAVE", name: "Aave" },
+    "algorand": { symbol: "ALGO", name: "Algorand" },
+    "fantom": { symbol: "FTM", name: "Fantom" },
+    "vechain": { symbol: "VET", name: "VeChain" },
+    "theta-token": { symbol: "THETA", name: "Theta" },
+    "eos": { symbol: "EOS", name: "EOS" },
+    "maker": { symbol: "MKR", name: "Maker" },
+    "monero": { symbol: "XMR", name: "Monero" },
+    "hedera-hashgraph": { symbol: "HBAR", name: "Hedera" },
+    "the-sandbox": { symbol: "SAND", name: "The Sandbox" },
+    "decentraland": { symbol: "MANA", name: "Decentraland" },
+    "axie-infinity": { symbol: "AXS", name: "Axie Infinity" },
+  };
 
-  app.get("/api/arbitrage", async (_req, res) => {
+  app.get("/api/arbitrage/extra-coins", (_req, res) => {
+    res.json(Object.entries(ARBITRAGE_EXTRA_COINS).map(([id, info]) => ({ id, ...info })));
+  });
+
+  app.get("/api/arbitrage", async (req, res) => {
+    const extraParam = typeof req.query.extra === "string" ? req.query.extra : "";
+    const extraCoins = [...new Set(extraParam ? extraParam.split(",").filter(c => ARBITRAGE_EXTRA_COINS[c]).slice(0, 20) : [])];
+    const allCoins = [...new Set([...ARBITRAGE_DEFAULT_COINS, ...extraCoins])];
+    const cacheKey = [...allCoins].sort().join(",");
+
     try {
-      if (arbitrageCache.data && arbitrageCache.timestamp && Date.now() - arbitrageCache.timestamp < ARBITRAGE_CACHE_TTL) {
-        return res.json(arbitrageCache.data);
+      if (arbitrageCache[cacheKey]?.data && Date.now() - arbitrageCache[cacheKey].timestamp < ARBITRAGE_CACHE_TTL) {
+        return res.json(arbitrageCache[cacheKey].data);
       }
 
       const results: any[] = [];
 
-      for (const coinId of ARBITRAGE_COINS) {
+      for (const coinId of allCoins) {
         try {
           const cached = tickerCache[coinId];
           let tickers: any[] = [];
@@ -1694,12 +1729,11 @@ export async function registerRoutes(
 
       results.sort((a, b) => b.spreadPct - a.spreadPct);
 
-      const data = { opportunities: results, timestamp: Date.now() };
-      (arbitrageCache as any).data = data;
-      (arbitrageCache as any).timestamp = Date.now();
+      const data = { opportunities: results, timestamp: Date.now(), coinCount: allCoins.length };
+      arbitrageCache[cacheKey] = { data, timestamp: Date.now() };
       res.json(data);
     } catch (err: any) {
-      if ((arbitrageCache as any).data) return res.json((arbitrageCache as any).data);
+      if (arbitrageCache[cacheKey]?.data) return res.json(arbitrageCache[cacheKey].data);
       res.status(500).json({ error: err.message });
     }
   });
