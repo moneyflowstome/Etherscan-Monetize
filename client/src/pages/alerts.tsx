@@ -446,10 +446,17 @@ export default function AlertsPage() {
                 )}
               </>
             )}
-            <div className="w-full md:w-72">
-              <CoinSearch onSelect={setSelectedCoin} />
-            </div>
           </div>
+        </div>
+
+        <div className="glass-panel rounded-xl p-5 mb-6" data-testid="card-create-alert-section">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+            <Plus className="w-4 h-4 text-primary" /> Create New Alert
+          </h3>
+          <CoinSearch onSelect={setSelectedCoin} />
+          {!selectedCoin && (
+            <p className="text-xs text-muted-foreground mt-2">Search for a coin above to set a price alert</p>
+          )}
         </div>
 
         {selectedCoin && (

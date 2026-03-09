@@ -332,7 +332,7 @@ export default function CalculatorPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {POPULAR_CRYPTOS.slice(0, 6).map((crypto) => {
+              {POPULAR_CRYPTOS.map((crypto) => {
                 const usdPrice = prices[crypto.id]?.usd;
                 return (
                   <div

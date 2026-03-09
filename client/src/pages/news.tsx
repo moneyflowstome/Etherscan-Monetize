@@ -312,8 +312,8 @@ export default function NewsPage() {
       if (!res.ok) throw new Error("Failed to fetch news");
       return res.json();
     },
-    refetchInterval: 300000,
-    staleTime: 120000,
+    refetchInterval: 120000,
+    staleTime: 60000,
   });
 
   const archiveQuery = useInfiniteQuery({
@@ -344,8 +344,8 @@ export default function NewsPage() {
       if (!res.ok) throw new Error("Failed to fetch world news");
       return res.json();
     },
-    refetchInterval: 600000,
-    staleTime: 300000,
+    refetchInterval: 300000,
+    staleTime: 120000,
     enabled: feedType === "world",
   });
 
@@ -356,8 +356,8 @@ export default function NewsPage() {
       if (!res.ok) throw new Error("Failed to fetch USA news");
       return res.json();
     },
-    refetchInterval: 600000,
-    staleTime: 300000,
+    refetchInterval: 300000,
+    staleTime: 120000,
     enabled: feedType === "usa",
   });
 

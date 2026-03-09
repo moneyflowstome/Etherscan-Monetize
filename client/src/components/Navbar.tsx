@@ -118,7 +118,7 @@ export function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden absolute left-0 right-0 top-full bg-card border-b border-border p-4 space-y-1 z-50">
+        <div className="md:hidden absolute left-0 right-0 top-full bg-card border-b border-border p-4 space-y-1 z-50 max-h-[80vh] overflow-y-auto">
           {NAV_LINKS.map((link) => (
             <Link key={link.path} href={link.path}>
               <button

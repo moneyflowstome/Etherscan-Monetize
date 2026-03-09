@@ -1599,9 +1599,10 @@ function MemeCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void 
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
-    staleTime: 60000,
-    refetchInterval: 120000,
-    retry: 2,
+    staleTime: 120000,
+    refetchInterval: 180000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });
 
   const sectionHeader = (

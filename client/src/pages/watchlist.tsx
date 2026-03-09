@@ -7,6 +7,7 @@ import {
   TrendingDown,
   Eye,
   Search,
+  Plus,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }
   );
 }
 
-function AddCoinSearch({ onAdd }: { onAdd: (id: string) => void }) {
+function AddCoinSection({ onAdd, isWatched }: { onAdd: (id: string) => void; isWatched: (id: string) => boolean }) {
   const [search, setSearch] = useState("");
 
   const pricesQuery = useQuery({
@@ -76,37 +77,57 @@ function AddCoinSearch({ onAdd }: { onAdd: (id: string) => void }) {
     ? allCoins.filter((c: any) =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.symbol.toLowerCase().includes(search.toLowerCase())
-      ).slice(0, 8)
-    : [];
+      ).slice(0, 20)
+    : allCoins.slice(0, 20);
 
   return (
-    <div className="relative">
-      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search coins to add..."
-        className="bg-muted/30 border-border pl-10 h-10 text-sm"
-        data-testid="input-watchlist-search"
-      />
-      {filtered.length > 0 && (
-        <div className="absolute left-0 right-0 top-12 bg-card border border-border rounded-xl p-2 z-50 shadow-2xl max-h-[300px] overflow-y-auto">
-          {filtered.map((coin: any) => (
-            <button
-              key={coin.id}
-              onClick={() => {
-                onAdd(coin.id);
-                setSearch("");
-              }}
-              className="w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center gap-3 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              data-testid={`button-add-${coin.id}`}
-            >
-              <img src={coin.image} alt="" className="w-5 h-5 rounded-full" />
-              <span className="font-medium text-foreground">{coin.name}</span>
-              <span className="text-xs uppercase text-muted-foreground">{coin.symbol}</span>
-              <span className="ml-auto text-xs font-mono">{formatPrice(coin.current_price)}</span>
-            </button>
-          ))}
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search coins to add to watchlist..."
+          className="bg-muted/30 border-border pl-10 h-10 text-sm"
+          data-testid="input-watchlist-search"
+        />
+      </div>
+      {pricesQuery.isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {filtered.map((coin: any) => {
+            const watched = isWatched(coin.id);
+            return (
+              <button
+                key={coin.id}
+                onClick={() => !watched && onAdd(coin.id)}
+                disabled={watched}
+                className={`text-left px-4 py-3 rounded-lg text-sm flex items-center gap-3 transition-all border ${
+                  watched
+                    ? "bg-primary/5 border-primary/20 opacity-60 cursor-default"
+                    : "bg-card/50 border-border hover:border-primary/30 hover:bg-primary/5 cursor-pointer"
+                }`}
+                data-testid={`button-add-${coin.id}`}
+              >
+                <img src={coin.image} alt="" className="w-6 h-6 rounded-full" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground truncate">{coin.name}</span>
+                    <span className="text-xs uppercase text-muted-foreground">{coin.symbol}</span>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">{formatPrice(coin.current_price)}</span>
+                </div>
+                {watched ? (
+                  <Badge variant="outline" className="text-[10px] border-primary/30 text-primary shrink-0">Watching</Badge>
+                ) : (
+                  <Star className="w-4 h-4 text-muted-foreground shrink-0" />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -116,6 +137,7 @@ function AddCoinSearch({ onAdd }: { onAdd: (id: string) => void }) {
 export default function WatchlistPage() {
   const { watchlist, removeFromWatchlist, addToWatchlist, isWatched } = useWatchlist();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"watchlist" | "add">("watchlist");
 
   const watchlistQuery = useQuery({
     queryKey: ["/api/prices/by-ids", watchlist.join(",")],
@@ -177,12 +199,34 @@ export default function WatchlistPage() {
                 : "Add cryptocurrencies to monitor their prices"}
             </p>
           </div>
-          <div className="w-full md:w-72">
-            <AddCoinSearch onAdd={handleAdd} />
-          </div>
         </div>
 
-        {watchlist.length > 0 && coins.length > 0 && (
+        <div className="flex gap-2 mb-6">
+          <Button
+            variant={activeTab === "watchlist" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab("watchlist")}
+            className={activeTab === "watchlist" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}
+            data-testid="button-tab-watchlist"
+          >
+            <Eye className="w-4 h-4 mr-1.5" /> My Watchlist {watchlist.length > 0 && `(${watchlist.length})`}
+          </Button>
+          <Button
+            variant={activeTab === "add" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab("add")}
+            className={activeTab === "add" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}
+            data-testid="button-tab-add"
+          >
+            <Plus className="w-4 h-4 mr-1.5" /> Add Coins
+          </Button>
+        </div>
+
+        {activeTab === "add" && (
+          <AddCoinSection onAdd={handleAdd} isWatched={isWatched} />
+        )}
+
+        {activeTab === "watchlist" && watchlist.length > 0 && coins.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <Card className="glass-panel border-border">
               <CardContent className="p-5">
@@ -208,7 +252,7 @@ export default function WatchlistPage() {
           </div>
         )}
 
-        {watchlist.length === 0 ? (
+        {activeTab === "watchlist" && watchlist.length === 0 ? (
           <div className="glass-panel p-12 rounded-2xl text-center animate-in fade-in duration-700">
             <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mx-auto mb-6">
               <Star className="w-8 h-8 text-yellow-400" />
@@ -217,16 +261,18 @@ export default function WatchlistPage() {
               Your Watchlist is Empty
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto mb-6">
-              Search for any cryptocurrency above to add it to your watchlist.
-              You can also star coins from the Prices page.
+              Click the "Add Coins" tab above to start adding cryptocurrencies to your watchlist.
             </p>
+            <Button onClick={() => setActiveTab("add")} className="bg-primary" data-testid="button-start-adding">
+              <Plus className="w-4 h-4 mr-1.5" /> Add Your First Coin
+            </Button>
           </div>
-        ) : watchlistQuery.isLoading ? (
+        ) : activeTab === "watchlist" && watchlistQuery.isLoading ? (
           <div className="p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
             <div className="text-muted-foreground">Loading watchlist...</div>
           </div>
-        ) : (
+        ) : activeTab === "watchlist" ? (
           <div className="space-y-3">
             {coins.map((coin: any) => {
               const change24h = coin.price_change_percentage_24h;
@@ -290,7 +336,7 @@ export default function WatchlistPage() {
               );
             })}
           </div>
-        )}
+        ) : null}
 
         <AdBanner slot="6655443322" format="horizontal" className="w-full mt-6" />
       </div>

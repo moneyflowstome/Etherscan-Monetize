@@ -52,7 +52,7 @@ const PRICE_CACHE_TTL = 60000;
 const COTD_CACHE_TTL = 300000;
 
 let newsCache: { data: any; timestamp: number } | null = null;
-const NEWS_CACHE_TTL = 300000;
+const NEWS_CACHE_TTL = 120000;
 
 let trendingCache: { data: any; timestamp: number } | null = null;
 const TRENDING_CACHE_TTL = 120000;
@@ -65,7 +65,7 @@ const VALIDATOR_CACHE_TTL = 300000;
 
 let worldNewsCache: { data: any; timestamp: number } | null = null;
 let usaNewsCache: { data: any; timestamp: number } | null = null;
-const GENERAL_NEWS_CACHE_TTL = 600000;
+const GENERAL_NEWS_CACHE_TTL = 300000;
 
 const XRPL_RPC = "https://s1.ripple.com:51234/";
 let xrplServerCache: { data: any; timestamp: number } | null = null;
@@ -444,6 +444,11 @@ export async function registerRoutes(
       const cacheKey = (req.query.ids as string || "").split(",").map(s => s.trim()).filter(Boolean).sort().join(",");
       const stale = byIdsCache[cacheKey];
       if (stale) return res.json(stale.data);
+      if (priceCache && Array.isArray(priceCache.data)) {
+        const idSet = new Set(cacheKey.split(","));
+        const fromMain = priceCache.data.filter((c: any) => idSet.has(c.id));
+        if (fromMain.length > 0) return res.json(fromMain);
+      }
       res.status(500).json({ error: err.message });
     }
   });
@@ -460,24 +465,62 @@ export async function registerRoutes(
         return res.json(searchCache.data);
       }
 
-      const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
-      const data = await response.json();
+      try {
+        const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          const coins = (data.coins || []).slice(0, 20).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            symbol: c.symbol,
+            thumb: c.thumb,
+            large: c.large,
+            market_cap_rank: c.market_cap_rank,
+          }));
+          searchCache = { query: query.toLowerCase(), data: coins, timestamp: Date.now() };
+          return res.json(coins);
+        }
+      } catch {}
 
-      const coins = (data.coins || []).slice(0, 20).map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        symbol: c.symbol,
-        thumb: c.thumb,
-        large: c.large,
-        market_cap_rank: c.market_cap_rank,
-      }));
+      if (priceCache && priceCache.data) {
+        const q = query.toLowerCase();
+        const allCoins = Array.isArray(priceCache.data) ? priceCache.data : [];
+        const filtered = allCoins.filter((c: any) =>
+          c.name?.toLowerCase().includes(q) || c.symbol?.toLowerCase().includes(q)
+        ).slice(0, 20).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          symbol: c.symbol,
+          thumb: c.image,
+          image: c.image,
+          market_cap_rank: c.market_cap_rank,
+        }));
+        return res.json(filtered);
+      }
 
-      searchCache = { query: query.toLowerCase(), data: coins, timestamp: Date.now() };
-      res.json(coins);
+      try {
+        const warmUrl = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1`;
+        const warmRes = await fetch(warmUrl);
+        if (warmRes.ok) {
+          const warmData = await warmRes.json();
+          if (Array.isArray(warmData)) {
+            priceCache = { data: warmData, timestamp: Date.now(), perPage: 100 };
+            const q = query.toLowerCase();
+            const filtered = warmData.filter((c: any) =>
+              c.name?.toLowerCase().includes(q) || c.symbol?.toLowerCase().includes(q)
+            ).slice(0, 20).map((c: any) => ({
+              id: c.id, name: c.name, symbol: c.symbol,
+              thumb: c.image, image: c.image, market_cap_rank: c.market_cap_rank,
+            }));
+            return res.json(filtered);
+          }
+        }
+      } catch {}
+
+      res.json([]);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.json([]);
     }
   });
 
@@ -3829,29 +3872,66 @@ export async function registerRoutes(
     try {
       const cached = getGoldCache("gold-news", GOLD_CACHE_MEDIUM);
       if (cached) return res.json(cached);
-      const response = await fetch(
-        "https://min-api.cryptocompare.com/data/v2/news/?categories=Mining,Regulation&feeds=cointelegraph,coindesk,decrypt&extraParams=TokenAltcoin"
-      );
-      if (!response.ok) throw new Error(`News API error: ${response.status}`);
-      const data = await response.json();
-      const articles = data?.Data;
-      if (Array.isArray(articles)) {
-        const goldArticles = articles.filter((a: any) => {
-          const text = `${a.title || ""} ${a.body || ""} ${a.categories || ""}`.toLowerCase();
-          return text.includes("gold") || text.includes("paxg") || text.includes("xaut") || text.includes("precious metal") || text.includes("tokenized gold") || text.includes("gold-backed");
-        }).slice(0, 10).map((a: any) => ({
-          title: a.title,
-          url: a.url || a.guid,
-          body: a.body,
-          imageUrl: a.imageurl,
-          source: a.source_info?.name || a.source,
-          publishedAt: a.published_on,
-          categories: a.categories,
-        }));
-        goldCache["gold-news"] = { data: goldArticles, timestamp: Date.now() };
-        return res.json(goldArticles);
+
+      let goldArticles: any[] = [];
+
+      let braveKey = process.env.BRAVE_API_KEY;
+      if (braveKey && !braveKey.endsWith("-")) braveKey = braveKey + "-";
+      if (braveKey) {
+        try {
+          const response = await fetch(
+            `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent("gold price precious metals PAXG XAUT crypto news")}&count=15`,
+            {
+              headers: {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip",
+                "X-Subscription-Token": braveKey,
+              },
+            }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            const webResults = data.web?.results || [];
+            goldArticles = webResults.map((item: any) => ({
+              title: item.title,
+              url: item.url,
+              body: item.description || "",
+              imageUrl: item.thumbnail?.src || null,
+              source: (item.meta_url?.hostname || new URL(item.url).hostname).replace("www.", ""),
+              publishedAt: item.age ? Math.floor(Date.now() / 1000) : Math.floor(Date.now() / 1000),
+              categories: "Gold,Precious Metals",
+            }));
+          }
+        } catch {}
       }
-      res.json([]);
+
+      if (goldArticles.length === 0) {
+        const response = await fetch(
+          "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=popular&extraParams=TokenAltcoin"
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const articles = data?.Data;
+          if (Array.isArray(articles)) {
+            const keywords = ["gold", "paxg", "xaut", "precious metal", "tokenized gold", "gold-backed", "silver", "platinum", "commodity", "commodities", "metal"];
+            goldArticles = articles.filter((a: any) => {
+              const text = `${a.title || ""} ${a.body || ""} ${a.categories || ""}`.toLowerCase();
+              return keywords.some(k => text.includes(k));
+            }).slice(0, 10).map((a: any) => ({
+              title: a.title,
+              url: a.url || a.guid,
+              body: a.body,
+              imageUrl: a.imageurl,
+              source: a.source_info?.name || a.source,
+              publishedAt: a.published_on,
+              categories: a.categories,
+            }));
+          }
+        }
+      }
+
+      goldCache["gold-news"] = { data: goldArticles, timestamp: Date.now() };
+      res.json(goldArticles);
     } catch (e: any) {
       const cached = getGoldCache("gold-news", GOLD_CACHE_MEDIUM * 5);
       if (cached) return res.json(cached);
