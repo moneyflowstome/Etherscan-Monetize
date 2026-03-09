@@ -3878,6 +3878,107 @@ export async function registerRoutes(
     }
   });
 
+  // Collection Stats
+  app.get("/api/nfts/collection/:slug/stats", async (req, res) => {
+    try {
+      const slug = req.params.slug.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 100);
+      if (!slug) return res.status(400).json({ error: "Invalid slug" });
+      const { data, status } = await openseaFetch(`/collections/${slug}/stats`);
+      if (!data) return res.status(status === 404 ? 404 : status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Collection Events/Activity (sales, transfers, listings)
+  app.get("/api/nfts/events", async (req, res) => {
+    try {
+      const collection = (req.query.collection as string || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 100);
+      const eventType = (req.query.event_type as string) || "";
+      const validEvents = new Set(["sale", "transfer", "listing", "offer", "cancel", "redemption", ""]);
+      if (!validEvents.has(eventType)) return res.status(400).json({ error: "Invalid event type" });
+      let path = `/events/collection/${collection}?limit=50`;
+      if (eventType) path += `&event_type=${eventType}`;
+      const { data, status } = await openseaFetch(path);
+      if (!data) return res.status(status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      const events = Array.isArray(data?.asset_events) ? data.asset_events : [];
+      res.json(events);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Active Listings for a collection
+  app.get("/api/nfts/listings/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 100);
+      if (!slug) return res.status(400).json({ error: "Invalid slug" });
+      const { data, status } = await openseaFetch(`/listings/collection/${slug}/all?limit=50`);
+      if (!data) return res.status(status === 404 ? 404 : status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      const listings = Array.isArray(data?.listings) ? data.listings : [];
+      res.json(listings);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Best Offers for a collection
+  app.get("/api/nfts/offers/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 100);
+      if (!slug) return res.status(400).json({ error: "Invalid slug" });
+      const { data, status } = await openseaFetch(`/offers/collection/${slug}/all?limit=50`);
+      if (!data) return res.status(status === 404 ? 404 : status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      const offers = Array.isArray(data?.offers) ? data.offers : [];
+      res.json(offers);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Collection Traits
+  app.get("/api/nfts/traits/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 100);
+      if (!slug) return res.status(400).json({ error: "Invalid slug" });
+      const { data, status } = await openseaFetch(`/traits/${slug}`);
+      if (!data) return res.status(status === 404 ? 404 : status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Single NFT detail by contract + token ID
+  app.get("/api/nfts/asset/:chain/:contract/:tokenId", async (req, res) => {
+    try {
+      const { chain, contract, tokenId } = req.params;
+      if (!VALID_NFT_CHAINS.has(chain)) return res.status(400).json({ error: "Invalid chain" });
+      if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) return res.status(400).json({ error: "Invalid contract address" });
+      if (!/^\d+$/.test(tokenId)) return res.status(400).json({ error: "Invalid token ID" });
+      const { data, status } = await openseaFetch(`/chain/${chain}/contract/${contract}/nfts/${tokenId}`);
+      if (!data) return res.status(status === 404 ? 404 : status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      res.json(data?.nft || data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Account info (wallet collections)
+  app.get("/api/nfts/account/:address/collections", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) return res.status(400).json({ error: "Invalid EVM address" });
+      const { data, status } = await openseaFetch(`/collections?owner=${address}&limit=50`);
+      if (!data) return res.status(status === 429 ? 429 : 502).json({ error: "OpenSea API error" });
+      const collections = Array.isArray(data?.collections) ? data.collections : Array.isArray(data) ? data : [];
+      res.json(collections);
+    } catch (err: any) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // ── ChangeNOW Swap API ──
   const CN_API = "https://api.changenow.io/v2";
   let CN_KEY = await getApiKey("CHANGENOW_API_KEY");
