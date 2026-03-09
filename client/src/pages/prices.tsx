@@ -545,7 +545,7 @@ function PrivacyCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => vo
   );
 }
 
-const MEME_COIN_IDS = "dogecoin,shiba-inu,pepe,floki,dogwifcoin,bonk,brett,turbo,mog-coin,neiro-3";
+const MEME_COIN_IDS = "dogecoin,shiba-inu,pepe,floki,dogwifcoin,bonk,based-brett,turbo,mog-coin,neiro-3";
 
 function MemeCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void }) {
   const { data, isLoading, error } = useQuery({
