@@ -1428,6 +1428,29 @@ export default function ExplorerPage() {
 
         {view !== "overview" && <ChainExplorerView chainId={view} />}
 
+        {view === "overview" && (
+          <section className="mt-8">
+            <h2 className="text-xl font-display font-bold mb-4 text-foreground" data-testid="text-roadmap-title">Roadmap</h2>
+            <div className="flex flex-col gap-3">
+              {[
+                "Add real-time price alerts with customizable thresholds.",
+                "Introduce a portfolio performance chart with historical data.",
+                "Implement a news sentiment analysis feature for cryptocurrencies.",
+                "Create a customizable dashboard with drag-and-drop widgets.",
+                "Add support for more exchanges and blockchain networks.",
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  className="glass-panel border border-border/50 rounded-xl px-5 py-3.5 text-sm text-muted-foreground"
+                  data-testid={`text-roadmap-item-${i}`}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <AdBanner slot="explorer-bottom" className="mt-8" />
       </main>
       {showCustomize && (
