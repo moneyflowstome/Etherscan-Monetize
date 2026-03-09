@@ -1189,6 +1189,121 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
   );
 }
 
+function GainersLosersSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void }) {
+  const [tab, setTab] = useState<"gainers" | "losers">("gainers");
+  const [timeframe, setTimeframe] = useState<"1h" | "24h" | "7d">("24h");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/prices/gainers-losers"],
+    queryFn: async () => {
+      const res = await fetch("/api/prices?page=1&per_page=100");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000,
+    refetchInterval: 120000,
+  });
+
+  const getChange = (coin: any) => {
+    if (timeframe === "1h") return coin.price_change_percentage_1h_in_currency ?? null;
+    if (timeframe === "7d") return coin.price_change_percentage_7d_in_currency ?? null;
+    return coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h ?? null;
+  };
+
+  const validCoins = (data || []).filter((c: any) => {
+    const ch = getChange(c);
+    if (ch == null) return false;
+    return tab === "gainers" ? ch > 0 : ch < 0;
+  });
+  const sorted = [...validCoins].sort((a: any, b: any) => {
+    const aVal = getChange(a) || 0;
+    const bVal = getChange(b) || 0;
+    return tab === "gainers" ? bVal - aVal : aVal - bVal;
+  });
+  const top10 = sorted.slice(0, 10);
+
+  return (
+    <div className="mb-8" data-testid="section-gainers-losers">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-medium flex items-center gap-2">
+          {tab === "gainers" ? <ArrowUpRight className="w-4 h-4 text-green-400" /> : <ArrowDownRight className="w-4 h-4 text-red-400" />}
+          Top {tab === "gainers" ? "Gainers" : "Losers"} {isLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+        </h2>
+        <div className="flex gap-2">
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setTab("gainers")}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${tab === "gainers" ? "bg-green-500/20 text-green-400" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid="button-gainers"
+            >
+              Gainers
+            </button>
+            <button
+              onClick={() => setTab("losers")}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${tab === "losers" ? "bg-red-500/20 text-red-400" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid="button-losers"
+            >
+              Losers
+            </button>
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            {(["1h", "24h", "7d"] as const).map(tf => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                className={`px-2.5 py-1 text-xs font-medium transition-colors ${timeframe === tf ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                data-testid={`button-timeframe-${tf}`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {top10.length === 0 && !isLoading && (
+        <div className="glass-panel rounded-xl p-4 text-center text-sm text-muted-foreground">
+          No {tab === "gainers" ? "gainers" : "losers"} found for {timeframe} timeframe
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {top10.map((coin: any, i: number) => {
+          const change = getChange(coin) || 0;
+          const isUp = change >= 0;
+          return (
+            <div
+              key={coin.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectCoin(coin)}
+              onKeyDown={(e) => e.key === "Enter" && onSelectCoin(coin)}
+              className={`glass-panel rounded-xl p-3 hover:bg-muted/30 transition-colors cursor-pointer border ${isUp ? "border-green-500/20 hover:border-green-500/40" : "border-red-500/20 hover:border-red-500/40"}`}
+              data-testid={`card-${tab}-${coin.id}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-[10px] font-mono font-bold ${isUp ? "text-green-500/60" : "text-red-500/60"}`}>{i + 1}</span>
+                {coin.image && <img src={coin.image} alt="" className="w-6 h-6 rounded-full" />}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-foreground truncate">{coin.name}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">{coin.symbol}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-foreground">{formatPrice(coin.current_price)}</span>
+                <span className={`text-xs font-mono font-semibold ${isUp ? "text-green-400" : "text-red-400"}`}>
+                  {isUp ? "+" : ""}{change.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const PRIVACY_COIN_IDS = "monero,zcash,dash,secret,zencash,zcoin,pirate-chain,dero";
 
 function PrivacyCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void }) {
@@ -1537,6 +1652,8 @@ export default function PricesPage() {
             </div>
           </div>
         )}
+
+        <GainersLosersSection onSelectCoin={(coin) => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)} />
 
         <MemeCoinsSection onSelectCoin={(coin) => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)} />
         <PrivacyCoinsSection onSelectCoin={(coin) => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)} />
