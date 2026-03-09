@@ -300,6 +300,7 @@ function SettingsTab({ token }: { token: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [localSettings, setLocalSettings] = useState<Record<string, string>>({});
+  const [settingsSubTab, setSettingsSubTab] = useState("general");
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["admin-settings"],
@@ -337,6 +338,11 @@ function SettingsTab({ token }: { token: string }) {
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const toggleSetting = (key: string) => {
+    const current = localSettings[key];
+    updateLocal(key, current === "true" ? "false" : "true");
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -345,148 +351,324 @@ function SettingsTab({ token }: { token: string }) {
     );
   }
 
-  const settingsFields = [
-    { key: "adsense_publisher_id", label: "AdSense Publisher ID", placeholder: "ca-pub-XXXXXXXXXXXXXXXX", help: "Your Google AdSense publisher ID" },
-    { key: "adsense_slot_leaderboard", label: "Leaderboard Ad Slot", placeholder: "1234567890", help: "Top banner ad slot ID" },
-    { key: "adsense_slot_sidebar", label: "Sidebar Ad Slot", placeholder: "2345678901", help: "Sidebar ad slot ID" },
-    { key: "adsense_slot_infeed", label: "In-feed Ad Slot", placeholder: "3456789012", help: "In-feed / article ad slot ID" },
-    { key: "adsense_slot_rectangle", label: "Rectangle Ad Slot", placeholder: "4567890123", help: "Rectangle / medium ad slot ID" },
-    { key: "admin_password", label: "Admin Password", placeholder: "Enter new password", help: "Change your admin login password" },
-    { key: "site_title", label: "Site Title", placeholder: "TokenAltcoin", help: "Displayed in browser tab and headers" },
-    { key: "wallet_tracking_enabled", label: "Wallet Tracking", placeholder: "true", help: "Enable/disable wallet tracker (true/false)" },
-    { key: "prices_enabled", label: "Prices Page", placeholder: "true", help: "Enable/disable prices page (true/false)" },
-    { key: "news_enabled", label: "News Page", placeholder: "true", help: "Enable/disable news page (true/false)" },
-    { key: "masternodes_enabled", label: "Masternodes Page", placeholder: "true", help: "Enable/disable masternodes page (true/false)" },
-    { key: "show_login_link", label: "Show Login Link", placeholder: "true", help: "Show/hide the Login link in the navigation bar (true/false). Set to false after connecting your domain." },
-    { key: "changenow_affiliate_id", label: "ChangeNOW Affiliate ID", placeholder: "your-affiliate-id", help: "Your ChangeNOW referral/affiliate ID for the swap widget" },
+  const subTabs = [
+    { value: "general", label: "General", icon: Settings },
+    { value: "adsense", label: "AdSense", icon: Zap },
+    { value: "maintenance", label: "Maintenance", icon: Shield },
+    { value: "features", label: "Features", icon: Monitor },
+    { value: "apikeys", label: "API Keys", icon: Lock },
   ];
 
-  const apiKeyFields = [
-    { key: "api_key_ETHERSCAN_API_KEY", label: "Etherscan API Key", placeholder: "Your Etherscan API key", help: "Used for EVM wallet tracking (Ethereum, BSC, Polygon, etc.)" },
-    { key: "api_key_CMC_API_KEY", label: "CoinMarketCap API Key", placeholder: "Your CMC API key", help: "Used for market data and coin metadata" },
-    { key: "api_key_CHANGENOW_API_KEY", label: "ChangeNOW API Key", placeholder: "Your ChangeNOW API key", help: "Used for the crypto swap feature" },
-    { key: "api_key_BRAVE_API_KEY", label: "Brave Search API Key", placeholder: "Your Brave API key", help: "Used for news search and AI blog generation" },
-  ];
+  const isMaintenanceOn = localSettings["maintenance_enabled"] === "true";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-settings-title">Site Settings</h2>
-        <Button
-          size="sm"
-          onClick={() => saveMutation.mutate(localSettings)}
-          disabled={saveMutation.isPending}
-          className="bg-primary hover:bg-primary/90"
-          data-testid="button-save-settings"
-        >
-          {saveMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-          Save All
-        </Button>
+        <div className="flex items-center gap-2">
+          {isMaintenanceOn && (
+            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs animate-pulse">
+              Maintenance Mode ON
+            </Badge>
+          )}
+          <Button
+            size="sm"
+            onClick={() => saveMutation.mutate(localSettings)}
+            disabled={saveMutation.isPending}
+            className="bg-primary hover:bg-primary/90"
+            data-testid="button-save-settings"
+          >
+            {saveMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Save All
+          </Button>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2">
-          <Zap className="w-4 h-4" /> AdSense Configuration
-        </h3>
-        {settingsFields.slice(0, 5).map((field) => (
-          <Card key={field.key} className="bg-muted/30 border-border">
+      <div className="flex gap-1 bg-muted/30 border border-border rounded-lg p-1 overflow-x-auto">
+        {subTabs.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setSettingsSubTab(tab.value)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+              settingsSubTab === tab.value
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+            }`}
+            data-testid={`subtab-settings-${tab.value}`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {settingsSubTab === "general" && (
+        <div className="space-y-4">
+          <Card className="bg-muted/30 border-border">
             <CardContent className="p-4">
-              <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
-              <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
+              <label className="text-sm font-medium text-foreground block mb-1">Home Page</label>
+              <p className="text-xs text-muted-foreground mb-2">Choose which page loads as the home page when visitors arrive at your site</p>
+              <select
+                value={localSettings["home_page"] || "explorer"}
+                onChange={(e) => updateLocal("home_page", e.target.value)}
+                className="w-full bg-muted/30 border border-border rounded-md px-3 py-2 text-foreground text-sm"
+                data-testid="select-setting-home-page"
+              >
+                <option value="explorer">Explorer (Multi-Chain Explorer)</option>
+                <option value="prices">Prices (Live Crypto Prices)</option>
+                <option value="dashboard">Dashboard (Custom Dashboard)</option>
+                <option value="news">News (Crypto News Feed)</option>
+                <option value="swap">Swap (Crypto Exchange)</option>
+                <option value="portfolio">Portfolio (Portfolio Tracker)</option>
+              </select>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">Site Title</label>
+              <p className="text-xs text-muted-foreground mb-2">Displayed in browser tab and headers</p>
               <Input
-                value={localSettings[field.key] || ""}
-                onChange={(e) => updateLocal(field.key, e.target.value)}
-                placeholder={field.placeholder}
+                value={localSettings["site_title"] || ""}
+                onChange={(e) => updateLocal("site_title", e.target.value)}
+                placeholder="TokenAltcoin"
                 className="bg-muted/30 border-border text-foreground font-mono text-sm"
-                data-testid={`input-setting-${field.key}`}
+                data-testid="input-setting-site_title"
               />
             </CardContent>
           </Card>
-        ))}
 
-        <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
-          <Zap className="w-4 h-4" /> ads.txt File
-        </h3>
-        <Card className="bg-muted/30 border-border">
-          <CardContent className="p-4">
-            <label className="text-sm font-medium text-foreground block mb-1">ads.txt Content</label>
-            <p className="text-xs text-muted-foreground mb-2">
-              This file is served at <span className="font-mono text-primary">/ads.txt</span> and is required by Google AdSense for ad verification. Each line should follow the format: <span className="font-mono">google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0</span>
-            </p>
-            <textarea
-              value={localSettings["ads_txt_content"] || ""}
-              onChange={(e) => updateLocal("ads_txt_content", e.target.value)}
-              placeholder={"google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0"}
-              rows={5}
-              className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground font-mono text-sm resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/50"
-              data-testid="textarea-ads-txt"
-            />
-          </CardContent>
-        </Card>
-
-        <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
-          <Settings className="w-4 h-4" /> General Settings
-        </h3>
-        <Card className="bg-muted/30 border-border">
-          <CardContent className="p-4">
-            <label className="text-sm font-medium text-foreground block mb-1">Home Page</label>
-            <p className="text-xs text-muted-foreground mb-2">Choose which page loads as the home page when visitors arrive at your site</p>
-            <select
-              value={localSettings["home_page"] || "explorer"}
-              onChange={(e) => updateLocal("home_page", e.target.value)}
-              className="w-full bg-muted/30 border border-border rounded-md px-3 py-2 text-foreground text-sm"
-              data-testid="select-setting-home-page"
-            >
-              <option value="explorer">Explorer (Multi-Chain Explorer)</option>
-              <option value="prices">Prices (Live Crypto Prices)</option>
-              <option value="dashboard">Dashboard (Custom Dashboard)</option>
-              <option value="news">News (Crypto News Feed)</option>
-              <option value="swap">Swap (Crypto Exchange)</option>
-              <option value="portfolio">Portfolio (Portfolio Tracker)</option>
-            </select>
-          </CardContent>
-        </Card>
-
-        {settingsFields.slice(5).map((field) => (
-          <Card key={field.key} className="bg-muted/30 border-border">
+          <Card className="bg-muted/30 border-border">
             <CardContent className="p-4">
-              <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
-              <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
+              <label className="text-sm font-medium text-foreground block mb-1">Admin Password</label>
+              <p className="text-xs text-muted-foreground mb-2">Change your admin login password</p>
               <Input
-                value={localSettings[field.key] || ""}
-                onChange={(e) => updateLocal(field.key, e.target.value)}
-                placeholder={field.placeholder}
-                className="bg-muted/30 border-border text-foreground font-mono text-sm"
-                type={field.key === "admin_password" ? "password" : "text"}
-                data-testid={`input-setting-${field.key}`}
-              />
-            </CardContent>
-          </Card>
-        ))}
-
-        <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
-          <Shield className="w-4 h-4" /> API Keys
-        </h3>
-        <p className="text-xs text-muted-foreground -mt-2">
-          Set your API keys here so they transfer with the database when you move to a new server. These override environment variables.
-        </p>
-        {apiKeyFields.map((field) => (
-          <Card key={field.key} className="bg-muted/30 border-border">
-            <CardContent className="p-4">
-              <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
-              <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
-              <Input
-                value={localSettings[field.key] || ""}
-                onChange={(e) => updateLocal(field.key, e.target.value)}
-                placeholder={field.placeholder}
-                className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                value={localSettings["admin_password"] || ""}
+                onChange={(e) => updateLocal("admin_password", e.target.value)}
+                placeholder="Enter new password"
                 type="password"
-                data-testid={`input-setting-${field.key}`}
+                className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                data-testid="input-setting-admin_password"
               />
             </CardContent>
           </Card>
-        ))}
-      </div>
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">Show Login Link</label>
+              <p className="text-xs text-muted-foreground mb-2">Show/hide the Login link in the navigation bar. Set to false after connecting your domain.</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggleSetting("show_login_link")}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${localSettings["show_login_link"] !== "false" ? "bg-primary" : "bg-muted/50"}`}
+                  data-testid="toggle-show-login-link"
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all ${localSettings["show_login_link"] !== "false" ? "left-5" : "left-0.5"}`} />
+                </button>
+                <span className="text-xs text-muted-foreground">{localSettings["show_login_link"] !== "false" ? "Visible" : "Hidden"}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">ChangeNOW Affiliate ID</label>
+              <p className="text-xs text-muted-foreground mb-2">Your ChangeNOW referral/affiliate ID for the swap widget</p>
+              <Input
+                value={localSettings["changenow_affiliate_id"] || ""}
+                onChange={(e) => updateLocal("changenow_affiliate_id", e.target.value)}
+                placeholder="your-affiliate-id"
+                className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                data-testid="input-setting-changenow_affiliate_id"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {settingsSubTab === "adsense" && (
+        <div className="space-y-4">
+          {[
+            { key: "adsense_publisher_id", label: "AdSense Publisher ID", placeholder: "ca-pub-XXXXXXXXXXXXXXXX", help: "Your Google AdSense publisher ID" },
+            { key: "adsense_slot_leaderboard", label: "Leaderboard Ad Slot", placeholder: "1234567890", help: "Top banner ad slot ID" },
+            { key: "adsense_slot_sidebar", label: "Sidebar Ad Slot", placeholder: "2345678901", help: "Sidebar ad slot ID" },
+            { key: "adsense_slot_infeed", label: "In-feed Ad Slot", placeholder: "3456789012", help: "In-feed / article ad slot ID" },
+            { key: "adsense_slot_rectangle", label: "Rectangle Ad Slot", placeholder: "4567890123", help: "Rectangle / medium ad slot ID" },
+          ].map((field) => (
+            <Card key={field.key} className="bg-muted/30 border-border">
+              <CardContent className="p-4">
+                <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
+                <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
+                <Input
+                  value={localSettings[field.key] || ""}
+                  onChange={(e) => updateLocal(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                  data-testid={`input-setting-${field.key}`}
+                />
+              </CardContent>
+            </Card>
+          ))}
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">ads.txt Content</label>
+              <p className="text-xs text-muted-foreground mb-2">
+                This file is served at <span className="font-mono text-primary">/ads.txt</span> and is required by Google AdSense for ad verification. Each line should follow the format: <span className="font-mono">google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0</span>
+              </p>
+              <textarea
+                value={localSettings["ads_txt_content"] || ""}
+                onChange={(e) => updateLocal("ads_txt_content", e.target.value)}
+                placeholder={"google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0"}
+                rows={5}
+                className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground font-mono text-sm resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                data-testid="textarea-ads-txt"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {settingsSubTab === "maintenance" && (
+        <div className="space-y-4">
+          <Card className={`border ${isMaintenanceOn ? "border-orange-500/50 bg-orange-500/5" : "border-border bg-muted/30"}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-foreground block mb-1">Maintenance Mode</label>
+                  <p className="text-xs text-muted-foreground">When enabled, all visitors see a maintenance page. Admin panel stays accessible.</p>
+                </div>
+                <button
+                  onClick={() => toggleSetting("maintenance_enabled")}
+                  className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 ${isMaintenanceOn ? "bg-orange-500" : "bg-muted/50"}`}
+                  data-testid="toggle-maintenance-mode"
+                >
+                  <div className={`w-6 h-6 rounded-full bg-white absolute top-0.5 transition-all ${isMaintenanceOn ? "left-7" : "left-0.5"}`} />
+                </button>
+              </div>
+              {isMaintenanceOn && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-orange-400 bg-orange-500/10 rounded-lg px-3 py-2">
+                  <Shield className="w-4 h-4" />
+                  Site is currently in maintenance mode. Only allowed IPs and admin panel can access the site.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">Maintenance Message</label>
+              <p className="text-xs text-muted-foreground mb-2">Custom message shown to visitors during maintenance</p>
+              <textarea
+                value={localSettings["maintenance_message"] || ""}
+                onChange={(e) => updateLocal("maintenance_message", e.target.value)}
+                placeholder="We're currently performing scheduled maintenance. Please check back soon."
+                rows={3}
+                className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground text-sm resize-y min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+                data-testid="textarea-maintenance-message"
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">Allowed IPs (Bypass Maintenance)</label>
+              <p className="text-xs text-muted-foreground mb-2">Comma-separated list of IP addresses that can access the site during maintenance. Your admin panel is always accessible regardless.</p>
+              <Input
+                value={localSettings["maintenance_allowed_ips"] || ""}
+                onChange={(e) => updateLocal("maintenance_allowed_ips", e.target.value)}
+                placeholder="192.168.1.1, 10.0.0.1"
+                className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                data-testid="input-maintenance-allowed-ips"
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="bg-muted/30 border-border">
+            <CardContent className="p-4">
+              <label className="text-sm font-medium text-foreground block mb-1">Scheduled Maintenance</label>
+              <p className="text-xs text-muted-foreground mb-2">Optional: Set a date/time to display on the maintenance page (informational only, does not auto-toggle)</p>
+              <Input
+                value={localSettings["maintenance_scheduled"] || ""}
+                onChange={(e) => updateLocal("maintenance_scheduled", e.target.value)}
+                placeholder="March 15, 2026 at 2:00 PM UTC"
+                className="bg-muted/30 border-border text-foreground text-sm"
+                data-testid="input-maintenance-scheduled"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {settingsSubTab === "features" && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">Toggle individual features on or off across your site.</p>
+
+          {[
+            { key: "wallet_tracking_enabled", label: "Wallet Tracking", desc: "Enable/disable the wallet tracker feature" },
+            { key: "prices_enabled", label: "Prices Page", desc: "Enable/disable the live crypto prices page" },
+            { key: "news_enabled", label: "News Page", desc: "Enable/disable the crypto news feed" },
+            { key: "masternodes_enabled", label: "Masternodes Page", desc: "Enable/disable the masternodes/validators page" },
+            { key: "swap_enabled", label: "Swap Feature", desc: "Enable/disable the crypto swap functionality" },
+            { key: "blog_enabled", label: "Blog", desc: "Enable/disable the blog section" },
+            { key: "chat_enabled", label: "Community Chat", desc: "Enable/disable the community chat feature" },
+            { key: "airdrops_enabled", label: "Airdrops", desc: "Enable/disable the airdrops page" },
+            { key: "arbitrage_enabled", label: "Arbitrage Scanner", desc: "Enable/disable the arbitrage scanner" },
+            { key: "calculator_enabled", label: "Calculator", desc: "Enable/disable the crypto calculator" },
+            { key: "staking_enabled", label: "Staking Calculator", desc: "Enable/disable the staking calculator" },
+            { key: "dex_enabled", label: "DEX Screener", desc: "Enable/disable the DEX screener page" },
+            { key: "gold_enabled", label: "Gold & Precious Metals", desc: "Enable/disable the gold tracker page" },
+            { key: "contact_enabled", label: "Contact Form", desc: "Enable/disable the contact form" },
+          ].map((feature) => (
+            <Card key={feature.key} className="bg-muted/30 border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-foreground block">{feature.label}</label>
+                    <p className="text-xs text-muted-foreground mt-0.5">{feature.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => toggleSetting(feature.key)}
+                    className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${localSettings[feature.key] !== "false" ? "bg-green-500" : "bg-muted/50"}`}
+                    data-testid={`toggle-feature-${feature.key}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all ${localSettings[feature.key] !== "false" ? "left-5" : "left-0.5"}`} />
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {settingsSubTab === "apikeys" && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Store your API keys in the database so they transfer when you migrate servers. These override environment variables.
+          </p>
+          {[
+            { key: "api_key_ETHERSCAN_API_KEY", label: "Etherscan API Key", placeholder: "Your Etherscan API key", help: "Used for EVM wallet tracking (Ethereum, BSC, Polygon, etc.)" },
+            { key: "api_key_CMC_API_KEY", label: "CoinMarketCap API Key", placeholder: "Your CMC API key", help: "Used for market data and coin metadata" },
+            { key: "api_key_CHANGENOW_API_KEY", label: "ChangeNOW API Key", placeholder: "Your ChangeNOW API key", help: "Used for the crypto swap feature" },
+            { key: "api_key_BRAVE_API_KEY", label: "Brave Search API Key", placeholder: "Your Brave API key", help: "Used for news search and AI blog generation" },
+          ].map((field) => (
+            <Card key={field.key} className="bg-muted/30 border-border">
+              <CardContent className="p-4">
+                <label className="text-sm font-medium text-foreground block mb-1">{field.label}</label>
+                <p className="text-xs text-muted-foreground mb-2">{field.help}</p>
+                <Input
+                  value={localSettings[field.key] || ""}
+                  onChange={(e) => updateLocal(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  className="bg-muted/30 border-border text-foreground font-mono text-sm"
+                  type="password"
+                  data-testid={`input-setting-${field.key}`}
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

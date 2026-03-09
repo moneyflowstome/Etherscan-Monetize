@@ -124,6 +124,87 @@ export async function registerRoutes(
     return validChainIds.has(chainId);
   }
 
+  app.get("/api/maintenance-status", async (_req, res) => {
+    try {
+      const enabled = await storage.getSetting("maintenance_enabled");
+      const message = await storage.getSetting("maintenance_message");
+      res.json({
+        enabled: enabled === "true",
+        message: message || "We're currently performing scheduled maintenance. Please check back soon.",
+      });
+    } catch {
+      res.json({ enabled: false, message: "" });
+    }
+  });
+
+  app.use(async (req, res, next) => {
+    if (
+      req.path.startsWith("/api/admin") ||
+      req.path.startsWith("/api/track") ||
+      req.path === "/api/maintenance-status" ||
+      req.path === "/api/site-settings" ||
+      req.path === "/admin" ||
+      req.path === "/ads.txt" ||
+      req.path === "/robots.txt" ||
+      req.path === "/sitemap.xml" ||
+      req.path === "/manifest.json" ||
+      req.path === "/sw.js" ||
+      req.path.startsWith("/assets") ||
+      req.path.startsWith("/icons")
+    ) {
+      return next();
+    }
+
+    try {
+      const enabled = await storage.getSetting("maintenance_enabled");
+      if (enabled === "true") {
+        const allowedIps = await storage.getSetting("maintenance_allowed_ips");
+        const clientIp = req.ip || "";
+        if (allowedIps) {
+          const ipList = allowedIps.split(",").map(ip => ip.trim()).filter(Boolean);
+          if (ipList.includes(clientIp)) {
+            return next();
+          }
+        }
+
+        if (req.path.startsWith("/api/")) {
+          return res.status(503).json({ error: "Site is under maintenance" });
+        }
+
+        const message = await storage.getSetting("maintenance_message") || "We're currently performing scheduled maintenance. Please check back soon.";
+        return res.status(503).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maintenance - TokenAltcoin</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0a0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .container { text-align: center; padding: 40px; max-width: 600px; }
+    .icon { width: 80px; height: 80px; margin: 0 auto 24px; border-radius: 20px; background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 36px; }
+    h1 { font-size: 28px; font-weight: 700; color: #00C8FF; margin-bottom: 12px; letter-spacing: 2px; }
+    p { font-size: 16px; color: #888; line-height: 1.6; margin-bottom: 24px; }
+    .msg { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; font-size: 14px; color: #aaa; }
+    .footer { margin-top: 32px; font-size: 12px; color: #555; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🔧</div>
+    <h1>Under Maintenance</h1>
+    <p>TokenAltcoin is temporarily unavailable</p>
+    <div class="msg">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+    <div class="footer">We'll be back shortly. Thank you for your patience.</div>
+  </div>
+</body>
+</html>`);
+      }
+    } catch {}
+
+    next();
+  });
+
   app.use((req, _res, next) => {
     if (req.path.startsWith("/api/admin") || req.path.startsWith("/api/track")) {
       return next();
@@ -654,7 +735,8 @@ export async function registerRoutes(
       const settingsMap: Record<string, string> = {};
       const publicKeys = ["home_page", "site_title", "changenow_affiliate_id"];
       for (const s of settings) {
-        if (publicKeys.includes(s.key)) {
+        if (s.key.startsWith("api_key_") || s.key === "admin_password_hash" || s.key.startsWith("maintenance_")) continue;
+        if (publicKeys.includes(s.key) || s.key.endsWith("_enabled")) {
           settingsMap[s.key] = s.value;
         }
       }

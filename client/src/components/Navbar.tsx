@@ -1,38 +1,45 @@
 import { Zap, Menu, X, Sun, Moon, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/use-theme";
+import { FeatureContext } from "@/App";
 
-const NAV_LINKS = [
+const NAV_LINKS: { path: string; label: string; featureKey?: string }[] = [
   { path: "/dashboard", label: "Dashboard" },
   { path: "/", label: "Explorer" },
-  { path: "/wallet", label: "Wallet Tracker" },
-  { path: "/prices", label: "Prices" },
-  { path: "/dex", label: "DEX Screener" },
-  { path: "/gold", label: "Gold" },
+  { path: "/wallet", label: "Wallet Tracker", featureKey: "wallet_tracking_enabled" },
+  { path: "/prices", label: "Prices", featureKey: "prices_enabled" },
+  { path: "/dex", label: "DEX Screener", featureKey: "dex_enabled" },
+  { path: "/gold", label: "Gold", featureKey: "gold_enabled" },
   { path: "/exchanges", label: "Exchanges" },
-  { path: "/swap", label: "Swap" },
+  { path: "/swap", label: "Swap", featureKey: "swap_enabled" },
   { path: "/watchlist", label: "Watchlist" },
   { path: "/alerts", label: "Alerts" },
   { path: "/portfolio", label: "Portfolio" },
   { path: "/compare", label: "Compare" },
-  { path: "/calculator", label: "Calculator" },
-  { path: "/arbitrage", label: "Arbitrage" },
-  { path: "/chat", label: "Chat" },
-  { path: "/airdrops", label: "Airdrops" },
-  { path: "/staking", label: "Staking" },
-  { path: "/news", label: "News" },
-  { path: "/masternodes", label: "Masternodes" },
-  { path: "/blog", label: "Blog" },
-  { path: "/contact", label: "Contact" },
+  { path: "/calculator", label: "Calculator", featureKey: "calculator_enabled" },
+  { path: "/arbitrage", label: "Arbitrage", featureKey: "arbitrage_enabled" },
+  { path: "/chat", label: "Chat", featureKey: "chat_enabled" },
+  { path: "/airdrops", label: "Airdrops", featureKey: "airdrops_enabled" },
+  { path: "/staking", label: "Staking", featureKey: "staking_enabled" },
+  { path: "/news", label: "News", featureKey: "news_enabled" },
+  { path: "/masternodes", label: "Masternodes", featureKey: "masternodes_enabled" },
+  { path: "/blog", label: "Blog", featureKey: "blog_enabled" },
+  { path: "/contact", label: "Contact", featureKey: "contact_enabled" },
 ];
 
 export function Navbar() {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const featureSettings = useContext(FeatureContext);
+
+  const visibleLinks = NAV_LINKS.filter(link => {
+    if (!link.featureKey) return true;
+    return featureSettings[link.featureKey] !== "false";
+  });
 
   const { data: showLogin } = useQuery({
     queryKey: ["show-login-link"],
@@ -62,7 +69,7 @@ export function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map((link) => (
+          {visibleLinks.map((link) => (
             <Link key={link.path} href={link.path}>
               <Button
                 variant="ghost"
@@ -121,7 +128,7 @@ export function Navbar() {
 
       {mobileOpen && (
         <div className="md:hidden absolute left-0 right-0 top-full bg-card border-b border-border p-4 space-y-1 z-50 max-h-[80vh] overflow-y-auto">
-          {NAV_LINKS.map((link) => (
+          {visibleLinks.map((link) => (
             <Link key={link.path} href={link.path}>
               <button
                 onClick={() => setMobileOpen(false)}
