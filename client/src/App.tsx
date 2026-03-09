@@ -17,6 +17,7 @@ import StakingPage from "@/pages/staking";
 import AdminPage from "@/pages/admin";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import ExchangesPage from "@/pages/exchanges";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/wallet" component={Dashboard}/>
       <Route path="/prices" component={PricesPage}/>
       <Route path="/watchlist" component={WatchlistPage}/>
+      <Route path="/exchanges" component={ExchangesPage}/>
       <Route path="/xrp" component={XrpExplorerPage}/>
       <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>

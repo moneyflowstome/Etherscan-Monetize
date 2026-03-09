@@ -64,3 +64,24 @@ export const pinnedNews = pgTable("pinned_news", {
 export const insertPinnedNewsSchema = createInsertSchema(pinnedNews).omit({ id: true, pinnedAt: true });
 export type InsertPinnedNews = z.infer<typeof insertPinnedNewsSchema>;
 export type PinnedNews = typeof pinnedNews.$inferSelect;
+
+export const exchanges = pgTable("exchanges", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  url: text("url").notNull(),
+  affiliateUrl: text("affiliate_url"),
+  description: text("description"),
+  type: text("type").notNull().default("centralized"),
+  country: text("country"),
+  year: integer("year"),
+  tradingPairs: integer("trading_pairs"),
+  featured: boolean("featured").default(false),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+});
+
+export const insertExchangeSchema = createInsertSchema(exchanges).omit({ id: true });
+export type InsertExchange = z.infer<typeof insertExchangeSchema>;
+export type Exchange = typeof exchanges.$inferSelect;

@@ -2123,5 +2123,137 @@ export async function registerRoutes(
     }
   });
 
+  // Public exchanges endpoint
+  app.get("/api/exchanges", async (_req, res) => {
+    try {
+      const list = await storage.getExchanges(true);
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin exchanges endpoints
+  app.get("/api/admin/exchanges", requireAdmin, async (_req, res) => {
+    try {
+      const list = await storage.getExchanges(false);
+      res.json(list);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/exchanges", requireAdmin, async (req, res) => {
+    try {
+      const { name, url, affiliateUrl, description, type, country, year, tradingPairs, featured, active, sortOrder, logo } = req.body;
+      if (!name || !url) return res.status(400).json({ error: "Name and URL are required" });
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const exchange = await storage.createExchange({
+        name, slug, url, logo: logo || null,
+        affiliateUrl: affiliateUrl || null,
+        description: description || null,
+        type: type || "centralized",
+        country: country || null,
+        year: year ? parseInt(year) : null,
+        tradingPairs: tradingPairs ? parseInt(tradingPairs) : null,
+        featured: featured === true,
+        active: active !== false,
+        sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+      });
+      res.json(exchange);
+    } catch (err: any) {
+      if (err.message?.includes("unique")) {
+        return res.status(409).json({ error: "An exchange with this name already exists" });
+      }
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/admin/exchanges/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, url, affiliateUrl, description, type, country, year, tradingPairs, featured, active, sortOrder, logo } = req.body;
+      const updates: any = {};
+      if (name !== undefined) { updates.name = name; updates.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+      if (url !== undefined) updates.url = url;
+      if (logo !== undefined) updates.logo = logo;
+      if (affiliateUrl !== undefined) updates.affiliateUrl = affiliateUrl;
+      if (description !== undefined) updates.description = description;
+      if (type !== undefined) updates.type = type;
+      if (country !== undefined) updates.country = country;
+      if (year !== undefined) updates.year = year ? parseInt(year) : null;
+      if (tradingPairs !== undefined) updates.tradingPairs = tradingPairs ? parseInt(tradingPairs) : null;
+      if (featured !== undefined) updates.featured = featured;
+      if (active !== undefined) updates.active = active;
+      if (sortOrder !== undefined) updates.sortOrder = parseInt(sortOrder);
+      const exchange = await storage.updateExchange(id, updates);
+      if (!exchange) return res.status(404).json({ error: "Exchange not found" });
+      res.json(exchange);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/exchanges/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteExchange(id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/exchanges/seed", requireAdmin, async (_req, res) => {
+    try {
+      const existing = await storage.getExchanges(false);
+      const existingSlugs = new Set(existing.map((e: any) => e.slug));
+      const defaultExchanges = [
+        { name: "Binance", url: "https://www.binance.com", description: "World's largest crypto exchange by trading volume", type: "centralized", country: "Global", year: 2017, tradingPairs: 1500, featured: true, sortOrder: 1 },
+        { name: "Coinbase", url: "https://www.coinbase.com", description: "US-based regulated crypto exchange, publicly traded (NASDAQ)", type: "centralized", country: "United States", year: 2012, tradingPairs: 500, featured: true, sortOrder: 2 },
+        { name: "Kraken", url: "https://www.kraken.com", description: "US-based exchange known for security and compliance", type: "centralized", country: "United States", year: 2011, tradingPairs: 600, featured: true, sortOrder: 3 },
+        { name: "Bybit", url: "https://www.bybit.com", description: "Leading crypto derivatives and spot exchange", type: "centralized", country: "Dubai", year: 2018, tradingPairs: 800, featured: true, sortOrder: 4 },
+        { name: "OKX", url: "https://www.okx.com", description: "Global exchange with advanced trading features and Web3 wallet", type: "centralized", country: "Seychelles", year: 2017, tradingPairs: 700, featured: true, sortOrder: 5 },
+        { name: "KuCoin", url: "https://www.kucoin.com", description: "People's exchange with wide altcoin selection", type: "centralized", country: "Seychelles", year: 2017, tradingPairs: 900, featured: false, sortOrder: 6 },
+        { name: "Gate.io", url: "https://www.gate.io", description: "Exchange with extensive altcoin listings and margin trading", type: "centralized", country: "Cayman Islands", year: 2013, tradingPairs: 1700, featured: false, sortOrder: 7 },
+        { name: "Bitfinex", url: "https://www.bitfinex.com", description: "Professional trading platform for advanced traders", type: "centralized", country: "British Virgin Islands", year: 2012, tradingPairs: 400, featured: false, sortOrder: 8 },
+        { name: "Huobi (HTX)", url: "https://www.htx.com", description: "Global exchange formerly known as Huobi Global", type: "centralized", country: "Seychelles", year: 2013, tradingPairs: 700, featured: false, sortOrder: 9 },
+        { name: "MEXC", url: "https://www.mexc.com", description: "Exchange known for listing new tokens early", type: "centralized", country: "Seychelles", year: 2018, tradingPairs: 2000, featured: false, sortOrder: 10 },
+        { name: "Bitget", url: "https://www.bitget.com", description: "Copy trading and derivatives exchange", type: "centralized", country: "Seychelles", year: 2018, tradingPairs: 700, featured: false, sortOrder: 11 },
+        { name: "Crypto.com", url: "https://crypto.com", description: "Exchange with Visa card and DeFi wallet integration", type: "centralized", country: "Singapore", year: 2016, tradingPairs: 350, featured: true, sortOrder: 12 },
+        { name: "Gemini", url: "https://www.gemini.com", description: "US-regulated exchange founded by the Winklevoss twins", type: "centralized", country: "United States", year: 2014, tradingPairs: 200, featured: false, sortOrder: 13 },
+        { name: "Bitstamp", url: "https://www.bitstamp.net", description: "One of the oldest crypto exchanges, EU regulated", type: "centralized", country: "Luxembourg", year: 2011, tradingPairs: 150, featured: false, sortOrder: 14 },
+        { name: "Upbit", url: "https://upbit.com", description: "South Korea's largest crypto exchange", type: "centralized", country: "South Korea", year: 2017, tradingPairs: 300, featured: false, sortOrder: 15 },
+        { name: "Bittrex", url: "https://www.bittrex.com", description: "US-based exchange with strong security focus", type: "centralized", country: "United States", year: 2014, tradingPairs: 300, featured: false, sortOrder: 16 },
+        { name: "Poloniex", url: "https://poloniex.com", description: "Crypto exchange with wide trading pair support", type: "centralized", country: "Seychelles", year: 2014, tradingPairs: 400, featured: false, sortOrder: 17 },
+        { name: "BingX", url: "https://www.bingx.com", description: "Social trading exchange with copy trading features", type: "centralized", country: "Singapore", year: 2018, tradingPairs: 500, featured: false, sortOrder: 18 },
+        { name: "Uniswap", url: "https://app.uniswap.org", description: "Leading Ethereum DEX with automated market making", type: "decentralized", country: "Global", year: 2018, tradingPairs: 5000, featured: true, sortOrder: 19 },
+        { name: "PancakeSwap", url: "https://pancakeswap.finance", description: "Top DEX on BNB Chain with farming and lottery", type: "decentralized", country: "Global", year: 2020, tradingPairs: 4000, featured: false, sortOrder: 20 },
+        { name: "dYdX", url: "https://dydx.exchange", description: "Decentralized perpetual futures exchange", type: "decentralized", country: "Global", year: 2017, tradingPairs: 100, featured: false, sortOrder: 21 },
+        { name: "SushiSwap", url: "https://www.sushi.com", description: "Multi-chain DEX with liquidity mining", type: "decentralized", country: "Global", year: 2020, tradingPairs: 2000, featured: false, sortOrder: 22 },
+        { name: "Curve Finance", url: "https://curve.fi", description: "DEX optimized for stablecoin and pegged asset trading", type: "decentralized", country: "Global", year: 2020, tradingPairs: 500, featured: false, sortOrder: 23 },
+        { name: "Jupiter", url: "https://jup.ag", description: "Leading DEX aggregator on Solana", type: "decentralized", country: "Global", year: 2021, tradingPairs: 3000, featured: true, sortOrder: 24 },
+        { name: "Raydium", url: "https://raydium.io", description: "Solana AMM and DEX with Serum integration", type: "decentralized", country: "Global", year: 2021, tradingPairs: 1500, featured: false, sortOrder: 25 },
+        { name: "1inch", url: "https://1inch.io", description: "Multi-chain DEX aggregator for best swap rates", type: "decentralized", country: "Global", year: 2020, tradingPairs: 3000, featured: false, sortOrder: 26 },
+        { name: "Changelly", url: "https://changelly.com", description: "Instant crypto exchange with simple swap interface", type: "centralized", country: "Czech Republic", year: 2015, tradingPairs: 500, featured: false, sortOrder: 27 },
+        { name: "FixedFloat", url: "https://fixedfloat.com", description: "Lightning-fast crypto exchange with fixed and floating rates", type: "centralized", country: "Global", year: 2018, tradingPairs: 200, featured: false, sortOrder: 28 },
+        { name: "Phemex", url: "https://phemex.com", description: "Derivatives exchange with zero-fee spot trading", type: "centralized", country: "Singapore", year: 2019, tradingPairs: 300, featured: false, sortOrder: 29 },
+        { name: "LBank", url: "https://www.lbank.com", description: "Exchange with innovative token listings", type: "centralized", country: "British Virgin Islands", year: 2015, tradingPairs: 800, featured: false, sortOrder: 30 },
+      ];
+      let count = 0;
+      for (const ex of defaultExchanges) {
+        const slug = ex.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+        if (existingSlugs.has(slug)) continue;
+        try {
+          await storage.createExchange({ ...ex, slug, logo: null, affiliateUrl: null, active: true });
+          count++;
+        } catch { }
+      }
+      res.json({ message: `Seeded ${count} exchanges`, count });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }

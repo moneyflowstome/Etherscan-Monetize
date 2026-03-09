@@ -19,6 +19,13 @@ import {
   RefreshCw,
   Shield,
   Zap,
+  Building2,
+  Plus,
+  Edit,
+  Star,
+  ExternalLink,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -540,6 +547,237 @@ function ContentTab({ token }: { token: string }) {
   );
 }
 
+function ExchangesTab({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    name: "", url: "", affiliateUrl: "", description: "", type: "centralized",
+    country: "", year: "", tradingPairs: "", featured: false, active: true, sortOrder: "0", logo: "",
+  });
+
+  const { data: exchanges, isLoading } = useQuery({
+    queryKey: ["admin-exchanges"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/exchanges", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const resetForm = () => {
+    setForm({ name: "", url: "", affiliateUrl: "", description: "", type: "centralized", country: "", year: "", tradingPairs: "", featured: false, active: true, sortOrder: "0", logo: "" });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const endpoint = editingId ? `/api/admin/exchanges/${editingId}` : "/api/admin/exchanges";
+      const method = editingId ? "PUT" : "POST";
+      const res = await fetch(endpoint, { method, headers: apiHeaders(token), body: JSON.stringify(form) });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-exchanges"] });
+      toast({ title: editingId ? "Exchange updated" : "Exchange added" });
+      resetForm();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/exchanges/${id}`, { method: "DELETE", headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-exchanges"] });
+      toast({ title: "Exchange deleted" });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: number; field: string; value: boolean }) => {
+      const res = await fetch(`/api/admin/exchanges/${id}`, {
+        method: "PUT", headers: apiHeaders(token), body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-exchanges"] }); },
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/exchanges/seed", { method: "POST", headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-exchanges"] });
+      toast({ title: data.message });
+    },
+  });
+
+  const startEdit = (ex: any) => {
+    setForm({
+      name: ex.name, url: ex.url, affiliateUrl: ex.affiliateUrl || "", description: ex.description || "",
+      type: ex.type, country: ex.country || "", year: ex.year?.toString() || "", tradingPairs: ex.tradingPairs?.toString() || "",
+      featured: ex.featured || false, active: ex.active !== false, sortOrder: ex.sortOrder?.toString() || "0", logo: ex.logo || "",
+    });
+    setEditingId(ex.id);
+    setShowForm(true);
+  };
+
+  const updateField = (key: string, value: any) => setForm((p) => ({ ...p, [key]: value }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg font-bold text-foreground" data-testid="text-exchanges-admin-title">Manage Exchanges</h2>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending} data-testid="button-seed-exchanges">
+            {seedMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Seed Defaults
+          </Button>
+          <Button size="sm" onClick={() => { resetForm(); setShowForm(true); }} className="bg-primary hover:bg-primary/90" data-testid="button-add-exchange">
+            <Plus className="w-4 h-4 mr-1" /> Add Exchange
+          </Button>
+        </div>
+      </div>
+
+      {showForm && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-5 space-y-4">
+            <h3 className="font-display text-sm font-bold text-primary">{editingId ? "Edit Exchange" : "Add New Exchange"}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Name *</label>
+                <Input value={form.name} onChange={(e) => updateField("name", e.target.value)} placeholder="Binance" className="bg-muted/30 border-border" data-testid="input-exchange-name" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Website URL *</label>
+                <Input value={form.url} onChange={(e) => updateField("url", e.target.value)} placeholder="https://www.binance.com" className="bg-muted/30 border-border" data-testid="input-exchange-url" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Affiliate URL</label>
+                <Input value={form.affiliateUrl} onChange={(e) => updateField("affiliateUrl", e.target.value)} placeholder="https://www.binance.com/?ref=YOUR_ID" className="bg-muted/30 border-border" data-testid="input-exchange-affiliate" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Logo URL</label>
+                <Input value={form.logo} onChange={(e) => updateField("logo", e.target.value)} placeholder="https://example.com/logo.png" className="bg-muted/30 border-border" data-testid="input-exchange-logo" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Description</label>
+                <Input value={form.description} onChange={(e) => updateField("description", e.target.value)} placeholder="Short description of the exchange" className="bg-muted/30 border-border" data-testid="input-exchange-description" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+                <select value={form.type} onChange={(e) => updateField("type", e.target.value)} className="w-full h-9 rounded-md border border-border bg-muted/30 px-3 text-sm text-foreground" data-testid="select-exchange-type">
+                  <option value="centralized">Centralized (CEX)</option>
+                  <option value="decentralized">Decentralized (DEX)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Country</label>
+                <Input value={form.country} onChange={(e) => updateField("country", e.target.value)} placeholder="United States" className="bg-muted/30 border-border" data-testid="input-exchange-country" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Year Founded</label>
+                <Input value={form.year} onChange={(e) => updateField("year", e.target.value)} placeholder="2017" type="number" className="bg-muted/30 border-border" data-testid="input-exchange-year" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Trading Pairs</label>
+                <Input value={form.tradingPairs} onChange={(e) => updateField("tradingPairs", e.target.value)} placeholder="1500" type="number" className="bg-muted/30 border-border" data-testid="input-exchange-pairs" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Sort Order</label>
+                <Input value={form.sortOrder} onChange={(e) => updateField("sortOrder", e.target.value)} placeholder="0" type="number" className="bg-muted/30 border-border" data-testid="input-exchange-sort" />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input type="checkbox" checked={form.featured} onChange={(e) => updateField("featured", e.target.checked)} className="accent-primary" data-testid="checkbox-exchange-featured" />
+                  Featured
+                </label>
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input type="checkbox" checked={form.active} onChange={(e) => updateField("active", e.target.checked)} className="accent-primary" data-testid="checkbox-exchange-active" />
+                  Active
+                </label>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!form.name || !form.url || saveMutation.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-save-exchange">
+                {saveMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                {editingId ? "Update" : "Add"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={resetForm} data-testid="button-cancel-exchange">Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-10"><RefreshCw className="w-6 h-6 animate-spin text-primary" /></div>
+      ) : (exchanges || []).length === 0 ? (
+        <Card className="bg-muted/30 border-border">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground mb-3">No exchanges yet. Click "Seed Defaults" to add 30 popular exchanges, or add them manually.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{(exchanges || []).length} exchanges total</p>
+          {(exchanges || []).map((ex: any) => (
+            <Card key={ex.id} className={`border-border/50 ${!ex.active ? "opacity-50" : ""}`} data-testid={`admin-exchange-${ex.id}`}>
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center text-sm font-bold text-foreground shrink-0">
+                  {ex.logo ? <img src={ex.logo} alt="" className="w-5 h-5 rounded" /> : ex.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-foreground truncate">{ex.name}</span>
+                    {ex.featured && <Star className="w-3 h-3 text-primary fill-primary shrink-0" />}
+                    <Badge variant="outline" className={`text-[9px] ${ex.type === "decentralized" ? "text-purple-400 border-purple-400/30" : "text-primary border-primary/30"}`}>
+                      {ex.type === "decentralized" ? "DEX" : "CEX"}
+                    </Badge>
+                    {!ex.active && <Badge variant="outline" className="text-[9px] text-red-400 border-red-400/30">Hidden</Badge>}
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    {ex.affiliateUrl ? (
+                      <span className="text-green-400 flex items-center gap-0.5"><ExternalLink className="w-2.5 h-2.5" /> Affiliate set</span>
+                    ) : (
+                      <span className="text-yellow-400">No affiliate link</span>
+                    )}
+                    {ex.country && <span>· {ex.country}</span>}
+                    {ex.year && <span>· {ex.year}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground hover:text-foreground" onClick={() => toggleMutation.mutate({ id: ex.id, field: "featured", value: !ex.featured })} title={ex.featured ? "Unfeature" : "Feature"} data-testid={`button-feature-${ex.id}`}>
+                    <Star className={`w-3.5 h-3.5 ${ex.featured ? "text-primary fill-primary" : ""}`} />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground hover:text-foreground" onClick={() => toggleMutation.mutate({ id: ex.id, field: "active", value: !ex.active })} title={ex.active ? "Deactivate" : "Activate"} data-testid={`button-toggle-${ex.id}`}>
+                    {ex.active ? <Check className="w-3.5 h-3.5 text-green-400" /> : <X className="w-3.5 h-3.5 text-red-400" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground hover:text-foreground" onClick={() => startEdit(ex)} data-testid={`button-edit-${ex.id}`}>
+                    <Edit className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300" onClick={() => { if (confirm(`Delete "${ex.name}"?`)) deleteMutation.mutate(ex.id); }} data-testid={`button-delete-${ex.id}`}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
@@ -632,6 +870,9 @@ export default function AdminPage() {
             <TabsTrigger value="content" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-content">
               <Newspaper className="w-4 h-4 mr-2" /> Content
             </TabsTrigger>
+            <TabsTrigger value="exchanges" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary" data-testid="tab-exchanges">
+              <Building2 className="w-4 h-4 mr-2" /> Exchanges
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -642,6 +883,9 @@ export default function AdminPage() {
           </TabsContent>
           <TabsContent value="content">
             <ContentTab token={token} />
+          </TabsContent>
+          <TabsContent value="exchanges">
+            <ExchangesTab token={token} />
           </TabsContent>
         </Tabs>
       </main>

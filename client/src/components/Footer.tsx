@@ -14,6 +14,7 @@ export function Footer() {
           <Link href="/" className="hover:text-foreground transition-colors" data-testid="footer-link-explorer">Explorer</Link>
           <Link href="/wallet" className="hover:text-foreground transition-colors" data-testid="footer-link-tracker">Wallet Tracker</Link>
           <Link href="/prices" className="hover:text-foreground transition-colors" data-testid="footer-link-prices">Prices</Link>
+          <Link href="/exchanges" className="hover:text-foreground transition-colors" data-testid="footer-link-exchanges">Exchanges</Link>
           <Link href="/watchlist" className="hover:text-foreground transition-colors" data-testid="footer-link-watchlist">Watchlist</Link>
           <Link href="/staking" className="hover:text-foreground transition-colors" data-testid="footer-link-staking">Staking</Link>
           <Link href="/news" className="hover:text-foreground transition-colors" data-testid="footer-link-news">News</Link>

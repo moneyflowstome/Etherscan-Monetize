@@ -34,6 +34,8 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - AdSense management (publisher ID, slot IDs)
   - Content moderation (pin/hide news articles)
   - General settings (toggle features, change admin password)
+- Crypto Exchanges directory at `/exchanges` — 30 pre-seeded exchanges (CEX + DEX), search, filter by type, featured highlights, affiliate link support
+- Admin "Exchanges" tab — add/edit/delete exchanges, set affiliate URLs, toggle featured/active, seed 30 defaults with one click
 - 100% Free — monetized with Google AdSense
 
 ## Monetization
@@ -90,6 +92,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/dot/account/:address` - Polkadot address info via Subscan
 - `GET /api/dot/transactions/:address` - Polkadot recent transfers via Subscan
 - `GET /api/coin/:id` - Detailed coin info from CoinGecko (price, market cap, ATH, supply, description)
+- `GET /api/exchanges` - Active exchanges list (public)
 - `GET /api/trending` - Trending coins
 - `GET /api/news` - Crypto news (with moderation applied)
 - `GET /api/masternodes` - Masternode coin data
@@ -108,6 +111,11 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/admin/pinned-news` - List pinned articles
 - `POST /api/admin/pin-news` - Pin an article
 - `DELETE /api/admin/pin-news/:articleId` - Unpin article
+- `GET /api/admin/exchanges` - All exchanges (including inactive)
+- `POST /api/admin/exchanges` - Create exchange
+- `PUT /api/admin/exchanges/:id` - Update exchange
+- `DELETE /api/admin/exchanges/:id` - Delete exchange
+- `POST /api/admin/exchanges/seed` - Seed 30 default exchanges
 
 ## Database Tables
 - `users` - User accounts (varchar UUID primary key)
@@ -115,6 +123,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `page_views` - Analytics tracking (page, wallet, chain, timestamps)
 - `hidden_news` - Hidden article IDs with reason
 - `pinned_news` - Pinned article IDs
+- `exchanges` - Crypto exchange directory (name, url, affiliate_url, type, country, year, trading_pairs, featured, active, sort_order)
 
 ## Environment Variables
 - `ETHERSCAN_API_KEY` - Required. Etherscan API key (free tier: 5 calls/sec)
@@ -128,6 +137,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `client/src/pages/watchlist.tsx` - Watchlist page (localStorage-persisted)
 - `client/src/hooks/use-watchlist.ts` - Watchlist hook (add/remove/toggle/isWatched)
 - `client/src/pages/explorer.tsx` - Multi-Chain Explorer hub (BTC, SOL, DOGE inline; links to 20+ chains)
+- `client/src/pages/exchanges.tsx` - Crypto exchanges directory (CEX/DEX, search, filter, affiliate links)
 - `client/src/pages/xrp-explorer.tsx` - XRP Ledger explorer (account, txs, tokens, NFTs)
 - `client/src/pages/staking.tsx` - Crypto staking calculator (10 PoS coins, compound interest, live prices)
 - `client/src/pages/admin.tsx` - Admin panel (login + tabs)

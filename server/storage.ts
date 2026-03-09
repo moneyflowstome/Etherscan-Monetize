@@ -7,7 +7,8 @@ import {
   type PageView, type InsertPageView,
   type HiddenNews, type InsertHiddenNews,
   type PinnedNews, type InsertPinnedNews,
-  users, siteSettings, pageViews, hiddenNews, pinnedNews,
+  type Exchange, type InsertExchange,
+  users, siteSettings, pageViews, hiddenNews, pinnedNews, exchanges,
 } from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -43,6 +44,12 @@ export interface IStorage {
   pinArticle(article: InsertPinnedNews): Promise<PinnedNews>;
   unpinArticle(articleId: string): Promise<void>;
   getPinnedArticles(): Promise<PinnedNews[]>;
+
+  getExchanges(activeOnly?: boolean): Promise<Exchange[]>;
+  getExchange(id: number): Promise<Exchange | undefined>;
+  createExchange(exchange: InsertExchange): Promise<Exchange>;
+  updateExchange(id: number, exchange: Partial<InsertExchange>): Promise<Exchange | undefined>;
+  deleteExchange(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -149,6 +156,32 @@ export class DatabaseStorage implements IStorage {
 
   async getPinnedArticles(): Promise<PinnedNews[]> {
     return db.select().from(pinnedNews).orderBy(desc(pinnedNews.pinnedAt));
+  }
+
+  async getExchanges(activeOnly = false): Promise<Exchange[]> {
+    if (activeOnly) {
+      return db.select().from(exchanges).where(eq(exchanges.active, true)).orderBy(exchanges.sortOrder, exchanges.name);
+    }
+    return db.select().from(exchanges).orderBy(exchanges.sortOrder, exchanges.name);
+  }
+
+  async getExchange(id: number): Promise<Exchange | undefined> {
+    const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, id));
+    return exchange;
+  }
+
+  async createExchange(exchange: InsertExchange): Promise<Exchange> {
+    const [created] = await db.insert(exchanges).values(exchange).returning();
+    return created;
+  }
+
+  async updateExchange(id: number, data: Partial<InsertExchange>): Promise<Exchange | undefined> {
+    const [updated] = await db.update(exchanges).set(data).where(eq(exchanges.id, id)).returning();
+    return updated;
+  }
+
+  async deleteExchange(id: number): Promise<void> {
+    await db.delete(exchanges).where(eq(exchanges.id, id));
   }
 }
 
