@@ -276,6 +276,7 @@ function SettingsTab({ token }: { token: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["show-login-link"] });
       toast({ title: "Settings saved", description: "Your changes have been applied." });
     },
     onError: () => {
