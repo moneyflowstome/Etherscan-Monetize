@@ -149,7 +149,7 @@ function AddHoldingForm({ onAdd }: { onAdd: (coinId: string, quantity: number, p
                 <X className="w-4 h-4" />
               </button>
             )}
-            {filtered.length > 0 && (
+            {filtered.length > 0 && !selectedCoin && (
               <div className="absolute left-0 right-0 top-12 bg-card border border-border rounded-xl p-2 z-50 shadow-2xl max-h-[250px] overflow-y-auto">
                 {filtered.map((coin: any) => (
                   <button
@@ -165,6 +165,11 @@ function AddHoldingForm({ onAdd }: { onAdd: (coinId: string, quantity: number, p
                     {coin.market_cap_rank && <span className="ml-auto text-xs text-muted-foreground">#{coin.market_cap_rank}</span>}
                   </button>
                 ))}
+              </div>
+            )}
+            {debouncedSearch.length >= 2 && !selectedCoin && !searchQuery.isFetching && filtered.length === 0 && (
+              <div className="absolute left-0 right-0 top-12 bg-card border border-border rounded-xl p-3 z-50 shadow-2xl text-center text-xs text-muted-foreground">
+                No coins found
               </div>
             )}
             {searchQuery.isFetching && debouncedSearch.length >= 2 && !selectedCoin && (
