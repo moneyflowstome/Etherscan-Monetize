@@ -685,6 +685,7 @@ function XlmExplorer({ chain }: { chain: ChainInfo }) {
 function XemExplorer({ chain }: { chain: ChainInfo }) {
   const [input, setInput] = useState("");
   const [address, setAddress] = useState("");
+  const [tab, setTab] = useState<"transactions" | "mosaics" | "harvests">("transactions");
 
   const { data: accountData, isLoading, error } = useQuery({
     queryKey: ["xem-account", address],
@@ -695,13 +696,62 @@ function XemExplorer({ chain }: { chain: ChainInfo }) {
   const { data: txData } = useQuery({
     queryKey: ["xem-transactions", address],
     queryFn: async () => { const res = await fetch(`/api/xem/transactions/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
-    enabled: !!address,
+    enabled: !!address && tab === "transactions",
   });
 
-  const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
+  const { data: mosaicData } = useQuery({
+    queryKey: ["xem-mosaics", address],
+    queryFn: async () => { const res = await fetch(`/api/xem/mosaics/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address && tab === "mosaics",
+  });
+
+  const { data: harvestData } = useQuery({
+    queryKey: ["xem-harvests", address],
+    queryFn: async () => { const res = await fetch(`/api/xem/harvests/${address}`); if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); } return res.json(); },
+    enabled: !!address && tab === "harvests",
+  });
+
+  const { data: networkData } = useQuery({
+    queryKey: ["xem-network"],
+    queryFn: async () => { const res = await fetch("/api/xem/network"); if (!res.ok) throw new Error("Failed"); return res.json(); },
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  const handleSearch = () => { if (input.trim()) { setAddress(input.trim()); setTab("transactions"); } };
+
+  const nemTxTypes: Record<number, { label: string; color: string }> = {
+    257: { label: "Transfer", color: "text-teal-400" },
+    4100: { label: "Multisig", color: "text-purple-400" },
+    4097: { label: "Multisig Mod", color: "text-purple-300" },
+    8193: { label: "Namespace", color: "text-blue-400" },
+    16385: { label: "Mosaic Def", color: "text-yellow-400" },
+    16386: { label: "Mosaic Supply", color: "text-orange-400" },
+  };
 
   return (
     <div className="space-y-4">
+      {networkData && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+          <div className="glass-panel rounded-lg p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Chain Height</p>
+            <p className="font-mono text-sm font-semibold text-teal-400" data-testid="text-xem-height">{networkData.chainHeight?.toLocaleString()}</p>
+          </div>
+          <div className="glass-panel rounded-lg p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Reachable Peers</p>
+            <p className="font-mono text-sm font-semibold" data-testid="text-xem-peers">{networkData.reachablePeers}</p>
+          </div>
+          <div className="glass-panel rounded-lg p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Last Block Txs</p>
+            <p className="font-mono text-sm font-semibold">{networkData.lastBlock?.txCount || 0}</p>
+          </div>
+          <div className="glass-panel rounded-lg p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Node Version</p>
+            <p className="font-mono text-sm font-semibold">{networkData.node?.version || "—"}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Input placeholder="Enter NEM address (N...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-xem-address" />
         <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-xem-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
@@ -709,36 +759,177 @@ function XemExplorer({ chain }: { chain: ChainInfo }) {
       {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
       {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-xem-error">{(error as Error).message}</div>}
       {accountData && (
-        <Card className="glass-panel border-teal-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-teal-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-teal-400" data-testid="text-xem-balance">{accountData.balance} XEM</p></div>
-              <div><p className="text-xs text-muted-foreground">Vested</p><p className="font-mono" data-testid="text-xem-vested">{accountData.vestedBalance} XEM</p></div>
-              <div><p className="text-xs text-muted-foreground">Importance</p><p className="font-mono" data-testid="text-xem-importance">{(accountData.importance * 100).toFixed(6)}%</p></div>
-              <div><p className="text-xs text-muted-foreground">Harvested</p><p className="font-mono" data-testid="text-xem-harvested">{accountData.harvestedBlocks}</p></div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      {txData?.transactions?.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-teal-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.transactions.length}</Badge></div>
-          {txData.transactions.map((tx: any, i: number) => (
-            <Card key={tx.hash || i} className="glass-panel border-border/50" data-testid={`card-xem-tx-${i}`}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.hash)}</span>{tx.hash && <CopyButton text={tx.hash} id={`xem-tx-${i}`} />}</div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-mono">{tx.amount} XEM</span></div>
-                  <div><span className="text-muted-foreground">Fee:</span> <span className="font-mono text-yellow-400">{tx.fee} XEM</span></div>
-                  <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(Math.floor(tx.timestamp / 1000)) : "—"}</span></div>
+        <>
+          <Card className="glass-panel border-teal-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-teal-400" /><h3 className="font-display font-semibold">Account Info</h3>
+                {accountData.status && <Badge variant="secondary" className="text-[10px]">{accountData.status}</Badge>}
+                {accountData.isMultisig && <Badge variant="secondary" className="text-[10px] bg-purple-500/20 text-purple-400">Multisig</Badge>}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-teal-400" data-testid="text-xem-balance">{accountData.balance} XEM</p></div>
+                <div><p className="text-xs text-muted-foreground">Vested</p><p className="font-mono" data-testid="text-xem-vested">{accountData.vestedBalance} XEM</p></div>
+                <div><p className="text-xs text-muted-foreground">Importance</p><p className="font-mono" data-testid="text-xem-importance">{(accountData.importance * 100).toFixed(6)}%</p></div>
+                <div><p className="text-xs text-muted-foreground">Harvested Blocks</p><p className="font-mono" data-testid="text-xem-harvested">{accountData.harvestedBlocks}</p></div>
+              </div>
+              {accountData.remoteStatus && accountData.remoteStatus !== "INACTIVE" && (
+                <div className="mt-2 text-xs text-muted-foreground">Remote Status: <span className="text-teal-400">{accountData.remoteStatus}</span></div>
+              )}
+              {accountData.publicKey && (
+                <div className="mt-2 flex items-center gap-1"><span className="text-xs text-muted-foreground">Public Key:</span><span className="font-mono text-[10px] text-muted-foreground">{accountData.publicKey.substring(0, 20)}...{accountData.publicKey.substring(accountData.publicKey.length - 8)}</span><CopyButton text={accountData.publicKey} id="xem-pubkey" /></div>
+              )}
+            </CardContent>
+          </Card>
+
+          {accountData.cosignatories?.length > 0 && (
+            <Card className="glass-panel border-purple-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2"><span className="text-purple-400 text-sm">&#128274;</span><h3 className="font-display font-semibold text-sm">Multisig Cosignatories</h3><Badge variant="secondary" className="text-[10px]">{accountData.cosignatories.length}</Badge></div>
+                <div className="space-y-1">
+                  {accountData.cosignatories.map((c: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between bg-card/30 rounded-lg px-3 py-2 text-xs" data-testid={`row-xem-cosig-${i}`}>
+                      <span className="font-mono text-muted-foreground">{c.address?.substring(0, 10)}...{c.address?.substring(c.address.length - 6)}</span>
+                      <span className="text-teal-400 font-mono">{c.balance} XEM</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+          )}
+
+          {accountData.cosignatoryOf?.length > 0 && (
+            <Card className="glass-panel border-purple-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2"><span className="text-purple-400 text-sm">&#128101;</span><h3 className="font-display font-semibold text-sm">Cosignatory Of</h3><Badge variant="secondary" className="text-[10px]">{accountData.cosignatoryOf.length}</Badge></div>
+                <div className="space-y-1">
+                  {accountData.cosignatoryOf.map((c: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between bg-card/30 rounded-lg px-3 py-2 text-xs" data-testid={`row-xem-cosig-of-${i}`}>
+                      <span className="font-mono text-muted-foreground">{c.address?.substring(0, 10)}...{c.address?.substring(c.address.length - 6)}</span>
+                      <span className="text-teal-400 font-mono">{c.balance} XEM</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex gap-1 border-b border-border pb-1">
+            {([
+              { key: "transactions" as const, label: "Transactions" },
+              { key: "mosaics" as const, label: "Mosaics" },
+              { key: "harvests" as const, label: "Harvests" },
+            ]).map((t) => (
+              <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-1.5 text-xs rounded-t-lg transition-all ${tab === t.key ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 border-b-0" : "text-muted-foreground hover:text-foreground"}`} data-testid={`tab-xem-${t.key}`}>
+                {t.label}
+                {t.key === "mosaics" && mosaicData?.mosaics?.length > 0 && <span className="ml-1 text-[10px] bg-teal-500/20 text-teal-400 px-1.5 rounded-full">{mosaicData.mosaics.length}</span>}
+                {t.key === "harvests" && harvestData?.harvests?.length > 0 && <span className="ml-1 text-[10px] bg-teal-500/20 text-teal-400 px-1.5 rounded-full">{harvestData.harvests.length}</span>}
+              </button>
+            ))}
+          </div>
+
+          {tab === "transactions" && txData?.transactions?.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-teal-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.transactions.length}</Badge></div>
+              {txData.transactions.map((tx: any, i: number) => {
+                const typeInfo = nemTxTypes[tx.type] || { label: tx.typeName || `Type ${tx.type}`, color: "text-muted-foreground" };
+                return (
+                  <Card key={tx.hash || i} className="glass-panel border-border/50" data-testid={`card-xem-tx-${i}`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className={`text-[10px] ${typeInfo.color}`}>{typeInfo.label}</Badge>
+                          <span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.hash)}</span>
+                          {tx.hash && <CopyButton text={tx.hash} id={`xem-tx-${i}`} />}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{tx.timestamp ? timeAgo(Math.floor(tx.timestamp / 1000)) : "—"}</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+                        <div><span className="text-muted-foreground">Amount:</span> <span className="font-mono text-teal-400">{tx.amount} XEM</span></div>
+                        <div><span className="text-muted-foreground">Fee:</span> <span className="font-mono text-yellow-400">{tx.fee} XEM</span></div>
+                        <div><span className="text-muted-foreground">Block:</span> <span className="font-mono">{tx.height?.toLocaleString()}</span></div>
+                        {tx.recipient && <div><span className="text-muted-foreground">To:</span> <span className="font-mono">{tx.recipient.substring(0, 8)}...{tx.recipient.substring(tx.recipient.length - 6)}</span></div>}
+                      </div>
+                      {tx.mosaics?.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {tx.mosaics.map((m: any, mi: number) => (
+                            <Badge key={mi} variant="secondary" className="text-[9px] bg-yellow-500/10 text-yellow-400">{m.namespace}:{m.name} x{m.quantity.toLocaleString()}</Badge>
+                          ))}
+                        </div>
+                      )}
+                      {tx.message && <div className="mt-1 text-[10px] text-muted-foreground bg-card/30 rounded px-2 py-1 font-mono break-all">{tx.message}</div>}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {tab === "mosaics" && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-1"><span className="text-yellow-400">&#9830;</span><h3 className="font-display font-semibold text-sm">Mosaics (Tokens)</h3></div>
+              {!mosaicData ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : mosaicData.mosaics?.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {mosaicData.mosaics.map((m: any, i: number) => (
+                    <Card key={i} className="glass-panel border-border/50" data-testid={`card-xem-mosaic-${i}`}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-foreground">{m.namespace}:{m.name}</div>
+                            <div className="text-[10px] text-muted-foreground">Namespace: {m.namespace}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-mono text-sm font-semibold text-teal-400">
+                              {m.fullId === "nem:xem" ? (m.quantity / 1000000).toLocaleString(undefined, { maximumFractionDigits: 6 }) : m.quantity.toLocaleString()}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">{m.fullId === "nem:xem" ? "XEM" : "units"}</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="glass-panel rounded-xl p-6 text-center text-sm text-muted-foreground">No mosaics found for this account</div>
+              )}
+            </div>
+          )}
+
+          {tab === "harvests" && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-1"><span className="text-green-400">&#9881;</span><h3 className="font-display font-semibold text-sm">Harvest History</h3>
+                {harvestData?.count > 0 && <Badge variant="secondary" className="text-xs">{harvestData.count} blocks</Badge>}
+              </div>
+              {!harvestData ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : harvestData.harvests?.length > 0 ? (
+                <div className="space-y-2">
+                  {harvestData.harvests.map((h: any, i: number) => (
+                    <Card key={i} className="glass-panel border-border/50" data-testid={`card-xem-harvest-${i}`}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <div className="text-xs font-medium text-foreground">Block #{h.height?.toLocaleString()}</div>
+                              <div className="text-[10px] text-muted-foreground">{h.timestamp ? new Date(h.timestamp).toLocaleString() : "—"}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-mono text-sm font-semibold text-green-400">{h.totalFee} XEM</div>
+                            <div className="text-[10px] text-muted-foreground">fee earned</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="glass-panel rounded-xl p-6 text-center text-sm text-muted-foreground">No harvest history found. This account may not have harvested any blocks.</div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -1813,23 +1813,50 @@ export async function registerRoutes(
     }
   });
 
-  const NEM_NODE = "https://nem.peernode.net:7891";
+  const NEM_NODES = [
+    "http://176.9.20.180:7890",
+    "http://176.9.68.110:7890",
+    "http://199.217.118.114:7890",
+    "http://108.61.182.27:7890",
+    "http://san.nem.ninja:7890",
+    "http://bob.nem.ninja:7890",
+  ];
+  const NEM_GENESIS_TIME = 1427587585;
+
+  async function nemRequest(path: string): Promise<any> {
+    let lastError: Error | null = null;
+    for (const node of NEM_NODES) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(`${node}${path}`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`NEM API error: ${response.status}`);
+        return await response.json();
+      } catch (e: any) {
+        clearTimeout(timeout);
+        lastError = e;
+      }
+    }
+    throw lastError || new Error("All NEM nodes unreachable");
+  }
+
+  function cleanNemAddress(raw: string): string {
+    const cleaned = raw.replace(/-/g, "").toUpperCase();
+    if (!cleaned.startsWith("N") || cleaned.length !== 40) {
+      throw new Error("Invalid NEM address. Must start with N and be 40 characters.");
+    }
+    return cleaned;
+  }
 
   app.get("/api/xem/account/:address", async (req, res) => {
     try {
-      const { address } = req.params;
-      const cleaned = address.replace(/-/g, "").toUpperCase();
-      if (!cleaned.startsWith("N") || cleaned.length !== 40) {
-        return res.status(400).json({ error: "Invalid NEM address. Must start with N and be 40 characters." });
-      }
-
-      const response = await fetch(`${NEM_NODE}/account/get?address=${cleaned}`);
-      if (!response.ok) throw new Error(`NEM API error: ${response.status}`);
-      const data = await response.json();
-
+      const cleaned = cleanNemAddress(req.params.address);
+      const data = await nemRequest(`/account/get?address=${cleaned}`);
       if (!data.account) throw new Error("Account not found");
 
       const account = data.account;
+      const meta = data.meta || {};
       res.json({
         address: account.address,
         balance: (account.balance / 1000000).toFixed(6),
@@ -1837,9 +1864,25 @@ export async function registerRoutes(
         importance: account.importance || 0,
         publicKey: account.publicKey || null,
         harvestedBlocks: account.harvestedBlocks || 0,
+        label: account.label || null,
+        status: meta.status || null,
+        remoteStatus: meta.remoteStatus || null,
+        cosignatories: (meta.cosignatories || []).map((c: any) => ({
+          address: c.address,
+          publicKey: c.publicKey,
+          balance: c.balance ? (c.balance / 1000000).toFixed(6) : "0",
+        })),
+        cosignatoryOf: (meta.cosignatoryOf || []).map((c: any) => ({
+          address: c.address,
+          publicKey: c.publicKey,
+          balance: c.balance ? (c.balance / 1000000).toFixed(6) : "0",
+        })),
+        isMultisig: (meta.cosignatories || []).length > 0,
+        multisigInfo: account.multisigInfo || {},
       });
     } catch (err: any) {
       const msg = err.message || "Failed to fetch NEM account";
+      if (msg.includes("Invalid NEM")) return res.status(400).json({ error: msg });
       if (msg.includes("not found")) return res.status(404).json({ error: "Account not found on NEM network" });
       res.status(500).json({ error: msg });
     }
@@ -1847,35 +1890,116 @@ export async function registerRoutes(
 
   app.get("/api/xem/transactions/:address", async (req, res) => {
     try {
-      const { address } = req.params;
-      const cleaned = address.replace(/-/g, "").toUpperCase();
-      if (!cleaned.startsWith("N") || cleaned.length !== 40) {
-        return res.status(400).json({ error: "Invalid NEM address" });
-      }
+      const cleaned = cleanNemAddress(req.params.address);
+      const data = await nemRequest(`/account/transfers/all?address=${cleaned}`);
 
-      const response = await fetch(`${NEM_NODE}/account/transfers/all?address=${cleaned}`);
-      if (!response.ok) throw new Error(`NEM API error: ${response.status}`);
-      const data = await response.json();
-
-      const transactions = (data.data || []).slice(0, 15).map((entry: any) => {
+      const transactions = (data.data || []).slice(0, 25).map((entry: any) => {
         const tx = entry.transaction;
         const meta = entry.meta;
+        const innerTx = tx.otherTrans || null;
+        const actualTx = innerTx || tx;
         return {
           hash: meta?.hash?.data || meta?.innerHash?.data || "",
           height: meta?.height || 0,
-          timestamp: tx.timeStamp ? (tx.timeStamp + 1427587585) * 1000 : 0,
+          timestamp: actualTx.timeStamp ? (actualTx.timeStamp + NEM_GENESIS_TIME) * 1000 : 0,
           type: tx.type,
-          amount: tx.amount ? (tx.amount / 1000000).toFixed(6) : "0",
+          typeName: tx.type === 257 ? "Transfer" : tx.type === 4100 ? "Multisig" : tx.type === 8193 ? "Namespace" : tx.type === 16385 ? "Mosaic Def" : tx.type === 16386 ? "Mosaic Supply" : tx.type === 4097 ? "Multisig Mod" : `Type ${tx.type}`,
+          amount: actualTx.amount ? (actualTx.amount / 1000000).toFixed(6) : "0",
           fee: tx.fee ? (tx.fee / 1000000).toFixed(6) : "0",
-          recipient: tx.recipient || "",
+          recipient: actualTx.recipient || "",
           sender: tx.signer || "",
-          message: tx.message?.payload ? Buffer.from(tx.message.payload, "hex").toString("utf8") : null,
+          message: actualTx.message?.payload ? (() => { try { return Buffer.from(actualTx.message.payload, "hex").toString("utf8"); } catch { return null; } })() : null,
+          mosaics: Array.isArray(actualTx.mosaics) ? actualTx.mosaics.map((m: any) => ({
+            namespace: m.mosaicId?.namespaceId || "",
+            name: m.mosaicId?.name || "",
+            quantity: m.quantity || 0,
+          })) : [],
         };
       });
 
       res.json({ address: cleaned, transactions });
     } catch (err: any) {
+      if (err.message?.includes("Invalid NEM")) return res.status(400).json({ error: err.message });
       res.status(500).json({ error: err.message || "Failed to fetch NEM transactions" });
+    }
+  });
+
+  app.get("/api/xem/mosaics/:address", async (req, res) => {
+    try {
+      const cleaned = cleanNemAddress(req.params.address);
+      const data = await nemRequest(`/account/mosaic/owned?address=${cleaned}`);
+
+      const mosaics = (data.data || []).map((m: any) => ({
+        namespace: m.mosaicId?.namespaceId || "",
+        name: m.mosaicId?.name || "",
+        quantity: m.quantity || 0,
+        fullId: `${m.mosaicId?.namespaceId || ""}:${m.mosaicId?.name || ""}`,
+      }));
+
+      res.json({ address: cleaned, mosaics });
+    } catch (err: any) {
+      if (err.message?.includes("Invalid NEM")) return res.status(400).json({ error: err.message });
+      res.status(500).json({ error: err.message || "Failed to fetch NEM mosaics" });
+    }
+  });
+
+  app.get("/api/xem/harvests/:address", async (req, res) => {
+    try {
+      const cleaned = cleanNemAddress(req.params.address);
+      const data = await nemRequest(`/account/harvests?address=${cleaned}`);
+
+      const harvests = (data.data || []).slice(0, 25).map((h: any) => ({
+        height: h.height || h.id || 0,
+        totalFee: h.totalFee ? (h.totalFee / 1000000).toFixed(6) : "0",
+        difficulty: h.difficulty || 0,
+        timestamp: h.timeStamp ? (h.timeStamp + NEM_GENESIS_TIME) * 1000 : 0,
+      }));
+
+      res.json({ address: cleaned, harvests, count: harvests.length });
+    } catch (err: any) {
+      if (err.message?.includes("Invalid NEM")) return res.status(400).json({ error: err.message });
+      res.status(500).json({ error: err.message || "Failed to fetch NEM harvests" });
+    }
+  });
+
+  const nemNetworkCache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
+
+  app.get("/api/xem/network", async (_req, res) => {
+    try {
+      if (nemNetworkCache.data && Date.now() - nemNetworkCache.timestamp < 60000) {
+        return res.json(nemNetworkCache.data);
+      }
+
+      const [heightData, lastBlock, nodeInfo, peersData] = await Promise.all([
+        nemRequest("/chain/height"),
+        nemRequest("/chain/last-block"),
+        nemRequest("/node/info"),
+        nemRequest("/node/peer-list/reachable").catch(() => ({ data: [] })),
+      ]);
+
+      const result = {
+        chainHeight: heightData?.height || 0,
+        lastBlock: {
+          height: lastBlock?.height || 0,
+          timestamp: lastBlock?.timeStamp ? (lastBlock.timeStamp + NEM_GENESIS_TIME) * 1000 : 0,
+          signer: lastBlock?.signer || "",
+          txCount: lastBlock?.transactions?.length || 0,
+        },
+        node: {
+          name: nodeInfo?.identity?.name || "",
+          version: nodeInfo?.metaData?.version || "",
+          platform: nodeInfo?.metaData?.platform || "",
+          networkId: nodeInfo?.metaData?.networkId || 0,
+        },
+        reachablePeers: Array.isArray(peersData?.data) ? peersData.data.length : 0,
+      };
+
+      nemNetworkCache.data = result;
+      nemNetworkCache.timestamp = Date.now();
+      res.json(result);
+    } catch (err: any) {
+      if (nemNetworkCache.data) return res.json(nemNetworkCache.data);
+      res.status(500).json({ error: err.message || "Failed to fetch NEM network info" });
     }
   });
 
