@@ -355,7 +355,7 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
 
   const descriptionText = d.description ? d.description.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ") : "";
   const links = d.links || {};
-  const hasLinks = links.homepage?.length > 0 || links.subreddit_url || links.twitter_screen_name || links.telegram_channel_identifier || links.repos_url?.github?.length > 0 || links.blockchain_site?.length > 0;
+  const hasLinks = links.homepage?.length > 0 || links.whitepaper || links.subreddit_url || links.twitter_screen_name || links.telegram_channel_identifier || links.repos_url?.github?.length > 0 || links.blockchain_site?.length > 0 || links.announcement_url?.length > 0 || links.official_forum_url?.length > 0 || links.chat_url?.length > 0 || links.snapshot_url;
 
   return (
     <Card className="glass-panel border-primary/30 mb-4" data-testid={`panel-coin-detail-${coin.id}`}>
@@ -451,12 +451,12 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
               <span className="text-[11px] text-muted-foreground">Circulating Supply</span>
               <span className="font-mono text-sm font-semibold text-foreground">{(d.circulating_supply || coin.circulating_supply) ? formatSupply(d.circulating_supply || coin.circulating_supply, d.symbol || coin.symbol) : "—"}</span>
             </div>
-            {(d.max_supply || coin.max_supply) && (
-              <div className="flex flex-col">
-                <span className="text-[11px] text-muted-foreground">Max Supply</span>
-                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(d.max_supply || coin.max_supply, d.symbol || coin.symbol)}</span>
-              </div>
-            )}
+            <div className="flex flex-col">
+              <span className="text-[11px] text-muted-foreground">Max Supply</span>
+              <span className="font-mono text-sm font-semibold text-foreground">
+                {d.max_supply_infinite ? "∞ Infinite" : (d.max_supply || coin.max_supply) ? formatSupply(d.max_supply || coin.max_supply, d.symbol || coin.symbol) : "—"}
+              </span>
+            </div>
             {(d.total_supply || coin.total_supply) && (
               <div className="flex flex-col">
                 <span className="text-[11px] text-muted-foreground">Total Supply</span>
@@ -538,11 +538,11 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
 
         {hasLinks && (
           <div className="border-t border-border pt-4 mt-4 space-y-3">
-            {links.homepage?.length > 0 && (
+            {(links.homepage?.length > 0 || links.whitepaper) && (
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Globe className="w-3 h-3" /> Official Links</h4>
                 <div className="flex flex-wrap gap-2">
-                  {links.homepage.map((url: string) => {
+                  {links.homepage?.map((url: string) => {
                     const safe = safeUrl(url);
                     if (!safe) return null;
                     return (
@@ -551,6 +551,49 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
                       </a>
                     );
                   })}
+                  {links.whitepaper && safeUrl(links.whitepaper) && (
+                    <a href={safeUrl(links.whitepaper)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-whitepaper">
+                      <ExternalLink className="w-3 h-3 text-primary" /> Whitepaper
+                    </a>
+                  )}
+                  {links.announcement_url?.map((url: string) => {
+                    const safe = safeUrl(url);
+                    if (!safe) return null;
+                    let host = "";
+                    try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                    return (
+                      <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-announcement">
+                        <ExternalLink className="w-3 h-3 text-primary" /> {host || "Announcement"}
+                      </a>
+                    );
+                  })}
+                  {links.official_forum_url?.map((url: string) => {
+                    const safe = safeUrl(url);
+                    if (!safe) return null;
+                    let host = "";
+                    try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                    return (
+                      <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-forum">
+                        <MessageCircle className="w-3 h-3 text-primary" /> {host || "Forum"}
+                      </a>
+                    );
+                  })}
+                  {links.chat_url?.map((url: string) => {
+                    const safe = safeUrl(url);
+                    if (!safe) return null;
+                    let host = "";
+                    try { host = new URL(safe).hostname.replace("www.", ""); } catch {}
+                    return (
+                      <a key={url} href={safe} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-chat">
+                        <MessageCircle className="w-3 h-3 text-primary" /> {host || "Chat"}
+                      </a>
+                    );
+                  })}
+                  {links.snapshot_url && safeUrl(links.snapshot_url) && (
+                    <a href={safeUrl(links.snapshot_url)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-snapshot">
+                      <ExternalLink className="w-3 h-3 text-primary" /> Governance
+                    </a>
+                  )}
                 </div>
               </div>
             )}
@@ -577,6 +620,11 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
                   {links.facebook_username && (
                     <a href={`https://facebook.com/${links.facebook_username}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-facebook">
                       <span className="text-blue-500">f</span> Facebook
+                    </a>
+                  )}
+                  {links.bitcointalk_thread_identifier && (
+                    <a href={`https://bitcointalk.org/index.php?topic=${links.bitcointalk_thread_identifier}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 text-xs text-foreground hover:bg-muted/60 transition-colors" data-testid="link-bitcointalk">
+                      <span className="text-yellow-500">₿</span> BitcoinTalk
                     </a>
                   )}
                 </div>
@@ -623,17 +671,285 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
           </div>
         )}
 
-        {d.platforms && Object.keys(d.platforms).length > 0 && (
+        {d.platforms && Object.keys(d.platforms).filter(k => d.platforms[k]).length > 0 && (
           <div className="border-t border-border pt-4 mt-4">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Hash className="w-3 h-3" /> Contract Addresses</h4>
             <div className="space-y-1.5">
-              {Object.entries(d.platforms).filter(([, addr]) => addr).slice(0, 5).map(([platform, address]) => (
+              {Object.entries(d.platforms).filter(([, addr]) => addr).map(([platform, address]) => (
                 <div key={platform} className="flex items-center gap-2 text-[11px]">
                   <span className="text-muted-foreground capitalize whitespace-nowrap">{platform.replace(/-/g, " ")}:</span>
                   <span className="font-mono text-foreground truncate">{String(address)}</span>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {(d.sentiment_votes_up_percentage != null || d.watchlist_portfolio_users != null || d.market_cap_change_percentage_24h != null || d.market_cap_change_24h != null) && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Activity className="w-3 h-3" /> Community Sentiment</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {d.sentiment_votes_up_percentage != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Sentiment</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 h-2 rounded-full bg-muted/40 overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(100, Math.max(0, d.sentiment_votes_up_percentage))}%` }} />
+                    </div>
+                    <span className="text-[10px] font-mono text-green-400">{d.sentiment_votes_up_percentage?.toFixed(0)}%</span>
+                    <span className="text-[10px] text-muted-foreground">/</span>
+                    <span className="text-[10px] font-mono text-red-400">{d.sentiment_votes_down_percentage?.toFixed(0)}%</span>
+                  </div>
+                </div>
+              )}
+              {d.watchlist_portfolio_users != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Watchlist Users</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.watchlist_portfolio_users?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.market_cap_change_percentage_24h != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Market Cap Change 24h</span>
+                  <span className={`font-mono text-sm font-semibold ${(d.market_cap_change_percentage_24h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {d.market_cap_change_percentage_24h >= 0 ? "+" : ""}{d.market_cap_change_percentage_24h?.toFixed(2)}%
+                  </span>
+                </div>
+              )}
+              {d.market_cap_change_24h != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Market Cap Change ($)</span>
+                  <span className={`font-mono text-sm font-semibold ${(d.market_cap_change_24h || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {d.market_cap_change_24h >= 0 ? "+" : "-"}{formatMarketCap(Math.abs(d.market_cap_change_24h))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(d.total_value_locked != null || d.mcap_to_tvl_ratio != null || d.fdv_to_tvl_ratio != null || d.market_cap_fdv_ratio != null || d.roi) && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> DeFi & Valuation</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {d.total_value_locked != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Total Value Locked</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{formatMarketCap(d.total_value_locked)}</span>
+                </div>
+              )}
+              {d.mcap_to_tvl_ratio != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">MCap/TVL Ratio</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.mcap_to_tvl_ratio.toFixed(2)}</span>
+                </div>
+              )}
+              {d.fdv_to_tvl_ratio != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">FDV/TVL Ratio</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.fdv_to_tvl_ratio.toFixed(2)}</span>
+                </div>
+              )}
+              {d.market_cap_fdv_ratio != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">MCap/FDV Ratio</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{(d.market_cap_fdv_ratio * 100).toFixed(1)}%</span>
+                </div>
+              )}
+              {d.roi && d.roi.percentage != null && (
+                <div className="flex flex-col col-span-2">
+                  <span className="text-[11px] text-muted-foreground">ROI (vs {(d.roi.currency || "USD").toUpperCase()})</span>
+                  <span className={`font-mono text-sm font-semibold ${(d.roi.percentage || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {d.roi.percentage >= 0 ? "+" : ""}{d.roi.percentage.toFixed(2)}%{d.roi.times != null ? ` (${d.roi.times.toFixed(2)}x)` : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {d.developer_data && (d.developer_data.stars || d.developer_data.forks || d.developer_data.commit_count_4_weeks || d.developer_data.subscribers || d.developer_data.total_issues || d.developer_data.pull_requests_merged || d.developer_data.pull_request_contributors) && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Github className="w-3 h-3" /> Developer Activity</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+              {d.developer_data.stars != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">GitHub Stars</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.stars?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.forks != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Forks</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.forks?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.subscribers != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Watchers</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.subscribers?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.total_issues != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Total Issues</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.total_issues?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.closed_issues != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Closed Issues</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.closed_issues?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.pull_requests_merged != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">PRs Merged</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.pull_requests_merged?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.pull_request_contributors != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Contributors</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.pull_request_contributors?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.commit_count_4_weeks != null && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Commits (4 weeks)</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.developer_data.commit_count_4_weeks?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.developer_data.code_additions_deletions_4_weeks && (
+                <div className="flex flex-col col-span-2">
+                  <span className="text-[11px] text-muted-foreground">Code Changes (4 weeks)</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">
+                    <span className="text-green-400">+{d.developer_data.code_additions_deletions_4_weeks.additions?.toLocaleString() || 0}</span>
+                    {" / "}
+                    <span className="text-red-400">{d.developer_data.code_additions_deletions_4_weeks.deletions?.toLocaleString() || 0}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {d.community_data && (d.community_data.reddit_subscribers || d.community_data.telegram_channel_user_count || d.community_data.facebook_likes || d.community_data.reddit_accounts_active_48h) && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><MessageCircle className="w-3 h-3" /> Community Stats</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {d.community_data.reddit_subscribers != null && d.community_data.reddit_subscribers > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Reddit Subscribers</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.community_data.reddit_subscribers?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.community_data.reddit_accounts_active_48h != null && d.community_data.reddit_accounts_active_48h > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Reddit Active (48h)</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.community_data.reddit_accounts_active_48h?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.community_data.telegram_channel_user_count != null && d.community_data.telegram_channel_user_count > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Telegram Members</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.community_data.telegram_channel_user_count?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.community_data.facebook_likes != null && d.community_data.facebook_likes > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Facebook Likes</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.community_data.facebook_likes?.toLocaleString()}</span>
+                </div>
+              )}
+              {d.community_data.reddit_average_posts_48h != null && d.community_data.reddit_average_posts_48h > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Reddit Posts (48h avg)</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.community_data.reddit_average_posts_48h?.toFixed(1)}</span>
+                </div>
+              )}
+              {d.community_data.reddit_average_comments_48h != null && d.community_data.reddit_average_comments_48h > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Reddit Comments (48h avg)</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.community_data.reddit_average_comments_48h?.toFixed(1)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(() => {
+          const changes = [
+            { label: "14d", val: d.price_change_percentage_14d },
+            { label: "60d", val: d.price_change_percentage_60d },
+            { label: "200d", val: d.price_change_percentage_200d },
+            { label: "1y", val: d.price_change_percentage_1y },
+          ].filter(x => x.val != null);
+          if (changes.length === 0) return null;
+          return (
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Extended Price Changes</h4>
+              <div className="flex gap-3 flex-wrap">
+                {changes.map(({ label, val }) => (
+                  <div key={label} className="text-center px-3 py-2 rounded-lg bg-muted/30">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
+                    <p className={`text-xs font-mono font-semibold ${(val || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      {(val || 0) >= 0 ? "▲" : "▼"} {Math.abs(val || 0).toFixed(2)}%
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {(d.block_time_in_minutes || d.country_origin || d.asset_platform_id) && (
+          <div className="border-t border-border pt-4 mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Network Info</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {d.block_time_in_minutes != null && d.block_time_in_minutes > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Block Time</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.block_time_in_minutes} min</span>
+                </div>
+              )}
+              {d.country_origin && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Country</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{d.country_origin}</span>
+                </div>
+              )}
+              {d.asset_platform_id && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-muted-foreground">Platform</span>
+                  <span className="font-mono text-sm font-semibold text-foreground capitalize">{d.asset_platform_id.replace(/-/g, " ")}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {d.public_notice && (
+          <div className="border-t border-border pt-4 mt-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+              <p className="text-xs text-yellow-400">{d.public_notice}</p>
+            </div>
+          </div>
+        )}
+
+        {d.additional_notices && d.additional_notices.length > 0 && (
+          <div className="border-t border-border pt-4 mt-4">
+            {d.additional_notices.map((notice: string, i: number) => (
+              <div key={i} className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-2">
+                <p className="text-xs text-blue-400">{notice}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {d.last_updated && (
+          <div className="border-t border-border pt-3 mt-4">
+            <p className="text-[10px] text-muted-foreground text-right">Last updated: {new Date(d.last_updated).toLocaleString()}</p>
           </div>
         )}
       </CardContent>

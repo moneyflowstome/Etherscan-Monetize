@@ -1158,7 +1158,7 @@ export async function registerRoutes(
         return res.json(cached.data);
       }
 
-      const url = `${COINGECKO_BASE}/coins/${id}?localization=false&tickers=false&community_data=false&developer_data=false`;
+      const url = `${COINGECKO_BASE}/coins/${id}?localization=false&tickers=false&community_data=true&developer_data=true`;
       const response = await fetch(url);
       if (!response.ok) {
         if (response.status === 404) return res.status(404).json({ error: "Coin not found" });
@@ -1170,6 +1170,7 @@ export async function registerRoutes(
       const md = raw.market_data || {};
       const desc = raw.description?.en || "";
       const data = {
+        id: raw.id,
         name: raw.name,
         symbol: raw.symbol,
         image: raw.image?.large || raw.image?.small || null,
@@ -1181,7 +1182,18 @@ export async function registerRoutes(
         price_change_percentage_24h: md.price_change_percentage_24h ?? null,
         price_change_percentage_1h: md.price_change_percentage_1h_in_currency?.usd ?? null,
         price_change_percentage_7d: md.price_change_percentage_7d_in_currency?.usd ?? null,
-        price_change_percentage_30d: md.price_change_percentage_30d_in_currency?.usd ?? null,
+        price_change_percentage_14d: md.price_change_percentage_14d ?? null,
+        price_change_percentage_30d: md.price_change_percentage_30d ?? null,
+        price_change_percentage_60d: md.price_change_percentage_60d ?? null,
+        price_change_percentage_200d: md.price_change_percentage_200d ?? null,
+        price_change_percentage_1y: md.price_change_percentage_1y ?? null,
+        market_cap_change_24h: md.market_cap_change_24h ?? null,
+        market_cap_change_percentage_24h: md.market_cap_change_percentage_24h ?? null,
+        market_cap_fdv_ratio: md.market_cap_fdv_ratio ?? null,
+        total_value_locked: md.total_value_locked?.usd ?? null,
+        mcap_to_tvl_ratio: md.mcap_to_tvl_ratio ?? null,
+        fdv_to_tvl_ratio: md.fdv_to_tvl_ratio ?? null,
+        roi: md.roi ? { times: md.roi.times, currency: md.roi.currency, percentage: md.roi.percentage } : null,
         ath: md.ath?.usd ?? null,
         ath_date: md.ath_date?.usd ?? null,
         ath_change_percentage: md.ath_change_percentage?.usd ?? null,
@@ -1194,26 +1206,59 @@ export async function registerRoutes(
         circulating_supply: md.circulating_supply ?? null,
         total_supply: md.total_supply ?? null,
         max_supply: md.max_supply ?? null,
-        description: desc.substring(0, 2000),
-        categories: (raw.categories || []).filter(Boolean).slice(0, 10),
+        max_supply_infinite: md.max_supply_infinite ?? false,
+        description: desc.substring(0, 3000),
+        categories: (raw.categories || []).filter(Boolean),
         genesis_date: raw.genesis_date || null,
         hashing_algorithm: raw.hashing_algorithm || null,
+        block_time_in_minutes: raw.block_time_in_minutes || null,
+        country_origin: raw.country_origin || null,
+        sentiment_votes_up_percentage: raw.sentiment_votes_up_percentage ?? null,
+        sentiment_votes_down_percentage: raw.sentiment_votes_down_percentage ?? null,
+        watchlist_portfolio_users: raw.watchlist_portfolio_users ?? null,
+        public_notice: raw.public_notice || null,
+        additional_notices: raw.additional_notices || [],
+        last_updated: raw.last_updated || null,
+        community_data: raw.community_data ? {
+          reddit_subscribers: raw.community_data.reddit_subscribers ?? null,
+          reddit_accounts_active_48h: raw.community_data.reddit_accounts_active_48h ?? null,
+          reddit_average_posts_48h: raw.community_data.reddit_average_posts_48h ?? null,
+          reddit_average_comments_48h: raw.community_data.reddit_average_comments_48h ?? null,
+          telegram_channel_user_count: raw.community_data.telegram_channel_user_count ?? null,
+          facebook_likes: raw.community_data.facebook_likes ?? null,
+        } : null,
+        developer_data: raw.developer_data ? {
+          forks: raw.developer_data.forks ?? null,
+          stars: raw.developer_data.stars ?? null,
+          subscribers: raw.developer_data.subscribers ?? null,
+          total_issues: raw.developer_data.total_issues ?? null,
+          closed_issues: raw.developer_data.closed_issues ?? null,
+          pull_requests_merged: raw.developer_data.pull_requests_merged ?? null,
+          pull_request_contributors: raw.developer_data.pull_request_contributors ?? null,
+          code_additions_deletions_4_weeks: raw.developer_data.code_additions_deletions_4_weeks || null,
+          commit_count_4_weeks: raw.developer_data.commit_count_4_weeks ?? null,
+        } : null,
         links: {
           homepage: raw.links?.homepage?.filter(Boolean) || [],
+          whitepaper: raw.links?.whitepaper || null,
           blockchain_site: raw.links?.blockchain_site?.filter(Boolean) || [],
           official_forum_url: raw.links?.official_forum_url?.filter(Boolean) || [],
           chat_url: raw.links?.chat_url?.filter(Boolean) || [],
           announcement_url: raw.links?.announcement_url?.filter(Boolean) || [],
+          snapshot_url: raw.links?.snapshot_url || null,
           subreddit_url: raw.links?.subreddit_url || null,
           twitter_screen_name: raw.links?.twitter_screen_name || null,
           facebook_username: raw.links?.facebook_username || null,
+          bitcointalk_thread_identifier: raw.links?.bitcointalk_thread_identifier || null,
           telegram_channel_identifier: raw.links?.telegram_channel_identifier || null,
           repos_url: {
-            github: (raw.links?.repos_url?.github || []).filter(Boolean).slice(0, 5),
-            bitbucket: (raw.links?.repos_url?.bitbucket || []).filter(Boolean).slice(0, 3),
+            github: (raw.links?.repos_url?.github || []).filter(Boolean),
+            bitbucket: (raw.links?.repos_url?.bitbucket || []).filter(Boolean),
           },
         },
         platforms: raw.platforms || {},
+        detail_platforms: raw.detail_platforms || {},
+        asset_platform_id: raw.asset_platform_id || null,
       };
 
       coinInfoCache[id] = { data, timestamp: Date.now() };
