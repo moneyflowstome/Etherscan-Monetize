@@ -364,6 +364,33 @@ function CoinInfoPanel({ coingeckoId, chainName }: { coingeckoId: string; chainN
         {data.description && (
           <p className="text-xs text-muted-foreground mt-4 leading-relaxed">{data.description.replace(/<[^>]*>/g, '')}</p>
         )}
+        {(() => {
+          const safeUrl = (u: string) => { try { const p = new URL(u.trim()); return (p.protocol === 'http:' || p.protocol === 'https:') ? p : null; } catch (e) { return null; } };
+          const homeLinks = (data.links?.homepage || []).map((u: string) => safeUrl(u)).filter(Boolean) as URL[];
+          const explorerLinks = (data.links?.blockchain_site || []).map((u: string) => safeUrl(u)).filter(Boolean) as URL[];
+          if (homeLinks.length === 0 && explorerLinks.length === 0) return null;
+          return (
+            <div className="mt-4 space-y-2">
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <ExternalLink className="w-3.5 h-3.5 text-primary" /> Links
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {homeLinks.map((parsed, i) => (
+                  <a key={`home-${i}`} href={parsed.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary hover:bg-primary/20 transition-colors" data-testid={`link-chain-website-${i}`}>
+                    <ExternalLink className="w-3 h-3" />
+                    {parsed.hostname.replace('www.', '')}
+                  </a>
+                ))}
+                {explorerLinks.map((parsed, i) => (
+                  <a key={`explorer-${i}`} href={parsed.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" data-testid={`link-chain-explorer-${i}`}>
+                    <Search className="w-3 h-3" />
+                    {parsed.hostname.replace('www.', '')}
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
