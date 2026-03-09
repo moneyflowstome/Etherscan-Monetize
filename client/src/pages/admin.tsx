@@ -38,6 +38,10 @@ import {
   Image,
   Copy,
   Code,
+  Bot,
+  AlertTriangle,
+  Ban,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2308,6 +2312,297 @@ function SecurityTab({ token }: { token: string }) {
   );
 }
 
+function SpamMonitorTab({ token }: { token: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [filter, setFilter] = useState<"all" | "unresolved" | "resolved">("unresolved");
+  const [banIp, setBanIp] = useState("");
+  const [banDuration, setBanDuration] = useState("24");
+
+  const { data: stats } = useQuery({
+    queryKey: ["spam-stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/spam/stats", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: reports, isLoading } = useQuery({
+    queryKey: ["spam-reports", filter],
+    queryFn: async () => {
+      const qs = filter === "all" ? "" : `?resolved=${filter === "resolved"}`;
+      const res = await fetch(`/api/admin/spam/reports${qs}`, { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    refetchInterval: 15000,
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/spam/resolve/${id}`, { method: "POST", headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["spam-reports"] });
+      queryClient.invalidateQueries({ queryKey: ["spam-stats"] });
+      toast({ title: "Report resolved" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/spam/${id}`, { method: "DELETE", headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["spam-reports"] });
+      queryClient.invalidateQueries({ queryKey: ["spam-stats"] });
+      toast({ title: "Report deleted" });
+    },
+  });
+
+  const bulkResolveMutation = useMutation({
+    mutationFn: async () => {
+      const unresolvedIds = (Array.isArray(reports) ? reports : []).filter((r: any) => !r.resolved).map((r: any) => r.id);
+      if (unresolvedIds.length === 0) return;
+      const res = await fetch("/api/admin/spam/bulk-resolve", {
+        method: "POST",
+        headers: apiHeaders(token),
+        body: JSON.stringify({ ids: unresolvedIds }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["spam-reports"] });
+      queryClient.invalidateQueries({ queryKey: ["spam-stats"] });
+      toast({ title: "All visible reports resolved" });
+    },
+  });
+
+  const banMutation = useMutation({
+    mutationFn: async (ip: string) => {
+      const res = await fetch("/api/admin/spam/ban-ip", {
+        method: "POST",
+        headers: apiHeaders(token),
+        body: JSON.stringify({ ip, reason: "Banned from Spam Monitor", duration: banDuration }),
+      });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["spam-stats"] });
+      toast({ title: "IP banned" });
+      setBanIp("");
+    },
+  });
+
+  const reportList = Array.isArray(reports) ? reports : [];
+  const severityColor = (s: string) => {
+    switch (s) {
+      case "critical": return "bg-red-600 text-white";
+      case "high": return "bg-red-500/20 text-red-400";
+      case "medium": return "bg-yellow-500/20 text-yellow-400";
+      case "low": return "bg-blue-500/20 text-blue-400";
+      default: return "bg-muted text-muted-foreground";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4 text-center">
+            <Bot className="w-6 h-6 mx-auto mb-2 text-primary" />
+            <div className="text-2xl font-bold" data-testid="text-spam-total">{stats?.total || 0}</div>
+            <div className="text-xs text-muted-foreground">Total Reports</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4 text-center">
+            <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-yellow-400" />
+            <div className="text-2xl font-bold text-yellow-400" data-testid="text-spam-unresolved">{stats?.unresolved || 0}</div>
+            <div className="text-xs text-muted-foreground">Unresolved</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4 text-center">
+            <Ban className="w-6 h-6 mx-auto mb-2 text-red-400" />
+            <div className="text-2xl font-bold text-red-400" data-testid="text-spam-autobanned">{stats?.autoBanned || 0}</div>
+            <div className="text-xs text-muted-foreground">Auto-Banned</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4 text-center">
+            <Shield className="w-6 h-6 mx-auto mb-2 text-green-400" />
+            <div className="text-2xl font-bold text-green-400" data-testid="text-spam-offenders">{stats?.topOffenders?.length || 0}</div>
+            <div className="text-xs text-muted-foreground">Known Offenders</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {stats?.topOffenders && stats.topOffenders.length > 0 && (
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              Top Offenders
+            </h3>
+            <div className="space-y-2">
+              {stats.topOffenders.map((o: any, i: number) => (
+                <div key={i} className="flex items-center justify-between bg-muted/20 rounded-lg px-4 py-2 border border-border/30" data-testid={`spam-offender-${i}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-muted-foreground">{o.ip}</span>
+                    <span className="text-sm font-bold">{o.nickname}</span>
+                    <Badge className="bg-red-500/20 text-red-400 border-0 text-[10px]">{o.count} reports</Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => banMutation.mutate(o.ip)}
+                    className="text-red-400 hover:bg-red-500/10 h-7 px-2"
+                    data-testid={`button-ban-offender-${i}`}
+                  >
+                    <Ban className="w-3 h-3 mr-1" /> Ban
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Ban className="w-5 h-5 text-red-400" />
+            Manual IP Ban
+          </h3>
+          <div className="flex gap-2">
+            <Input
+              placeholder="IP address"
+              value={banIp}
+              onChange={(e) => setBanIp(e.target.value)}
+              className="flex-1 bg-muted/30 border-border/50"
+              data-testid="input-ban-ip"
+            />
+            <select
+              value={banDuration}
+              onChange={(e) => setBanDuration(e.target.value)}
+              className="bg-muted/30 border border-border/50 rounded-md px-3 text-sm"
+              data-testid="select-ban-duration"
+            >
+              <option value="1">1 hour</option>
+              <option value="6">6 hours</option>
+              <option value="24">24 hours</option>
+              <option value="168">7 days</option>
+              <option value="720">30 days</option>
+            </select>
+            <Button onClick={() => banIp.trim() && banMutation.mutate(banIp.trim())} className="bg-red-500 hover:bg-red-600" data-testid="button-ban-ip">
+              <Ban className="w-4 h-4 mr-1" /> Ban
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              Spam Reports ({reportList.length})
+            </h3>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 bg-muted/30 rounded-lg p-1">
+                {(["unresolved", "all", "resolved"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                      filter === f ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid={`button-filter-${f}`}
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+              {filter === "unresolved" && reportList.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => bulkResolveMutation.mutate()}
+                  className="text-xs"
+                  data-testid="button-bulk-resolve"
+                >
+                  <CheckCircle className="w-3 h-3 mr-1" /> Resolve All
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading reports...</div>
+          ) : reportList.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Bot className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>No spam reports found</p>
+              <p className="text-xs mt-1">The spam detection engine monitors all chat messages automatically</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {reportList.map((r: any) => (
+                <div
+                  key={r.id}
+                  className={`rounded-lg px-4 py-3 border ${
+                    r.autoBanned ? "bg-red-500/10 border-red-500/30" :
+                    r.resolved ? "bg-muted/10 border-border/20 opacity-60" :
+                    r.severity === "high" || r.severity === "critical" ? "bg-red-500/5 border-red-500/20" :
+                    r.severity === "medium" ? "bg-yellow-500/5 border-yellow-500/20" :
+                    "bg-muted/20 border-border/30"
+                  }`}
+                  data-testid={`spam-report-${r.id}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-sm font-bold">{r.nickname}</span>
+                        <span className="text-xs font-mono text-muted-foreground">{r.ip}</span>
+                        <Badge className={`text-[10px] border-0 ${severityColor(r.severity)}`}>{r.severity}</Badge>
+                        {r.autoBanned && <Badge className="text-[10px] bg-red-600 text-white border-0">AUTO-BANNED</Badge>}
+                        {r.resolved && <Badge className="text-[10px] bg-green-500/20 text-green-400 border-0">Resolved</Badge>}
+                        <span className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-yellow-400/80 mb-1">{r.reason}</p>
+                      {r.messageText && (
+                        <p className="text-xs text-muted-foreground bg-muted/20 rounded px-2 py-1 break-words">&ldquo;{r.messageText}&rdquo;</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!r.resolved && (
+                        <Button variant="ghost" size="sm" onClick={() => resolveMutation.mutate(r.id)} className="text-green-400 hover:bg-green-500/10 h-7 px-2" data-testid={`button-resolve-spam-${r.id}`}>
+                          <CheckCircle className="w-3 h-3" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => banMutation.mutate(r.ip)} className="text-red-400 hover:bg-red-500/10 h-7 px-2" data-testid={`button-ban-spam-${r.id}`}>
+                        <Ban className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => { if (confirm("Delete this report?")) deleteMutation.mutate(r.id); }} className="text-muted-foreground hover:bg-red-500/10 h-7 px-2" data-testid={`button-delete-spam-${r.id}`}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function ChatModerationTab({ token }: { token: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -2794,6 +3089,7 @@ function AdminTabs({ token }: { token: string }) {
     { value: "seo", label: "SEO", icon: Search },
     { value: "banners", label: "Banners", icon: Image },
     { value: "security", label: "Security", icon: Shield },
+    { value: "spam", label: "Spam Monitor", icon: Bot },
     { value: "chat", label: "Chat", icon: Users },
   ];
 
@@ -2879,6 +3175,7 @@ function AdminTabs({ token }: { token: string }) {
       {activeTab === "seo" && <SeoTab token={token} />}
       {activeTab === "banners" && <BannersTab />}
       {activeTab === "security" && <SecurityTab token={token} />}
+      {activeTab === "spam" && <SpamMonitorTab token={token} />}
       {activeTab === "chat" && <ChatModerationTab token={token} />}
     </div>
   );

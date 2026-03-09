@@ -204,3 +204,20 @@ export const chatMessages = pgTable("chat_messages", {
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, flagged: true, createdAt: true });
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+export const spamReports = pgTable("spam_reports", {
+  id: serial("id").primaryKey(),
+  ip: text("ip").notNull(),
+  nickname: text("nickname").notNull(),
+  reason: text("reason").notNull(),
+  severity: text("severity").notNull().default("medium"),
+  messageId: integer("message_id"),
+  messageText: text("message_text"),
+  autoBanned: boolean("auto_banned").default(false),
+  resolved: boolean("resolved").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSpamReportSchema = createInsertSchema(spamReports).omit({ id: true, createdAt: true });
+export type InsertSpamReport = z.infer<typeof insertSpamReportSchema>;
+export type SpamReport = typeof spamReports.$inferSelect;

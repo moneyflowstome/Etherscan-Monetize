@@ -15,9 +15,10 @@ import {
   type LoginAttempt, type InsertLoginAttempt,
   type BlockedIp, type InsertBlockedIp,
   type ChatMessage, type InsertChatMessage,
+  type SpamReport, type InsertSpamReport,
   users, siteSettings, pageViews, hiddenNews, pinnedNews, exchanges,
   contactMessages, blogPosts, seoMeta, airdrops,
-  loginAttempts, blockedIps, chatMessages,
+  loginAttempts, blockedIps, chatMessages, spamReports,
 } from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -104,6 +105,15 @@ export interface IStorage {
   deleteChatMessage(id: number): Promise<void>;
   getFlaggedChatMessages(): Promise<ChatMessage[]>;
   getChatMessageCount(): Promise<number>;
+
+  createSpamReport(report: InsertSpamReport): Promise<SpamReport>;
+  getSpamReports(opts?: { resolved?: boolean; limit?: number }): Promise<SpamReport[]>;
+  resolveSpamReport(id: number): Promise<void>;
+  deleteSpamReport(id: number): Promise<void>;
+  getSpamReportsByIp(ip: string): Promise<SpamReport[]>;
+  getSpamStats(): Promise<{ total: number; unresolved: number; autoBanned: number; topOffenders: { ip: string; nickname: string; count: number }[] }>;
+  bulkResolveSpamReports(ids: number[]): Promise<void>;
+  getRecentChatMessagesByIp(ip: string, minutes: number): Promise<ChatMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -469,6 +479,64 @@ export class DatabaseStorage implements IStorage {
   async getChatMessageCount(): Promise<number> {
     const [result] = await db.select({ count: count() }).from(chatMessages);
     return result?.count || 0;
+  }
+
+  async createSpamReport(report: InsertSpamReport): Promise<SpamReport> {
+    const [created] = await db.insert(spamReports).values(report).returning();
+    return created;
+  }
+
+  async getSpamReports(opts?: { resolved?: boolean; limit?: number }): Promise<SpamReport[]> {
+    const conditions: any[] = [];
+    if (opts?.resolved !== undefined) {
+      conditions.push(eq(spamReports.resolved, opts.resolved));
+    }
+    let query = db.select().from(spamReports);
+    if (conditions.length > 0) {
+      query = query.where(sql`${sql.join(conditions, sql` AND `)}`) as any;
+    }
+    query = query.orderBy(desc(spamReports.createdAt)) as any;
+    query = query.limit(opts?.limit || 200) as any;
+    return query;
+  }
+
+  async resolveSpamReport(id: number): Promise<void> {
+    await db.update(spamReports).set({ resolved: true }).where(eq(spamReports.id, id));
+  }
+
+  async deleteSpamReport(id: number): Promise<void> {
+    await db.delete(spamReports).where(eq(spamReports.id, id));
+  }
+
+  async getSpamReportsByIp(ip: string): Promise<SpamReport[]> {
+    return db.select().from(spamReports).where(eq(spamReports.ip, ip)).orderBy(desc(spamReports.createdAt));
+  }
+
+  async getSpamStats(): Promise<{ total: number; unresolved: number; autoBanned: number; topOffenders: { ip: string; nickname: string; count: number }[] }> {
+    const [totalResult] = await db.select({ count: count() }).from(spamReports);
+    const [unresolvedResult] = await db.select({ count: count() }).from(spamReports).where(eq(spamReports.resolved, false));
+    const [autoBannedResult] = await db.select({ count: count() }).from(spamReports).where(eq(spamReports.autoBanned, true));
+    const topOffenders = await db.select({
+      ip: spamReports.ip,
+      nickname: sql<string>`MAX(${spamReports.nickname})`.as("nickname"),
+      count: count(),
+    }).from(spamReports).groupBy(spamReports.ip).orderBy(desc(count())).limit(10);
+    return {
+      total: totalResult?.count || 0,
+      unresolved: unresolvedResult?.count || 0,
+      autoBanned: autoBannedResult?.count || 0,
+      topOffenders: topOffenders.map(o => ({ ip: o.ip, nickname: o.nickname, count: Number(o.count) })),
+    };
+  }
+
+  async bulkResolveSpamReports(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(spamReports).set({ resolved: true }).where(sql`${spamReports.id} IN (${sql.join(ids.map(id => sql`${id}`), sql`, `)})`);
+  }
+
+  async getRecentChatMessagesByIp(ip: string, minutes: number): Promise<ChatMessage[]> {
+    const cutoff = new Date(Date.now() - minutes * 60 * 1000);
+    return db.select().from(chatMessages).where(sql`${chatMessages.ip} = ${ip} AND ${chatMessages.createdAt} > ${cutoff}`).orderBy(desc(chatMessages.createdAt));
   }
 }
 

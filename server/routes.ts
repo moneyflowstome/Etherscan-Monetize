@@ -6,6 +6,13 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { XMLParser } from "fast-xml-parser";
 
+function normalizeIp(ip: string): string {
+  if (!ip) return "unknown";
+  let normalized = ip.trim();
+  if (normalized.startsWith("::ffff:")) normalized = normalized.slice(7);
+  return normalized;
+}
+
 async function getApiKey(name: string): Promise<string> {
   const dbVal = await storage.getSetting(`api_key_${name}`);
   if (dbVal) return dbVal;
@@ -159,7 +166,7 @@ export async function registerRoutes(
       const enabled = await storage.getSetting("maintenance_enabled");
       if (enabled === "true") {
         const allowedIps = await storage.getSetting("maintenance_allowed_ips");
-        const clientIp = req.ip || "";
+        const clientIp = normalizeIp(req.ip || "");
         if (allowedIps) {
           const ipList = allowedIps.split(",").map(ip => ip.trim()).filter(Boolean);
           if (ipList.includes(clientIp)) {
@@ -3267,7 +3274,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/login", async (req, res) => {
     try {
-      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const clientIp = normalizeIp(req.ip || req.socket.remoteAddress || "unknown");
 
       await storage.cleanExpiredBlocks();
       const blocked = await storage.isIpBlocked(clientIp);
@@ -3518,6 +3525,110 @@ export async function registerRoutes(
 
   const PROFANITY_WORDS = ["fuck", "shit", "ass", "bitch", "damn", "cunt", "dick", "nigger", "faggot", "retard"];
   const chatRateLimit = new Map<string, number>();
+  const chatMessageHistory = new Map<string, { messages: string[]; timestamps: number[] }>();
+
+  const SPAM_KEYWORDS = [
+    "send me", "free btc", "free eth", "free crypto", "airdrop claim", "claim now",
+    "double your", "guaranteed profit", "100x", "1000x", "get rich", "easy money",
+    "invest now", "telegram.me", "t.me/", "discord.gg/", "bit.ly/", "tinyurl.com",
+    "whatsapp", "dm me", "send to wallet", "giveaway", "pump signal", "insider info",
+    "wallet connect", "validate wallet", "sync wallet", "dapp browser",
+    "metamask support", "trust wallet support", "customer service",
+  ];
+
+  const SPAM_URL_PATTERN = /https?:\/\/[^\s]+/gi;
+  const SPAM_REPEATED_CHARS = /(.)\1{7,}/;
+  const SPAM_ALL_CAPS_THRESHOLD = 0.7;
+  const SPAM_MAX_MESSAGES_PER_5MIN = 15;
+  const SPAM_DUPLICATE_THRESHOLD = 3;
+  const SPAM_AUTO_BAN_THRESHOLD = 5;
+
+  async function analyzeSpam(ip: string, nickname: string, message: string, messageId: number): Promise<void> {
+    const lowerMsg = message.toLowerCase();
+    const reasons: { reason: string; severity: string }[] = [];
+
+    const keywordHits = SPAM_KEYWORDS.filter(kw => lowerMsg.includes(kw));
+    if (keywordHits.length >= 2) {
+      reasons.push({ reason: `Scam keywords: ${keywordHits.slice(0, 3).join(", ")}`, severity: "high" });
+    } else if (keywordHits.length === 1) {
+      reasons.push({ reason: `Suspicious keyword: ${keywordHits[0]}`, severity: "medium" });
+    }
+
+    const urls = message.match(SPAM_URL_PATTERN);
+    if (urls && urls.length >= 2) {
+      reasons.push({ reason: `Multiple URLs (${urls.length})`, severity: "high" });
+    } else if (urls && urls.length === 1) {
+      reasons.push({ reason: "Contains external URL", severity: "low" });
+    }
+
+    if (SPAM_REPEATED_CHARS.test(message)) {
+      reasons.push({ reason: "Repeated character spam", severity: "medium" });
+    }
+
+    const upperCount = message.replace(/[^A-Z]/g, "").length;
+    const letterCount = message.replace(/[^a-zA-Z]/g, "").length;
+    if (letterCount > 10 && upperCount / letterCount > SPAM_ALL_CAPS_THRESHOLD) {
+      reasons.push({ reason: "Excessive CAPS", severity: "low" });
+    }
+
+    const history = chatMessageHistory.get(ip);
+    if (history) {
+      const now = Date.now();
+      const fiveMinAgo = now - 5 * 60 * 1000;
+      const recentTimestamps = history.timestamps.filter(t => t > fiveMinAgo);
+      if (recentTimestamps.length >= SPAM_MAX_MESSAGES_PER_5MIN) {
+        reasons.push({ reason: `Flood: ${recentTimestamps.length} msgs in 5min`, severity: "high" });
+      }
+      const duplicates = history.messages.filter(m => m === lowerMsg).length;
+      if (duplicates >= SPAM_DUPLICATE_THRESHOLD) {
+        reasons.push({ reason: `Duplicate message sent ${duplicates + 1} times`, severity: "high" });
+      }
+    }
+
+    if (reasons.length === 0) return;
+
+    const highestSeverity = reasons.some(r => r.severity === "high") ? "high"
+      : reasons.some(r => r.severity === "medium") ? "medium" : "low";
+
+    const combinedReason = reasons.map(r => r.reason).join("; ");
+
+    await storage.createSpamReport({
+      ip,
+      nickname,
+      reason: combinedReason,
+      severity: highestSeverity,
+      messageId,
+      messageText: message.slice(0, 500),
+      autoBanned: false,
+      resolved: false,
+    });
+
+    if (highestSeverity === "high") {
+      await storage.flagChatMessage(messageId, true);
+    }
+
+    const existingReports = await storage.getSpamReportsByIp(ip);
+    if (existingReports.length >= SPAM_AUTO_BAN_THRESHOLD) {
+      const isBlocked = await storage.isIpBlocked(ip);
+      if (!isBlocked) {
+        await storage.blockIp({
+          ip,
+          reason: `Auto-banned: ${existingReports.length} spam reports`,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
+        await storage.createSpamReport({
+          ip,
+          nickname,
+          reason: `AUTO-BAN triggered (${existingReports.length} reports)`,
+          severity: "critical",
+          messageId,
+          messageText: message.slice(0, 500),
+          autoBanned: true,
+          resolved: false,
+        });
+      }
+    }
+  }
 
   app.get("/api/chat/messages", async (req, res) => {
     try {
@@ -3532,7 +3643,13 @@ export async function registerRoutes(
 
   app.post("/api/chat/messages", async (req, res) => {
     try {
-      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const clientIp = normalizeIp(req.ip || req.socket.remoteAddress || "unknown");
+
+      const isBlocked = await storage.isIpBlocked(clientIp);
+      if (isBlocked) {
+        return res.status(403).json({ error: "Your IP has been blocked due to spam activity." });
+      }
+
       const lastSent = chatRateLimit.get(clientIp) || 0;
       if (Date.now() - lastSent < 5000) {
         return res.status(429).json({ error: "Please wait a few seconds between messages." });
@@ -3565,7 +3682,91 @@ export async function registerRoutes(
         }
       }
 
+      const history = chatMessageHistory.get(clientIp) || { messages: [], timestamps: [] };
+      history.messages.push(lowerMsg);
+      history.timestamps.push(Date.now());
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      history.messages = history.messages.slice(-30);
+      history.timestamps = history.timestamps.filter(t => t > fiveMinAgo);
+      chatMessageHistory.set(clientIp, history);
+
+      if (chatMessageHistory.size > 5000) {
+        const cutoff = Date.now() - 10 * 60 * 1000;
+        for (const [k, v] of chatMessageHistory) {
+          if (v.timestamps.every(t => t < cutoff)) chatMessageHistory.delete(k);
+        }
+      }
+
+      analyzeSpam(clientIp, nickname.trim(), message.trim(), created.id).catch(err => {
+        console.error("Spam analysis error:", err);
+      });
+
       res.json({ ...created, ip: null });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/spam/stats", requireAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getSpamStats();
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/spam/reports", requireAdmin, async (req, res) => {
+    try {
+      const resolved = req.query.resolved === "true" ? true : req.query.resolved === "false" ? false : undefined;
+      const reports = await storage.getSpamReports({ resolved, limit: 200 });
+      res.json(reports);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/spam/resolve/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.resolveSpamReport(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/spam/bulk-resolve", requireAdmin, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids)) return res.status(400).json({ error: "ids must be an array" });
+      await storage.bulkResolveSpamReports(ids);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/spam/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteSpamReport(parseInt(req.params.id));
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/spam/ban-ip", requireAdmin, async (req, res) => {
+    try {
+      const { ip, reason, duration } = req.body;
+      if (!ip || typeof ip !== "string") return res.status(400).json({ error: "IP required" });
+      const normalizedBanIp = normalizeIp(ip);
+      const durationHours = Math.min(Math.max(parseInt(duration) || 24, 1), 8760);
+      await storage.blockIp({
+        ip: normalizedBanIp,
+        reason: reason || "Manually banned from Spam Monitor",
+        expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000),
+      });
+      res.json({ ok: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
