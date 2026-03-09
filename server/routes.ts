@@ -3446,5 +3446,133 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== GOLD ROUTES ====================
+  const goldCache: Record<string, { data: any; timestamp: number }> = {};
+  const GOLD_CACHE_SHORT = 60000; // 1 min for spot price
+  const GOLD_CACHE_MEDIUM = 300000; // 5 min for tokens
+
+  function getGoldCache(key: string, ttl: number) {
+    const entry = goldCache[key];
+    if (entry && Date.now() - entry.timestamp < ttl) return entry.data;
+    return null;
+  }
+
+  app.get("/api/gold/spot", async (_req, res) => {
+    try {
+      const cached = getGoldCache("gold-spot", GOLD_CACHE_SHORT);
+      if (cached) return res.json(cached);
+      const response = await fetch("https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAU/USD");
+      if (!response.ok) throw new Error(`Gold price API error: ${response.status}`);
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const prices = data[0]?.spreadProfilePrices;
+        if (Array.isArray(prices) && prices.length > 0) {
+          const mid = (prices[0].bid + prices[0].ask) / 2;
+          const result = {
+            price: mid,
+            bid: prices[0].bid,
+            ask: prices[0].ask,
+            timestamp: data[0].ts || Date.now(),
+            currency: "USD",
+            unit: "troy ounce",
+          };
+          goldCache["gold-spot"] = { data: result, timestamp: Date.now() };
+          return res.json(result);
+        }
+      }
+      throw new Error("Invalid gold price data");
+    } catch (e: any) {
+      const cached = getGoldCache("gold-spot", GOLD_CACHE_SHORT * 10);
+      if (cached) return res.json(cached);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/gold/silver-spot", async (_req, res) => {
+    try {
+      const cached = getGoldCache("silver-spot", GOLD_CACHE_SHORT);
+      if (cached) return res.json(cached);
+      const response = await fetch("https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAG/USD");
+      if (!response.ok) throw new Error(`Silver price API error: ${response.status}`);
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const prices = data[0]?.spreadProfilePrices;
+        if (Array.isArray(prices) && prices.length > 0) {
+          const mid = (prices[0].bid + prices[0].ask) / 2;
+          const result = {
+            price: mid,
+            bid: prices[0].bid,
+            ask: prices[0].ask,
+            timestamp: data[0].ts || Date.now(),
+            currency: "USD",
+            unit: "troy ounce",
+          };
+          goldCache["silver-spot"] = { data: result, timestamp: Date.now() };
+          return res.json(result);
+        }
+      }
+      throw new Error("Invalid silver price data");
+    } catch (e: any) {
+      const cached = getGoldCache("silver-spot", GOLD_CACHE_SHORT * 10);
+      if (cached) return res.json(cached);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/gold/tokens", async (_req, res) => {
+    try {
+      const cached = getGoldCache("gold-tokens", GOLD_CACHE_MEDIUM);
+      if (cached) return res.json(cached);
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=tokenized-gold&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=1h%2C24h%2C7d"
+      );
+      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        goldCache["gold-tokens"] = { data, timestamp: Date.now() };
+        return res.json(data);
+      }
+      throw new Error("Invalid gold tokens data");
+    } catch (e: any) {
+      const cached = getGoldCache("gold-tokens", GOLD_CACHE_MEDIUM * 5);
+      if (cached) return res.json(cached);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/gold/news", async (_req, res) => {
+    try {
+      const cached = getGoldCache("gold-news", GOLD_CACHE_MEDIUM);
+      if (cached) return res.json(cached);
+      const response = await fetch(
+        "https://min-api.cryptocompare.com/data/v2/news/?categories=Mining,Regulation&feeds=cointelegraph,coindesk,decrypt&extraParams=TokenAltcoin"
+      );
+      if (!response.ok) throw new Error(`News API error: ${response.status}`);
+      const data = await response.json();
+      const articles = data?.Data;
+      if (Array.isArray(articles)) {
+        const goldArticles = articles.filter((a: any) => {
+          const text = `${a.title || ""} ${a.body || ""} ${a.categories || ""}`.toLowerCase();
+          return text.includes("gold") || text.includes("paxg") || text.includes("xaut") || text.includes("precious metal") || text.includes("tokenized gold") || text.includes("gold-backed");
+        }).slice(0, 10).map((a: any) => ({
+          title: a.title,
+          url: a.url || a.guid,
+          body: a.body,
+          imageUrl: a.imageurl,
+          source: a.source_info?.name || a.source,
+          publishedAt: a.published_on,
+          categories: a.categories,
+        }));
+        goldCache["gold-news"] = { data: goldArticles, timestamp: Date.now() };
+        return res.json(goldArticles);
+      }
+      res.json([]);
+    } catch (e: any) {
+      const cached = getGoldCache("gold-news", GOLD_CACHE_MEDIUM * 5);
+      if (cached) return res.json(cached);
+      res.json([]);
+    }
+  });
+
   return httpServer;
 }
