@@ -2017,7 +2017,7 @@ export async function registerRoutes(
           try {
             const r = await fetchWithTimeout("https://polkadot.api.subscan.io/api/scan/metadata", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
             const d = await r.json();
-            const count = d.data?.count_signed_extrinsic ? null : (d.data?.validator_count ?? null);
+            const count = d.data?.validator_count ?? null;
             return { chain: "Polkadot", symbol: "DOT", validatorCount: count, totalStaked: null, stakingApy: "12%", color: "#E6007A" };
           } catch { return { chain: "Polkadot", symbol: "DOT", validatorCount: null, totalStaked: null, stakingApy: "12%", color: "#E6007A" }; }
         })(),
@@ -2229,6 +2229,144 @@ export async function registerRoutes(
       res.json({ show: val !== "false" });
     } catch {
       res.json({ show: true });
+    }
+  });
+
+  // ── ChangeNOW Swap API ──
+  const CN_API = "https://api.changenow.io/v2";
+  const CN_KEY = process.env.CHANGENOW_API_KEY || "";
+
+  let cnCurrencyCache: { data: any; timestamp: number } | null = null;
+  const CN_CURRENCY_TTL = 600000;
+
+  app.get("/api/swap/currencies", async (_req, res) => {
+    try {
+      if (cnCurrencyCache && Date.now() - cnCurrencyCache.timestamp < CN_CURRENCY_TTL) {
+        return res.json(cnCurrencyCache.data);
+      }
+      const resp = await fetch(`${CN_API}/exchange/currencies?active=true&fixedRate=true`, {
+        headers: { "x-changenow-api-key": CN_KEY },
+      });
+      if (!resp.ok) throw new Error(`ChangeNOW API error: ${resp.status}`);
+      const data = await resp.json();
+      const filtered = data
+        .filter((c: any) => c.isFiat === false && c.isAvailable !== false)
+        .map((c: any) => ({
+          ticker: c.ticker,
+          name: c.name,
+          image: c.image,
+          network: c.network,
+          hasExternalId: c.hasExternalId,
+        }));
+      cnCurrencyCache = { data: filtered, timestamp: Date.now() };
+      res.json(filtered);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/swap/estimate", async (req, res) => {
+    try {
+      const { fromCurrency, toCurrency, fromAmount, fromNetwork, toNetwork } = req.query;
+      if (!fromCurrency || !toCurrency || !fromAmount) {
+        return res.status(400).json({ error: "Missing required parameters: fromCurrency, toCurrency, fromAmount" });
+      }
+      const amt = parseFloat(String(fromAmount));
+      if (!isFinite(amt) || amt <= 0) {
+        return res.status(400).json({ error: "fromAmount must be a positive number" });
+      }
+      const tickerRegex = /^[a-zA-Z0-9]{1,20}$/;
+      if (!tickerRegex.test(String(fromCurrency)) || !tickerRegex.test(String(toCurrency))) {
+        return res.status(400).json({ error: "Invalid currency ticker" });
+      }
+      const estimateUrl = new URL(`${CN_API}/exchange/estimated-amount`);
+      estimateUrl.searchParams.set("fromCurrency", String(fromCurrency));
+      estimateUrl.searchParams.set("toCurrency", String(toCurrency));
+      estimateUrl.searchParams.set("fromAmount", String(amt));
+      if (fromNetwork) estimateUrl.searchParams.set("fromNetwork", String(fromNetwork));
+      if (toNetwork) estimateUrl.searchParams.set("toNetwork", String(toNetwork));
+      estimateUrl.searchParams.set("flow", "standard");
+      estimateUrl.searchParams.set("type", "direct");
+      const resp = await fetch(estimateUrl.toString(), {
+        headers: { "x-changenow-api-key": CN_KEY },
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        return res.status(resp.status).json({ error: errBody.message || errBody.error || `Estimate failed (${resp.status})` });
+      }
+      const data = await resp.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/swap/create", async (req, res) => {
+    try {
+      const { fromCurrency, toCurrency, fromAmount, address, fromNetwork, toNetwork, extraId, refundAddress } = req.body;
+      if (!fromCurrency || !toCurrency || !fromAmount || !address) {
+        return res.status(400).json({ error: "Missing required fields: fromCurrency, toCurrency, fromAmount, address" });
+      }
+      const amt = parseFloat(fromAmount);
+      if (!isFinite(amt) || amt <= 0) {
+        return res.status(400).json({ error: "fromAmount must be a positive number" });
+      }
+      const tickerRegex = /^[a-zA-Z0-9]{1,20}$/;
+      if (!tickerRegex.test(String(fromCurrency)) || !tickerRegex.test(String(toCurrency))) {
+        return res.status(400).json({ error: "Invalid currency ticker" });
+      }
+      if (String(address).length < 10 || String(address).length > 256) {
+        return res.status(400).json({ error: "Invalid address length" });
+      }
+      const payload: any = {
+        fromCurrency: String(fromCurrency),
+        toCurrency: String(toCurrency),
+        fromAmount: amt,
+        address: String(address).trim(),
+        flow: "standard",
+        type: "direct",
+      };
+      if (fromNetwork) payload.fromNetwork = fromNetwork;
+      if (toNetwork) payload.toNetwork = toNetwork;
+      if (extraId) payload.extraId = extraId;
+      if (refundAddress) payload.refundAddress = refundAddress;
+
+      const resp = await fetch(`${CN_API}/exchange`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-changenow-api-key": CN_KEY,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        return res.status(resp.status).json({ error: errBody.message || errBody.error || `Exchange creation failed (${resp.status})` });
+      }
+      const data = await resp.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/swap/status/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      if (!id || !/^[a-zA-Z0-9]{10,64}$/.test(id)) {
+        return res.status(400).json({ error: "Invalid exchange ID" });
+      }
+      const resp = await fetch(`${CN_API}/exchange/by-id/${encodeURIComponent(id)}`, {
+        headers: { "x-changenow-api-key": CN_KEY },
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        return res.status(resp.status).json({ error: errBody.message || errBody.error || `Status check failed (${resp.status})` });
+      }
+      const data = await resp.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
