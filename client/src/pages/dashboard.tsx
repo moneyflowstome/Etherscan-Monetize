@@ -36,6 +36,7 @@ const CHAIN_OPTIONS = [
   { name: "optimism", id: 10, symbol: "ETH", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: false },
   { name: "base", id: 8453, symbol: "ETH", color: "bg-blue-400/20 text-blue-300 border-blue-400/30", isTron: false },
   { name: "avalanche", id: 43114, symbol: "AVAX", color: "bg-red-600/20 text-red-400 border-red-600/30", isTron: false },
+  { name: "flare", id: 14, symbol: "FLR", color: "bg-rose-500/20 text-rose-400 border-rose-500/30", isTron: false },
   { name: "tron", id: -1, symbol: "TRX", color: "bg-red-500/20 text-red-400 border-red-500/30", isTron: true },
 ];
 
@@ -257,6 +258,7 @@ export default function Dashboard() {
       10: "https://optimistic.etherscan.io",
       8453: "https://basescan.org",
       43114: "https://snowtrace.io",
+      14: "https://flare-explorer.flare.network",
     };
     const base = explorers[selectedChainId] || "https://etherscan.io";
     return `${base}/tx/${hash}`;
@@ -443,6 +445,7 @@ export default function Dashboard() {
       10: "https://optimistic.etherscan.io",
       8453: "https://basescan.org",
       43114: "https://snowtrace.io",
+      14: "https://flare-explorer.flare.network",
     };
     const base = explorers[selectedChainId] || "https://etherscan.io";
     return `${base}/address/${address}`;

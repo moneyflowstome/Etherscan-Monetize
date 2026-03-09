@@ -26,6 +26,11 @@ const CHAIN_IDS: Record<string, number> = {
   zksync: 324,
   linea: 59144,
   scroll: 534352,
+  flare: 14,
+};
+
+const BLOCKSCOUT_CHAINS: Record<number, string> = {
+  14: "https://flare-explorer.flare.network/api",
 };
 
 const CHAIN_NAMES: Record<number, string> = Object.fromEntries(
@@ -33,6 +38,16 @@ const CHAIN_NAMES: Record<number, string> = Object.fromEntries(
 );
 
 async function etherscanFetch(params: Record<string, string>, chainId: number = 1) {
+  const blockscoutBase = BLOCKSCOUT_CHAINS[chainId];
+  if (blockscoutBase) {
+    const url = new URL(blockscoutBase);
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Blockscout API error: ${res.status}`);
+    return res.json();
+  }
   const url = new URL(ETHERSCAN_BASE);
   url.searchParams.set("chainid", chainId.toString());
   url.searchParams.set("apikey", ETHERSCAN_API_KEY);

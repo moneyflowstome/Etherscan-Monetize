@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 type ChainId = "overview" | "btc" | "eth" | "sol" | "xrp" | "bnb" | "doge" | "ada" | "trx" | "avax" | "ton" |
   "dot" | "link" | "ltc" | "shib" | "bch" | "xem" | "neo" | "xlm" | "atom" | "near" |
   "polygon" | "arbitrum" | "optimism" | "base" |
-  "ftm" | "cro" | "sui" | "apt" | "sei" | "inj" | "mnt" | "celo" | "kava" | "zk" |
+  "ftm" | "cro" | "sui" | "apt" | "sei" | "inj" | "mnt" | "celo" | "kava" | "zk" | "flr" |
   "xmr" | "zec" | "dash" | "scrt" | "zen" | "firo" | "arrr" | "dero" |
   "pepe" | "floki" | "wif" | "bonk" | "brett" | "turbo" | "mog" | "neiro";
 
@@ -95,6 +95,7 @@ const ALL_CHAINS: ChainInfo[] = [
   { id: "celo", name: "Celo", symbol: "CELO", icon: "🌿", color: "from-lime-400/20 to-lime-500/10 border-lime-400/30", description: "Mobile-first DeFi blockchain platform", coingeckoId: "celo", hasAddressLookup: false, isEvm: true, evmChainId: 42220, internalRoute: "/wallet" },
   { id: "kava", name: "Kava", symbol: "KAVA", icon: "🔶", color: "from-orange-400/20 to-orange-500/10 border-orange-400/30", description: "Cosmos-Ethereum hybrid DeFi chain", coingeckoId: "kava", hasAddressLookup: false },
   { id: "zk", name: "zkSync Era", symbol: "ETH", icon: "⚡", color: "from-violet-500/20 to-violet-600/10 border-violet-500/30", description: "ZK rollup L2 with account abstraction", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, evmChainId: 324, internalRoute: "/wallet" },
+  { id: "flr", name: "Flare", symbol: "FLR", icon: "🔥", color: "from-rose-500/20 to-rose-600/10 border-rose-500/30", description: "EVM Layer 1 with native data protocols (FTSO, FDC)", coingeckoId: "flare-networks", hasAddressLookup: false, isEvm: true, evmChainId: 14, internalRoute: "/wallet" },
   { id: "xmr", name: "Monero", symbol: "XMR", icon: "ⓧ", color: "from-orange-600/20 to-orange-700/10 border-orange-600/30", description: "Leading private & untraceable cryptocurrency", coingeckoId: "monero", hasAddressLookup: false },
   { id: "zec", name: "Zcash", symbol: "ZEC", icon: "⛨", color: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30", description: "Shielded transactions with zk-SNARKs", coingeckoId: "zcash", hasAddressLookup: false },
   { id: "dash", name: "Dash", symbol: "DASH", icon: "◇", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30", description: "Digital cash with PrivateSend mixing", coingeckoId: "dash", hasAddressLookup: false },
@@ -116,7 +117,7 @@ const ALL_CHAINS: ChainInfo[] = [
 const TOP_CHAIN_IDS: ChainId[] = ["btc", "eth", "sol", "xrp", "bnb", "doge", "ada", "trx", "avax", "ton"];
 const MORE_CHAIN_IDS: ChainId[] = ["dot", "link", "ltc", "shib", "bch", "xem", "neo", "xlm", "atom", "near"];
 const NEW_L1_IDS: ChainId[] = ["sui", "apt", "sei", "inj", "kava"];
-const EVM_CHAIN_IDS: ChainId[] = ["polygon", "arbitrum", "optimism", "base", "ftm", "cro", "mnt", "celo", "zk"];
+const EVM_CHAIN_IDS: ChainId[] = ["polygon", "arbitrum", "optimism", "base", "ftm", "cro", "mnt", "celo", "zk", "flr"];
 const PRIVACY_CHAIN_IDS: ChainId[] = ["xmr", "zec", "dash", "scrt", "zen", "firo", "arrr", "dero"];
 const MEME_CHAIN_IDS: ChainId[] = ["doge", "shib", "pepe", "floki", "wif", "bonk", "brett", "turbo", "mog", "neiro"];
 
