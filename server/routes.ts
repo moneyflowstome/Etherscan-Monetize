@@ -1268,6 +1268,55 @@ export async function registerRoutes(
     }
   });
 
+  const tickerCache: Record<string, { data: any; timestamp: number }> = {};
+  const TICKER_CACHE_TTL = 120000;
+
+  app.get("/api/coin/:id/tickers", async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!id || !/^[a-z0-9\-]+$/.test(id)) {
+        return res.status(400).json({ error: "Invalid coin ID" });
+      }
+
+      const cached = tickerCache[id];
+      if (cached && Date.now() - cached.timestamp < TICKER_CACHE_TTL) {
+        return res.json(cached.data);
+      }
+
+      const url = `${COINGECKO_BASE}/coins/${id}/tickers?include_exchange_logo=true&depth=false&order=volume_desc`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (cached) return res.json(cached.data);
+        throw new Error(`CoinGecko API error: ${response.status}`);
+      }
+      const raw = await response.json();
+      const rawTickers = Array.isArray(raw?.tickers) ? raw.tickers : [];
+      const tickers = rawTickers.slice(0, 50).map((t: any) => ({
+        exchange: t.market?.name || "Unknown",
+        exchangeLogo: t.market?.logo || null,
+        exchangeId: t.market?.identifier || null,
+        base: t.base || "",
+        target: t.target || "",
+        price: t.last ?? null,
+        volume: t.converted_volume?.usd ?? null,
+        spread: t.bid_ask_spread_percentage ?? null,
+        trustScore: t.trust_score || null,
+        tradeUrl: t.trade_url || null,
+        isAnomaly: t.is_anomaly || false,
+        isStale: t.is_stale || false,
+        lastTradedAt: t.last_traded_at || null,
+        lastFetchAt: t.last_fetch_at || null,
+        convertedLast: t.converted_last?.usd ?? null,
+      }));
+
+      const data = { tickers };
+      tickerCache[id] = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   const BLOCKCYPHER_LTC_BASE = "https://api.blockcypher.com/v1/ltc/main";
 
   function isValidLtcAddress(address: string): boolean {
