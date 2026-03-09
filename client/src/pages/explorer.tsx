@@ -40,7 +40,8 @@ type ChainId = "overview" | "btc" | "eth" | "sol" | "xrp" | "bnb" | "doge" | "ad
   "dot" | "link" | "ltc" | "shib" | "bch" | "xem" | "neo" | "xlm" | "atom" | "near" |
   "polygon" | "arbitrum" | "optimism" | "base" |
   "ftm" | "cro" | "sui" | "apt" | "sei" | "inj" | "mnt" | "celo" | "kava" | "zk" |
-  "xmr" | "zec" | "dash" | "scrt" | "zen" | "firo" | "arrr" | "dero";
+  "xmr" | "zec" | "dash" | "scrt" | "zen" | "firo" | "arrr" | "dero" |
+  "pepe" | "floki" | "wif" | "bonk" | "brett" | "turbo" | "mog" | "neiro";
 
 interface ChainInfo {
   id: ChainId;
@@ -98,10 +99,18 @@ const ALL_CHAINS: ChainInfo[] = [
   { id: "zec", name: "Zcash", symbol: "ZEC", icon: "⛨", color: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30", description: "Shielded transactions with zk-SNARKs", coingeckoId: "zcash", hasAddressLookup: false },
   { id: "dash", name: "Dash", symbol: "DASH", icon: "◇", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30", description: "Digital cash with PrivateSend mixing", coingeckoId: "dash", hasAddressLookup: false },
   { id: "scrt", name: "Secret", symbol: "SCRT", icon: "🔒", color: "from-neutral-500/20 to-neutral-600/10 border-neutral-500/30", description: "Privacy-preserving smart contracts", coingeckoId: "secret", hasAddressLookup: false },
-  { id: "zen", name: "Horizen", symbol: "ZEN", icon: "◉", color: "from-teal-500/20 to-teal-600/10 border-teal-500/30", description: "Sidechain platform with optional privacy", coingeckoId: "horizen", hasAddressLookup: false },
+  { id: "zen", name: "Horizen", symbol: "ZEN", icon: "◉", color: "from-teal-500/20 to-teal-600/10 border-teal-500/30", description: "Sidechain platform with optional privacy", coingeckoId: "zencash", hasAddressLookup: false },
   { id: "firo", name: "Firo", symbol: "FIRO", icon: "🔥", color: "from-red-600/20 to-red-700/10 border-red-600/30", description: "Lelantus Spark privacy protocol", coingeckoId: "zcoin", hasAddressLookup: false },
   { id: "arrr", name: "Pirate Chain", symbol: "ARRR", icon: "☠", color: "from-yellow-600/20 to-yellow-700/10 border-yellow-600/30", description: "100% private transactions by default", coingeckoId: "pirate-chain", hasAddressLookup: false },
   { id: "dero", name: "Dero", symbol: "DERO", icon: "◆", color: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30", description: "Private smart contracts with homomorphic encryption", coingeckoId: "dero", hasAddressLookup: false },
+  { id: "pepe", name: "Pepe", symbol: "PEPE", icon: "🐸", color: "from-green-500/20 to-green-600/10 border-green-500/30", description: "Iconic frog memecoin on Ethereum", coingeckoId: "pepe", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
+  { id: "floki", name: "Floki", symbol: "FLOKI", icon: "⚔", color: "from-amber-500/20 to-amber-600/10 border-amber-500/30", description: "Viking-themed memecoin & metaverse", coingeckoId: "floki", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
+  { id: "wif", name: "dogwifhat", symbol: "WIF", icon: "🎩", color: "from-pink-500/20 to-pink-600/10 border-pink-500/30", description: "Solana's top dog-in-a-hat memecoin", coingeckoId: "dogwifcoin", hasAddressLookup: false },
+  { id: "bonk", name: "Bonk", symbol: "BONK", icon: "🦴", color: "from-orange-500/20 to-orange-600/10 border-orange-500/30", description: "Solana community dog memecoin", coingeckoId: "bonk", hasAddressLookup: false },
+  { id: "brett", name: "Brett", symbol: "BRETT", icon: "🧢", color: "from-blue-400/20 to-blue-500/10 border-blue-400/30", description: "Base chain's leading memecoin", coingeckoId: "brett", hasAddressLookup: false },
+  { id: "turbo", name: "Turbo", symbol: "TURBO", icon: "🐸", color: "from-lime-500/20 to-lime-600/10 border-lime-500/30", description: "AI-generated memecoin experiment", coingeckoId: "turbo", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
+  { id: "mog", name: "Mog Coin", symbol: "MOG", icon: "😎", color: "from-purple-500/20 to-purple-600/10 border-purple-500/30", description: "Internet culture memecoin on Ethereum", coingeckoId: "mog-coin", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
+  { id: "neiro", name: "Neiro", symbol: "NEIRO", icon: "🐕", color: "from-yellow-400/20 to-yellow-500/10 border-yellow-400/30", description: "Named after the new Doge, on Ethereum", coingeckoId: "neiro-3", hasAddressLookup: false, isEvm: true, internalRoute: "/wallet" },
 ];
 
 const TOP_CHAIN_IDS: ChainId[] = ["btc", "eth", "sol", "xrp", "bnb", "doge", "ada", "trx", "avax", "ton"];
@@ -109,6 +118,7 @@ const MORE_CHAIN_IDS: ChainId[] = ["dot", "link", "ltc", "shib", "bch", "xem", "
 const NEW_L1_IDS: ChainId[] = ["sui", "apt", "sei", "inj", "kava"];
 const EVM_CHAIN_IDS: ChainId[] = ["polygon", "arbitrum", "optimism", "base", "ftm", "cro", "mnt", "celo", "zk"];
 const PRIVACY_CHAIN_IDS: ChainId[] = ["xmr", "zec", "dash", "scrt", "zen", "firo", "arrr", "dero"];
+const MEME_CHAIN_IDS: ChainId[] = ["doge", "shib", "pepe", "floki", "wif", "bonk", "brett", "turbo", "mog", "neiro"];
 
 function getChain(id: ChainId): ChainInfo {
   return ALL_CHAINS.find(c => c.id === id)!;
@@ -1300,6 +1310,7 @@ const DEFAULT_SECTIONS: SectionConfig[] = [
   { id: "new-l1s", title: "Next-Gen L1s", subtitle: "Emerging Layer 1 blockchains — Sui, Aptos, Sei, and more", chainIds: NEW_L1_IDS, visible: true },
   { id: "evm-chains", title: "EVM Networks", subtitle: "Layer 2 and EVM-compatible chains — tracked via the Wallet Tracker", chainIds: EVM_CHAIN_IDS, visible: true },
   { id: "privacy-coins", title: "Privacy Coins", subtitle: "Anonymous & privacy-focused cryptocurrencies — shielded transactions and untraceable payments", chainIds: PRIVACY_CHAIN_IDS, visible: true },
+  { id: "meme-coins", title: "Meme Coins", subtitle: "Community-driven memecoins — from Doge to Pepe and beyond", chainIds: MEME_CHAIN_IDS, visible: true },
 ];
 
 const SECTION_PREFS_KEY = "explorer-section-prefs";
@@ -1582,7 +1593,7 @@ export default function ExplorerPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-bold mb-2" data-testid="text-explorer-title">Multi-Chain Explorer</h1>
-            <p className="text-muted-foreground" data-testid="text-explorer-subtitle">Explore wallets and transactions across 35+ blockchains — all built-in, all free</p>
+            <p className="text-muted-foreground" data-testid="text-explorer-subtitle">Explore wallets and transactions across 50+ blockchains — all built-in, all free</p>
           </div>
           {view === "overview" && (
             <Button variant="outline" size="sm" onClick={() => setShowCustomize(true)} className="shrink-0 mt-1" data-testid="button-customize-sections">

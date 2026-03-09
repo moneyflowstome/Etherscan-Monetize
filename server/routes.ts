@@ -413,6 +413,9 @@ export async function registerRoutes(
     }
   });
 
+  const byIdsCache: Record<string, { data: any; timestamp: number }> = {};
+  const BY_IDS_CACHE_TTL = 120000;
+
   app.get("/api/prices/by-ids", async (req, res) => {
     try {
       const ids = req.query.ids as string;
@@ -421,12 +424,24 @@ export async function registerRoutes(
       const idList = ids.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 50);
       if (idList.length === 0) return res.json([]);
 
+      const cacheKey = idList.sort().join(",");
+      const cached = byIdsCache[cacheKey];
+      if (cached && Date.now() - cached.timestamp < BY_IDS_CACHE_TTL) {
+        return res.json(cached.data);
+      }
+
       const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${idList.join(",")}&order=market_cap_desc&per_page=${idList.length}&page=1&sparkline=true&price_change_percentage=1h,24h,7d`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
       const data = await response.json();
+      if (Array.isArray(data)) {
+        byIdsCache[cacheKey] = { data, timestamp: Date.now() };
+      }
       res.json(data);
     } catch (err: any) {
+      const cacheKey = (req.query.ids as string || "").split(",").map(s => s.trim()).filter(Boolean).sort().join(",");
+      const stale = byIdsCache[cacheKey];
+      if (stale) return res.json(stale.data);
       res.status(500).json({ error: err.message });
     }
   });
@@ -1129,7 +1144,7 @@ export async function registerRoutes(
   });
 
   const coinInfoCache: Record<string, { data: any; timestamp: number }> = {};
-  const COIN_INFO_CACHE_TTL = 60000;
+  const COIN_INFO_CACHE_TTL = 300000;
 
   app.get("/api/coin/:id", async (req, res) => {
     try {
@@ -1147,6 +1162,7 @@ export async function registerRoutes(
       const response = await fetch(url);
       if (!response.ok) {
         if (response.status === 404) return res.status(404).json({ error: "Coin not found" });
+        if (cached) return res.json(cached.data);
         throw new Error(`CoinGecko API error: ${response.status}`);
       }
       const raw = await response.json();
