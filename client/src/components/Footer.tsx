@@ -20,6 +20,11 @@ export function Footer() {
           <Link href="/masternodes" className="hover:text-foreground transition-colors" data-testid="footer-link-masternodes">Masternodes</Link>
         </div>
       </div>
+      <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground/50 pb-2">
+        <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="footer-link-privacy">Privacy Policy</Link>
+        <span>|</span>
+        <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="footer-link-terms">Terms of Service</Link>
+      </div>
       <div className="text-center text-[10px] text-muted-foreground/50 pb-6">
         Data powered by Etherscan API V2, CoinGecko, XRPL, Blockstream, Blockcypher & Solana RPC | Auto-refreshing
       </div>

@@ -15,6 +15,8 @@ import XrpExplorerPage from "@/pages/xrp-explorer";
 import ExplorerPage from "@/pages/explorer";
 import StakingPage from "@/pages/staking";
 import AdminPage from "@/pages/admin";
+import PrivacyPage from "@/pages/privacy";
+import TermsPage from "@/pages/terms";
 
 function Router() {
   return (
@@ -27,6 +29,8 @@ function Router() {
       <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>
       <Route path="/masternodes" component={MasternodesPage}/>
+      <Route path="/privacy" component={PrivacyPage}/>
+      <Route path="/terms" component={TermsPage}/>
       <Route path="/admin" component={AdminPage}/>
       <Route component={NotFound} />
     </Switch>
