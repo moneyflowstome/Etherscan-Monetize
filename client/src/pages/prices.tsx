@@ -14,6 +14,7 @@ import {
   Activity,
   ExternalLink,
   X,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -456,6 +457,94 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
   );
 }
 
+const PRIVACY_COIN_IDS = "monero,zcash,dash,secret,horizen,zcoin,pirate-chain,dero";
+
+function PrivacyCoinsSection({ onSelectCoin }: { onSelectCoin: (coin: any) => void }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["/api/prices/privacy-coins"],
+    queryFn: async () => {
+      const res = await fetch(`/api/prices/by-ids?ids=${PRIVACY_COIN_IDS}`);
+      if (!res.ok) throw new Error("Failed to fetch privacy coins");
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60000,
+    refetchInterval: 120000,
+    retry: 2,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="mb-8">
+        <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-3 flex items-center gap-2">
+          <Shield className="w-4 h-4 text-primary" /> Privacy Coins
+        </h2>
+        <div className="glass-panel rounded-xl p-8 text-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-8">
+        <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-3 flex items-center gap-2">
+          <Shield className="w-4 h-4 text-primary" /> Privacy Coins
+        </h2>
+        <div className="glass-panel rounded-xl p-4 text-center text-sm text-muted-foreground">
+          Unable to load privacy coin prices right now
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) return null;
+
+  return (
+    <div className="mb-8" data-testid="section-privacy-coins">
+      <h2 className="text-sm uppercase tracking-widest text-muted-foreground font-medium mb-3 flex items-center gap-2">
+        <Shield className="w-4 h-4 text-primary" /> Privacy Coins
+      </h2>
+      <p className="text-xs text-muted-foreground mb-3">Anonymous & privacy-focused cryptocurrencies</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {data.map((coin: any) => {
+          const change = coin.price_change_percentage_24h || 0;
+          const priceUp = change >= 0;
+          return (
+            <div
+              key={coin.id}
+              className="glass-panel rounded-xl p-3 hover:bg-muted/30 transition-colors cursor-pointer group"
+              onClick={() => onSelectCoin(coin)}
+              data-testid={`card-privacy-${coin.id}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                {coin.image && <img src={coin.image} alt="" className="w-6 h-6 rounded-full" />}
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium text-foreground truncate block">{coin.name}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase">{coin.symbol}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-sm font-semibold" data-testid={`text-privacy-price-${coin.id}`}>
+                  ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                </span>
+                <span className={`text-xs flex items-center gap-0.5 ${priceUp ? "text-green-400" : "text-red-400"}`} data-testid={`text-privacy-change-${coin.id}`}>
+                  {priceUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                  {Math.abs(change).toFixed(2)}%
+                </span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                MCap: {coin.market_cap ? formatMarketCap(coin.market_cap) : "N/A"}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function PricesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -555,6 +644,8 @@ export default function PricesPage() {
             </div>
           </div>
         )}
+
+        <PrivacyCoinsSection onSelectCoin={(coin) => setSelectedCoin(selectedCoin?.id === coin.id ? null : coin)} />
 
         {selectedCoin && (
           <CoinDetailPanel coin={selectedCoin} onClose={() => setSelectedCoin(null)} />

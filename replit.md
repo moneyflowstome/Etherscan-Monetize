@@ -13,7 +13,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 ## Key Features
 - Wallet address lookup with real-time balance display
 - Multi-chain support (Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Avalanche)
-- Multi-Chain Explorer hub at `/` (HOME PAGE) — 35+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base, Fantom, Cronos, Mantle, Celo, zkSync Era), "Next-Gen L1s" (Sui, Aptos, Sei, Injective, Kava)
+- Multi-Chain Explorer hub at `/` (HOME PAGE) — 43+ chains ALL built-in (no external links): "Top Chains" (BTC, ETH, SOL, XRP, BNB, DOGE, ADA, TRX, AVAX, TON), "More Chains" (DOT, LINK, LTC, SHIB, BCH, XEM, NEO, XLM, ATOM, NEAR), "EVM Networks" (Polygon, Arbitrum, Optimism, Base, Fantom, Cronos, Mantle, Celo, zkSync Era), "Next-Gen L1s" (Sui, Aptos, Sei, Injective, Kava), "Privacy Coins" (XMR, ZEC, DASH, SCRT, ZEN, FIRO, ARRR, DERO)
 - Wallet Tracker moved to `/wallet`
 - Every chain shows live CoinGecko coin info (price, market cap, volume, ATH, supply, description) via `/api/coin/:id`
 - Address lookup built-in for: BTC (Blockstream), SOL (Solana RPC), DOGE/LTC/BCH (Blockcypher), TRX (TronGrid), XLM (Stellar Horizon), XEM (NEM NIS), NEO (NEO N3 RPC), ADA (Koios), TON (Toncenter), ATOM (Cosmos LCD), NEAR (NEAR RPC)
@@ -34,7 +34,7 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks, Next-Gen L1s) via settings panel, preferences persisted in localStorage
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
-- Crypto prices page — 2,500+ coins browsable via pagination (100/page, 25 pages), mobile-friendly card layout, clickable coins with detail panel, desktop table preserved, Fear & Greed + Market Overview widgets at top
+- Crypto prices page — 2,500+ coins browsable via pagination (100/page, 25 pages), mobile-friendly card layout, clickable coins with detail panel, desktop table preserved, Fear & Greed + Market Overview widgets at top, Privacy Coins highlight section with live prices
 - Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
 - News feed with three tabs: Crypto (CryptoCompare), World (BBC, Al Jazeera, Sky News RSS), USA (BBC US, ABC News, NPR RSS)
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts

@@ -39,7 +39,8 @@ import { useToast } from "@/hooks/use-toast";
 type ChainId = "overview" | "btc" | "eth" | "sol" | "xrp" | "bnb" | "doge" | "ada" | "trx" | "avax" | "ton" |
   "dot" | "link" | "ltc" | "shib" | "bch" | "xem" | "neo" | "xlm" | "atom" | "near" |
   "polygon" | "arbitrum" | "optimism" | "base" |
-  "ftm" | "cro" | "sui" | "apt" | "sei" | "inj" | "mnt" | "celo" | "kava" | "zk";
+  "ftm" | "cro" | "sui" | "apt" | "sei" | "inj" | "mnt" | "celo" | "kava" | "zk" |
+  "xmr" | "zec" | "dash" | "scrt" | "zen" | "firo" | "arrr" | "dero";
 
 interface ChainInfo {
   id: ChainId;
@@ -93,12 +94,21 @@ const ALL_CHAINS: ChainInfo[] = [
   { id: "celo", name: "Celo", symbol: "CELO", icon: "🌿", color: "from-lime-400/20 to-lime-500/10 border-lime-400/30", description: "Mobile-first DeFi blockchain platform", coingeckoId: "celo", hasAddressLookup: false, isEvm: true, evmChainId: 42220, internalRoute: "/wallet" },
   { id: "kava", name: "Kava", symbol: "KAVA", icon: "🔶", color: "from-orange-400/20 to-orange-500/10 border-orange-400/30", description: "Cosmos-Ethereum hybrid DeFi chain", coingeckoId: "kava", hasAddressLookup: false },
   { id: "zk", name: "zkSync Era", symbol: "ETH", icon: "⚡", color: "from-violet-500/20 to-violet-600/10 border-violet-500/30", description: "ZK rollup L2 with account abstraction", coingeckoId: "ethereum", hasAddressLookup: false, isEvm: true, evmChainId: 324, internalRoute: "/wallet" },
+  { id: "xmr", name: "Monero", symbol: "XMR", icon: "ⓧ", color: "from-orange-600/20 to-orange-700/10 border-orange-600/30", description: "Leading private & untraceable cryptocurrency", coingeckoId: "monero", hasAddressLookup: false },
+  { id: "zec", name: "Zcash", symbol: "ZEC", icon: "⛨", color: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30", description: "Shielded transactions with zk-SNARKs", coingeckoId: "zcash", hasAddressLookup: false },
+  { id: "dash", name: "Dash", symbol: "DASH", icon: "◇", color: "from-blue-500/20 to-blue-600/10 border-blue-500/30", description: "Digital cash with PrivateSend mixing", coingeckoId: "dash", hasAddressLookup: false },
+  { id: "scrt", name: "Secret", symbol: "SCRT", icon: "🔒", color: "from-neutral-500/20 to-neutral-600/10 border-neutral-500/30", description: "Privacy-preserving smart contracts", coingeckoId: "secret", hasAddressLookup: false },
+  { id: "zen", name: "Horizen", symbol: "ZEN", icon: "◉", color: "from-teal-500/20 to-teal-600/10 border-teal-500/30", description: "Sidechain platform with optional privacy", coingeckoId: "horizen", hasAddressLookup: false },
+  { id: "firo", name: "Firo", symbol: "FIRO", icon: "🔥", color: "from-red-600/20 to-red-700/10 border-red-600/30", description: "Lelantus Spark privacy protocol", coingeckoId: "zcoin", hasAddressLookup: false },
+  { id: "arrr", name: "Pirate Chain", symbol: "ARRR", icon: "☠", color: "from-yellow-600/20 to-yellow-700/10 border-yellow-600/30", description: "100% private transactions by default", coingeckoId: "pirate-chain", hasAddressLookup: false },
+  { id: "dero", name: "Dero", symbol: "DERO", icon: "◆", color: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30", description: "Private smart contracts with homomorphic encryption", coingeckoId: "dero", hasAddressLookup: false },
 ];
 
 const TOP_CHAIN_IDS: ChainId[] = ["btc", "eth", "sol", "xrp", "bnb", "doge", "ada", "trx", "avax", "ton"];
 const MORE_CHAIN_IDS: ChainId[] = ["dot", "link", "ltc", "shib", "bch", "xem", "neo", "xlm", "atom", "near"];
 const NEW_L1_IDS: ChainId[] = ["sui", "apt", "sei", "inj", "kava"];
 const EVM_CHAIN_IDS: ChainId[] = ["polygon", "arbitrum", "optimism", "base", "ftm", "cro", "mnt", "celo", "zk"];
+const PRIVACY_CHAIN_IDS: ChainId[] = ["xmr", "zec", "dash", "scrt", "zen", "firo", "arrr", "dero"];
 
 function getChain(id: ChainId): ChainInfo {
   return ALL_CHAINS.find(c => c.id === id)!;
@@ -1289,6 +1299,7 @@ const DEFAULT_SECTIONS: SectionConfig[] = [
   { id: "more-chains", title: "More Chains", subtitle: "Additional blockchains with live market data and address lookup", chainIds: MORE_CHAIN_IDS, visible: true },
   { id: "new-l1s", title: "Next-Gen L1s", subtitle: "Emerging Layer 1 blockchains — Sui, Aptos, Sei, and more", chainIds: NEW_L1_IDS, visible: true },
   { id: "evm-chains", title: "EVM Networks", subtitle: "Layer 2 and EVM-compatible chains — tracked via the Wallet Tracker", chainIds: EVM_CHAIN_IDS, visible: true },
+  { id: "privacy-coins", title: "Privacy Coins", subtitle: "Anonymous & privacy-focused cryptocurrencies — shielded transactions and untraceable payments", chainIds: PRIVACY_CHAIN_IDS, visible: true },
 ];
 
 const SECTION_PREFS_KEY = "explorer-section-prefs";
