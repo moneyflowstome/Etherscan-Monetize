@@ -72,32 +72,33 @@ function formatValue(num: number): string {
 
 function AddHoldingForm({ onAdd }: { onAdd: (coinId: string, quantity: number, purchasePrice: number) => void }) {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const [quantity, setQuantity] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
 
-  const pricesQuery = useQuery({
-    queryKey: ["/api/prices", "portfolio-search"],
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const searchQuery = useQuery({
+    queryKey: ["/api/search/coins", debouncedSearch],
     queryFn: async () => {
-      const res = await fetch("/api/prices?page=1&per_page=100");
+      const res = await fetch(`/api/search/coins?q=${encodeURIComponent(debouncedSearch)}`);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    enabled: debouncedSearch.length >= 2 && !selectedCoin,
     staleTime: 60000,
   });
 
-  const allCoins = (pricesQuery.data && Array.isArray(pricesQuery.data)) ? pricesQuery.data : [];
-  const filtered = search.length >= 1 && !selectedCoin
-    ? allCoins.filter((c: any) =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.symbol.toLowerCase().includes(search.toLowerCase())
-      ).slice(0, 8)
-    : [];
+  const filtered = (Array.isArray(searchQuery.data) ? searchQuery.data : []).slice(0, 10);
 
   const handleSelectCoin = (coin: any) => {
     setSelectedCoin(coin);
     setSearch(coin.name);
-    setPurchasePrice(coin.current_price?.toString() || "");
+    setPurchasePrice("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -158,12 +159,17 @@ function AddHoldingForm({ onAdd }: { onAdd: (coinId: string, quantity: number, p
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center gap-3 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/30"
                     data-testid={`button-select-${coin.id}`}
                   >
-                    <img src={coin.image} alt="" className="w-5 h-5 rounded-full" />
+                    <img src={coin.thumb || coin.image} alt="" className="w-5 h-5 rounded-full" />
                     <span className="font-medium text-foreground">{coin.name}</span>
                     <span className="text-xs uppercase text-muted-foreground">{coin.symbol}</span>
-                    <span className="ml-auto text-xs font-mono">{formatPrice(coin.current_price)}</span>
+                    {coin.market_cap_rank && <span className="ml-auto text-xs text-muted-foreground">#{coin.market_cap_rank}</span>}
                   </button>
                 ))}
+              </div>
+            )}
+            {searchQuery.isFetching && debouncedSearch.length >= 2 && !selectedCoin && (
+              <div className="absolute left-0 right-0 top-12 bg-card border border-border rounded-xl p-3 z-50 shadow-2xl text-center text-xs text-muted-foreground">
+                Searching...
               </div>
             )}
           </div>

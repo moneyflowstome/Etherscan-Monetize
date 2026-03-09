@@ -431,6 +431,55 @@ export async function registerRoutes(
     }
   });
 
+  let searchCache: { query: string; data: any; timestamp: number } | null = null;
+  const SEARCH_CACHE_TTL = 300000;
+
+  app.get("/api/search/coins", async (req, res) => {
+    try {
+      const query = (req.query.q as string || "").trim();
+      if (!query || query.length < 1) return res.json([]);
+
+      if (searchCache && searchCache.query === query.toLowerCase() && Date.now() - searchCache.timestamp < SEARCH_CACHE_TTL) {
+        return res.json(searchCache.data);
+      }
+
+      const url = `${COINGECKO_BASE}/search?query=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko API error: ${response.status}`);
+      const data = await response.json();
+
+      const coins = (data.coins || []).slice(0, 20).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        symbol: c.symbol,
+        thumb: c.thumb,
+        large: c.large,
+        market_cap_rank: c.market_cap_rank,
+      }));
+
+      searchCache = { query: query.toLowerCase(), data: coins, timestamp: Date.now() };
+      res.json(coins);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/site-settings", async (_req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+      const settingsMap: Record<string, string> = {};
+      const publicKeys = ["home_page", "site_title", "changenow_affiliate_id"];
+      for (const s of settings) {
+        if (publicKeys.includes(s.key)) {
+          settingsMap[s.key] = s.value;
+        }
+      }
+      res.json(settingsMap);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/trending", async (_req, res) => {
     try {
       if (trendingCache && Date.now() - trendingCache.timestamp < TRENDING_CACHE_TTL) {

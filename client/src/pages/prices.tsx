@@ -466,7 +466,7 @@ export default function PricesPage() {
   const pricesQuery = useQuery({
     queryKey: ["/api/prices", page],
     queryFn: async () => {
-      const res = await fetch(`/api/prices?page=${page}&per_page=50`);
+      const res = await fetch(`/api/prices?page=${page}&per_page=100`);
       if (!res.ok) throw new Error("Failed to fetch prices");
       return res.json();
     },
@@ -710,16 +710,48 @@ export default function PricesPage() {
               >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Previous
               </Button>
-              <span className="text-sm text-muted-foreground">Page {page}</span>
+              <div className="flex items-center gap-1 flex-wrap justify-center">
+                {(() => {
+                  const totalPages = 25;
+                  const pages: (number | string)[] = [];
+                  if (page > 3) pages.push(1);
+                  if (page > 4) pages.push("...");
+                  for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) pages.push(i);
+                  if (page < totalPages - 3) pages.push("...");
+                  if (page < totalPages - 2) pages.push(totalPages);
+                  return pages.map((p, idx) =>
+                    typeof p === "string" ? (
+                      <span key={`ellipsis-${idx}`} className="text-muted-foreground text-xs px-1">...</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={page === p ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(p)}
+                        className={`w-8 h-8 p-0 text-xs ${page === p ? "" : "bg-muted/30 border-border text-foreground"}`}
+                        data-testid={`button-page-${p}`}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  );
+                })()}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(page + 1)}
+                disabled={page >= 25}
                 className="bg-muted/30 border-border text-foreground"
                 data-testid="button-next-page"
               >
                 Next <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
+            </div>
+            <div className="text-center pb-3">
+              <span className="text-xs text-muted-foreground">
+                Showing {(page - 1) * 100 + 1} - {page * 100} of 2,500+ coins (Page {page} of 25)
+              </span>
             </div>
           </>
         )}

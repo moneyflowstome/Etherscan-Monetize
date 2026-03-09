@@ -1289,6 +1289,141 @@ function saveSectionPrefs(sections: SectionConfig[]) {
   localStorage.setItem(SECTION_PREFS_KEY, JSON.stringify(sections.map(s => ({ id: s.id, visible: s.visible }))));
 }
 
+function SwapWidget() {
+  const [, navigate] = useLocation();
+  const [fromCurrency, setFromCurrency] = useState("btc");
+  const [toCurrency, setToCurrency] = useState("eth");
+  const [amount, setAmount] = useState("0.1");
+
+  const { data: currencies } = useQuery({
+    queryKey: ["swap-currencies-widget"],
+    queryFn: async () => {
+      const res = await fetch("/api/swap/currencies");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 300000,
+  });
+
+  const { data: estimate } = useQuery({
+    queryKey: ["swap-estimate-widget", fromCurrency, toCurrency, amount],
+    queryFn: async () => {
+      if (!amount || parseFloat(amount) <= 0) return null;
+      const res = await fetch(`/api/swap/estimate?fromCurrency=${fromCurrency}&toCurrency=${toCurrency}&fromAmount=${amount}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!amount && parseFloat(amount) > 0,
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+
+  const topCoins = Array.isArray(currencies) ? currencies.slice(0, 20) : [];
+
+  return (
+    <Card className="glass-panel border-primary/30 overflow-hidden" data-testid="widget-swap-home">
+      <CardContent className="p-0">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="p-5 md:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ArrowRightLeft className="w-5 h-5 text-primary" />
+              <h3 className="font-display font-bold text-lg">Instant Crypto Swap</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">Exchange 500+ cryptocurrencies instantly. No registration required.</p>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">You send</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="bg-muted/30 border-border h-10 text-sm flex-1"
+                      data-testid="input-swap-amount"
+                    />
+                    <select
+                      value={fromCurrency}
+                      onChange={(e) => setFromCurrency(e.target.value)}
+                      className="bg-muted/30 border border-border rounded-md px-2 h-10 text-sm text-foreground uppercase w-24"
+                      data-testid="select-swap-from"
+                    >
+                      {topCoins.length > 0 ? topCoins.map((c: any, i: number) => (
+                        <option key={`from-${c.ticker}-${i}`} value={c.ticker}>{c.ticker?.toUpperCase()}</option>
+                      )) : (
+                        <>
+                          <option value="btc">BTC</option>
+                          <option value="eth">ETH</option>
+                          <option value="usdt">USDT</option>
+                          <option value="sol">SOL</option>
+                          <option value="xrp">XRP</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">You receive (estimated)</label>
+                  <div className="flex gap-2">
+                    <div className="bg-muted/30 border border-border rounded-md px-3 h-10 text-sm flex items-center flex-1 font-mono" data-testid="text-swap-estimate">
+                      {estimate?.toAmount ? parseFloat(estimate.toAmount).toFixed(6) : "---"}
+                    </div>
+                    <select
+                      value={toCurrency}
+                      onChange={(e) => setToCurrency(e.target.value)}
+                      className="bg-muted/30 border border-border rounded-md px-2 h-10 text-sm text-foreground uppercase w-24"
+                      data-testid="select-swap-to"
+                    >
+                      {topCoins.length > 0 ? topCoins.map((c: any, i: number) => (
+                        <option key={`to-${c.ticker}-${i}`} value={c.ticker}>{c.ticker?.toUpperCase()}</option>
+                      )) : (
+                        <>
+                          <option value="eth">ETH</option>
+                          <option value="btc">BTC</option>
+                          <option value="usdt">USDT</option>
+                          <option value="sol">SOL</option>
+                          <option value="xrp">XRP</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <Button
+                onClick={() => navigate(`/swap?from=${fromCurrency}&to=${toCurrency}&amount=${amount}`)}
+                className="w-full bg-primary hover:bg-primary/90"
+                data-testid="button-swap-now"
+              >
+                <ArrowRightLeft className="w-4 h-4 mr-2" /> Exchange Now
+              </Button>
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-5 md:p-6 flex flex-col justify-center border-l border-primary/20">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"><Zap className="w-4 h-4 text-primary" /></div>
+                <div><p className="text-sm font-semibold">Lightning Fast</p><p className="text-xs text-muted-foreground">Exchanges completed in minutes</p></div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"><Star className="w-4 h-4 text-primary" /></div>
+                <div><p className="text-sm font-semibold">500+ Cryptocurrencies</p><p className="text-xs text-muted-foreground">Swap any coin, any network</p></div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"><Eye className="w-4 h-4 text-primary" /></div>
+                <div><p className="text-sm font-semibold">No Registration</p><p className="text-xs text-muted-foreground">Start trading instantly</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CustomizePanel({ sections, onChange, onClose }: { sections: SectionConfig[]; onChange: (s: SectionConfig[]) => void; onClose: () => void }) {
   const toggleVisibility = (id: string) => {
     const updated = sections.map(s => s.id === id ? { ...s, visible: !s.visible } : s);
@@ -1430,6 +1565,7 @@ export default function ExplorerPage() {
               </div>
               <FearGreedCompact />
             </div>
+            <SwapWidget />
             {visibleSections.map((section, idx) => (
               <div key={section.id}>
                 {renderSection(section)}

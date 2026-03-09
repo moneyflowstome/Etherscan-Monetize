@@ -26,13 +26,13 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - Fear & Greed Index — live gauge widget on explorer homepage (compact) and prices page (full), powered by Alternative.me API, 7-day history bar chart, cached 10 min via `/api/fear-greed`
 - Market Overview widget on prices page — total market cap, 24h volume, BTC dominance bar, BTC/ETH live prices
 - Price Alerts at `/alerts` — search any coin, set upper/lower price thresholds, stored in localStorage, polls every 60s, toast notifications when triggered, active/triggered sections
-- Portfolio Tracker at `/portfolio` — add coin holdings (quantity + purchase price), live P&L tracking, allocation pie chart (Recharts), total value/cost/return summary, localStorage persistence
+- Portfolio Tracker at `/portfolio` — search any of 10,000+ coins via CoinGecko search API, add holdings (quantity + purchase price), live P&L tracking, allocation pie chart (Recharts), total value/cost/return summary, localStorage persistence
 - News Sentiment Analysis on `/news` — keyword-based bullish/bearish/neutral scoring, sentiment badges on each article, sentiment filter buttons, market sentiment summary bar at top
 - Customizable Dashboard at `/dashboard` — 7 widgets (Market Overview, Fear & Greed, Portfolio Summary, Price Alerts, Watchlist, Trending, News Headlines), show/hide and reorder, drag-and-drop support, localStorage persistence
 - Customizable homepage widgets — show/hide and reorder explorer sections (Top Chains, More Chains, EVM Networks, Next-Gen L1s) via settings panel, preferences persisted in localStorage
 - Transaction history + token transfer tracking
 - Live ETH price & gas tracker
-- Crypto prices page — mobile-friendly card layout (no horizontal scroll), clickable coins with detail panel (price, 24h/7d changes, market cap, volume, ATH, sparkline), desktop table preserved, Fear & Greed + Market Overview widgets at top
+- Crypto prices page — 2,500+ coins browsable via pagination (100/page, 25 pages), mobile-friendly card layout, clickable coins with detail panel, desktop table preserved, Fear & Greed + Market Overview widgets at top
 - Watchlist page — add/remove coins, localStorage persistence, dedicated by-IDs API endpoint, search to add coins
 - News feed with three tabs: Crypto (CryptoCompare), World (BBC, Al Jazeera, Sky News RSS), USA (BBC US, ABC News, NPR RSS)
 - Crypto news has category filtering (Market, Business, Blockchain, Bitcoin, Ethereum, Altcoins, Research), archive mode with infinite scroll and article counts
@@ -44,11 +44,13 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
   - Site analytics (page views, tracked wallets, top chains)
   - AdSense management (publisher ID, slot IDs)
   - Content moderation (pin/hide news articles)
-  - General settings (toggle features, change admin password)
+  - General settings (toggle features, change admin password, home page selector, ChangeNOW affiliate ID)
+  - **Home Page setting** — admin can choose which page loads as `/` (Explorer, Prices, Dashboard, News, Swap, Portfolio)
   - **Messages tab** — view all contact form submissions, mark read/unread, delete, unread count badge
   - **Blog tab** — full CRUD for blog posts (title, slug, content, excerpt, category, tags, cover image, meta fields, publish/draft, featured toggle)
   - **SEO tab** — page-level SEO meta management (title, description, keywords, OG tags, canonical) for all pages; SEO score checker (title length, description length, keyword analysis); robots.txt editor
 - Crypto Swap at `/swap` — full custom swap UI powered by ChangeNOW API (CHANGENOW_API_KEY env var), 900+ coins, real-time rate estimates, 3-step exchange flow (select pair → enter address → send & receive), exchange status tracking, revenue earned per transaction through API key
+- **Swap Widget on Home Page** — compact ChangeNOW exchange widget on explorer/home page with currency selectors, amount input, live estimate, and "Exchange Now" button linking to full swap flow
 - Live Validator Stats on `/masternodes` — real-time validator counts, total staked amounts, and staking APY for 8 major PoS chains (ETH, SOL, ATOM, ADA, DOT, AVAX, NEAR, TRX) from free public APIs, cached 5 minutes
 - Crypto Exchanges directory at `/exchanges` — 50+ pre-seeded exchanges (CEX + DEX), search, filter by type, featured highlights, affiliate link support, global coverage (US, EU, Asia, Africa)
 - Admin "Exchanges" tab — add/edit/delete exchanges, set affiliate URLs, toggle featured/active, seed 50+ defaults with one click
@@ -72,8 +74,10 @@ TokenAltcoin is a fully free, multi-chain cryptocurrency platform with a real-ti
 - `GET /api/token-transfers/:address?chainId=` - ERC-20 transfers
 - `GET /api/gas?chainId=` - Gas oracle
 - `GET /api/eth-price` - ETH price
-- `GET /api/prices?page=&per_page=` - Coin market data (CoinGecko)
+- `GET /api/prices?page=&per_page=` - Coin market data (CoinGecko, up to 100/page, 25 pages = 2500+ coins)
 - `GET /api/prices/by-ids?ids=` - Coin data by comma-separated IDs (for watchlist)
+- `GET /api/search/coins?q=` - Search coins by name/symbol (CoinGecko search, cached 5min)
+- `GET /api/site-settings` - Public site settings (home_page, site_title, changenow_affiliate_id)
 - `GET /api/news/archive?before=` - Older news articles with timestamp pagination
 - `GET /api/news/world` - World news from RSS feeds (BBC, Al Jazeera, Sky News)
 - `GET /api/news/usa` - USA news from RSS feeds (BBC US, ABC News, NPR)

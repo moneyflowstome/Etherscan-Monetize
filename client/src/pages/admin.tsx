@@ -306,6 +306,7 @@ function SettingsTab({ token }: { token: string }) {
     { key: "news_enabled", label: "News Page", placeholder: "true", help: "Enable/disable news page (true/false)" },
     { key: "masternodes_enabled", label: "Masternodes Page", placeholder: "true", help: "Enable/disable masternodes page (true/false)" },
     { key: "show_login_link", label: "Show Login Link", placeholder: "true", help: "Show/hide the Login link in the navigation bar (true/false). Set to false after connecting your domain." },
+    { key: "changenow_affiliate_id", label: "ChangeNOW Affiliate ID", placeholder: "your-affiliate-id", help: "Your ChangeNOW referral/affiliate ID for the swap widget" },
   ];
 
   return (
@@ -367,6 +368,26 @@ function SettingsTab({ token }: { token: string }) {
         <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
           <Settings className="w-4 h-4" /> General Settings
         </h3>
+        <Card className="bg-muted/30 border-border">
+          <CardContent className="p-4">
+            <label className="text-sm font-medium text-foreground block mb-1">Home Page</label>
+            <p className="text-xs text-muted-foreground mb-2">Choose which page loads as the home page when visitors arrive at your site</p>
+            <select
+              value={localSettings["home_page"] || "explorer"}
+              onChange={(e) => updateLocal("home_page", e.target.value)}
+              className="w-full bg-muted/30 border border-border rounded-md px-3 py-2 text-foreground text-sm"
+              data-testid="select-setting-home-page"
+            >
+              <option value="explorer">Explorer (Multi-Chain Explorer)</option>
+              <option value="prices">Prices (Live Crypto Prices)</option>
+              <option value="dashboard">Dashboard (Custom Dashboard)</option>
+              <option value="news">News (Crypto News Feed)</option>
+              <option value="swap">Swap (Crypto Exchange)</option>
+              <option value="portfolio">Portfolio (Portfolio Tracker)</option>
+            </select>
+          </CardContent>
+        </Card>
+
         {settingsFields.slice(5).map((field) => (
           <Card key={field.key} className="bg-muted/30 border-border">
             <CardContent className="p-4">

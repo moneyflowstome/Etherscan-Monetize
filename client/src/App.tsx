@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -26,10 +26,33 @@ import AlertsPage from "@/pages/alerts";
 import PortfolioPage from "@/pages/portfolio";
 import CustomDashboardPage from "@/pages/custom-dashboard";
 
+const HOME_PAGE_MAP: Record<string, React.ComponentType> = {
+  explorer: ExplorerPage,
+  prices: PricesPage,
+  dashboard: CustomDashboardPage,
+  news: NewsPage,
+  swap: SwapPage,
+  portfolio: PortfolioPage,
+};
+
 function Router() {
+  const { data: siteSettings } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 300000,
+  });
+
+  const homePageKey = siteSettings?.home_page || "explorer";
+  const HomePage = HOME_PAGE_MAP[homePageKey] || ExplorerPage;
+
   return (
     <Switch>
-      <Route path="/" component={ExplorerPage}/>
+      <Route path="/" component={HomePage}/>
+      <Route path="/explorer" component={ExplorerPage}/>
       <Route path="/wallet" component={Dashboard}/>
       <Route path="/prices" component={PricesPage}/>
       <Route path="/watchlist" component={WatchlistPage}/>
