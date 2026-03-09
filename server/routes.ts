@@ -1595,6 +1595,115 @@ export async function registerRoutes(
     }
   });
 
+  const arbitrageCache: { data: any; timestamp: number } | { data?: undefined; timestamp?: undefined } = {};
+  const ARBITRAGE_CACHE_TTL = 90000;
+  const ARBITRAGE_COINS = ["bitcoin", "ethereum", "solana", "ripple", "binancecoin", "dogecoin", "cardano", "polkadot", "avalanche-2", "chainlink", "litecoin", "tron"];
+
+  app.get("/api/arbitrage", async (_req, res) => {
+    try {
+      if (arbitrageCache.data && arbitrageCache.timestamp && Date.now() - arbitrageCache.timestamp < ARBITRAGE_CACHE_TTL) {
+        return res.json(arbitrageCache.data);
+      }
+
+      const results: any[] = [];
+
+      for (const coinId of ARBITRAGE_COINS) {
+        try {
+          const cached = tickerCache[coinId];
+          let tickers: any[] = [];
+
+          if (cached && Date.now() - cached.timestamp < TICKER_CACHE_TTL) {
+            tickers = cached.data?.tickers || [];
+          } else {
+            const url = `${COINGECKO_BASE}/coins/${coinId}/tickers?include_exchange_logo=true&depth=false&order=volume_desc`;
+            const response = await fetch(url);
+            if (response.ok) {
+              const raw = await response.json();
+              const rawTickers = Array.isArray(raw?.tickers) ? raw.tickers : [];
+              tickers = rawTickers.slice(0, 50).map((t: any) => ({
+                exchange: t.market?.name || "Unknown",
+                exchangeLogo: t.market?.logo || null,
+                exchangeId: t.market?.identifier || null,
+                base: t.base || "",
+                target: t.target || "",
+                price: t.last ?? null,
+                volume: t.converted_volume?.usd ?? null,
+                spread: t.bid_ask_spread_percentage ?? null,
+                trustScore: t.trust_score || null,
+                tradeUrl: t.trade_url || null,
+                isAnomaly: t.is_anomaly || false,
+                isStale: t.is_stale || false,
+                convertedLast: t.converted_last?.usd ?? null,
+              }));
+              tickerCache[coinId] = { data: { tickers }, timestamp: Date.now() };
+            } else if (cached) {
+              tickers = cached.data?.tickers || [];
+            }
+          }
+
+          const validTickers = tickers.filter((t: any) =>
+            t.convertedLast && t.convertedLast > 0 && !t.isAnomaly && !t.isStale &&
+            t.volume && t.volume > 1000 && t.trustScore !== "red"
+          );
+
+          const bestByExchange = new Map<string, any>();
+          for (const t of validTickers) {
+            const key = t.exchange;
+            const existing = bestByExchange.get(key);
+            if (!existing || t.volume > existing.volume) {
+              bestByExchange.set(key, t);
+            }
+          }
+          const uniqueExchangeTickers = Array.from(bestByExchange.values());
+
+          if (uniqueExchangeTickers.length >= 2) {
+            const sorted = [...uniqueExchangeTickers].sort((a: any, b: any) => a.convertedLast - b.convertedLast);
+            const lowest = sorted[0];
+            const highest = sorted[sorted.length - 1];
+            const spreadPct = ((highest.convertedLast - lowest.convertedLast) / lowest.convertedLast) * 100;
+
+            results.push({
+              coinId,
+              lowestExchange: lowest.exchange,
+              lowestExchangeLogo: lowest.exchangeLogo,
+              lowestPrice: lowest.convertedLast,
+              lowestTradeUrl: lowest.tradeUrl,
+              lowestVolume: lowest.volume,
+              highestExchange: highest.exchange,
+              highestExchangeLogo: highest.exchangeLogo,
+              highestPrice: highest.convertedLast,
+              highestTradeUrl: highest.tradeUrl,
+              highestVolume: highest.volume,
+              spreadPct: Math.round(spreadPct * 100) / 100,
+              exchangeCount: uniqueExchangeTickers.length,
+              allExchanges: sorted.slice(0, 20).map((t: any) => ({
+                exchange: t.exchange,
+                exchangeLogo: t.exchangeLogo,
+                price: t.convertedLast,
+                volume: t.volume,
+                spread: t.spread,
+                trustScore: t.trustScore,
+                tradeUrl: t.tradeUrl,
+              })),
+            });
+          }
+
+          await new Promise(r => setTimeout(r, 300));
+        } catch {}
+      }
+
+      results.sort((a, b) => b.spreadPct - a.spreadPct);
+
+      const data = { opportunities: results, timestamp: Date.now() };
+      (arbitrageCache as any).data = data;
+      (arbitrageCache as any).timestamp = Date.now();
+      res.json(data);
+    } catch (err: any) {
+      if ((arbitrageCache as any).data) return res.json((arbitrageCache as any).data);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   const marketChartCache: Record<string, { data: any; timestamp: number }> = {};
   const MARKET_CHART_TTL: Record<string, number> = {
     "7": 120000,

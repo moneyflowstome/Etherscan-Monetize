@@ -30,6 +30,7 @@ import AirdropsPage from "@/pages/airdrops";
 import DexPage from "@/pages/dex";
 import GoldPage from "@/pages/gold";
 import CalculatorPage from "@/pages/calculator";
+import ArbitragePage from "@/pages/arbitrage";
 
 const HOME_PAGE_MAP: Record<string, React.ComponentType> = {
   explorer: ExplorerPage,
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/dex" component={DexPage}/>
       <Route path="/gold" component={GoldPage}/>
       <Route path="/calculator" component={CalculatorPage}/>
+      <Route path="/arbitrage" component={ArbitragePage}/>
       <Route path="/staking" component={StakingPage}/>
       <Route path="/news" component={NewsPage}/>
       <Route path="/masternodes" component={MasternodesPage}/>
