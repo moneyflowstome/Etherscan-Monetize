@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Calculator,
@@ -13,8 +13,14 @@ import {
   RefreshCw,
   Bookmark,
   Trash2,
-  Plus,
   ExternalLink,
+  Shield,
+  Lock,
+  ArrowUpDown,
+  BarChart3,
+  AlertTriangle,
+  ChevronUp,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,17 +30,47 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AdBanner } from "@/components/AdBanner";
 
-const STAKING_COINS = [
-  { name: "Ethereum", symbol: "ETH", apy: 3.5, minStake: 0.01, icon: "⟠", color: "text-blue-400", coingeckoId: "ethereum" },
-  { name: "Solana", symbol: "SOL", apy: 6.8, minStake: 0.01, icon: "◎", color: "text-purple-400", coingeckoId: "solana" },
-  { name: "Cardano", symbol: "ADA", apy: 4.5, minStake: 10, icon: "♦", color: "text-blue-300", coingeckoId: "cardano" },
-  { name: "Polkadot", symbol: "DOT", apy: 14, minStake: 1, icon: "●", color: "text-pink-400", coingeckoId: "polkadot" },
-  { name: "Cosmos", symbol: "ATOM", apy: 18, minStake: 0.01, icon: "⚛", color: "text-indigo-400", coingeckoId: "cosmos" },
-  { name: "Avalanche", symbol: "AVAX", apy: 8, minStake: 25, icon: "🔺", color: "text-red-400", coingeckoId: "avalanche-2" },
-  { name: "Tezos", symbol: "XTZ", apy: 5.5, minStake: 1, icon: "ꜩ", color: "text-blue-500", coingeckoId: "tezos" },
-  { name: "Near", symbol: "NEAR", apy: 10, minStake: 1, icon: "Ⓝ", color: "text-green-400", coingeckoId: "near" },
-  { name: "Algorand", symbol: "ALGO", apy: 5, minStake: 1, icon: "◈", color: "text-gray-300", coingeckoId: "algorand" },
-  { name: "Polygon", symbol: "MATIC", apy: 5, minStake: 1, icon: "⬡", color: "text-purple-500", coingeckoId: "matic-network" },
+interface StakingCoin {
+  name: string;
+  symbol: string;
+  apy: number;
+  minStake: number;
+  icon: string;
+  color: string;
+  coingeckoId: string;
+  lockUp: string;
+  risk: "Low" | "Medium" | "High";
+  stakingRatio: number;
+  consensus: string;
+  category: string;
+}
+
+const STAKING_COINS: StakingCoin[] = [
+  { name: "Ethereum", symbol: "ETH", apy: 3.5, minStake: 0.01, icon: "⟠", color: "text-blue-400", coingeckoId: "ethereum", lockUp: "Variable", risk: "Low", stakingRatio: 27, consensus: "PoS", category: "Layer 1" },
+  { name: "Solana", symbol: "SOL", apy: 6.8, minStake: 0.01, icon: "◎", color: "text-purple-400", coingeckoId: "solana", lockUp: "2-3 days", risk: "Low", stakingRatio: 67, consensus: "PoS + PoH", category: "Layer 1" },
+  { name: "Cardano", symbol: "ADA", apy: 4.5, minStake: 10, icon: "♦", color: "text-blue-300", coingeckoId: "cardano", lockUp: "None", risk: "Low", stakingRatio: 63, consensus: "Ouroboros PoS", category: "Layer 1" },
+  { name: "Polkadot", symbol: "DOT", apy: 14, minStake: 1, icon: "●", color: "text-pink-400", coingeckoId: "polkadot", lockUp: "28 days", risk: "Medium", stakingRatio: 52, consensus: "NPoS", category: "Layer 0" },
+  { name: "Cosmos", symbol: "ATOM", apy: 18, minStake: 0.01, icon: "⚛", color: "text-indigo-400", coingeckoId: "cosmos", lockUp: "21 days", risk: "Medium", stakingRatio: 62, consensus: "Tendermint PoS", category: "Layer 0" },
+  { name: "Avalanche", symbol: "AVAX", apy: 8, minStake: 25, icon: "🔺", color: "text-red-400", coingeckoId: "avalanche-2", lockUp: "14 days", risk: "Low", stakingRatio: 56, consensus: "Snowman PoS", category: "Layer 1" },
+  { name: "Tezos", symbol: "XTZ", apy: 5.5, minStake: 1, icon: "ꜩ", color: "text-blue-500", coingeckoId: "tezos", lockUp: "None", risk: "Low", stakingRatio: 75, consensus: "LPoS", category: "Layer 1" },
+  { name: "Near", symbol: "NEAR", apy: 10, minStake: 1, icon: "Ⓝ", color: "text-green-400", coingeckoId: "near", lockUp: "2-3 days", risk: "Low", stakingRatio: 45, consensus: "Nightshade PoS", category: "Layer 1" },
+  { name: "Algorand", symbol: "ALGO", apy: 5, minStake: 1, icon: "◈", color: "text-gray-300", coingeckoId: "algorand", lockUp: "None", risk: "Low", stakingRatio: 70, consensus: "Pure PoS", category: "Layer 1" },
+  { name: "Polygon", symbol: "MATIC", apy: 5, minStake: 1, icon: "⬡", color: "text-purple-500", coingeckoId: "matic-network", lockUp: "3 days", risk: "Low", stakingRatio: 39, consensus: "PoS", category: "Layer 2" },
+  { name: "Sui", symbol: "SUI", apy: 3.2, minStake: 1, icon: "💧", color: "text-cyan-400", coingeckoId: "sui", lockUp: "1 epoch", risk: "Medium", stakingRatio: 80, consensus: "DPoS", category: "Layer 1" },
+  { name: "Aptos", symbol: "APT", apy: 7, minStake: 11, icon: "🅰", color: "text-green-300", coingeckoId: "aptos", lockUp: "30 days", risk: "Medium", stakingRatio: 82, consensus: "AptosBFT", category: "Layer 1" },
+  { name: "Celestia", symbol: "TIA", apy: 14.5, minStake: 0.01, icon: "🟣", color: "text-violet-400", coingeckoId: "celestia", lockUp: "21 days", risk: "Medium", stakingRatio: 58, consensus: "Tendermint PoS", category: "Modular" },
+  { name: "Injective", symbol: "INJ", apy: 15, minStake: 0.01, icon: "💉", color: "text-cyan-300", coingeckoId: "injective-protocol", lockUp: "21 days", risk: "Medium", stakingRatio: 60, consensus: "Tendermint PoS", category: "Layer 1" },
+  { name: "Sei", symbol: "SEI", apy: 4.5, minStake: 1, icon: "🌊", color: "text-red-300", coingeckoId: "sei-network", lockUp: "21 days", risk: "Medium", stakingRatio: 45, consensus: "Twin-Turbo PoS", category: "Layer 1" },
+  { name: "Osmosis", symbol: "OSMO", apy: 10, minStake: 0.01, icon: "🧪", color: "text-purple-300", coingeckoId: "osmosis", lockUp: "14 days", risk: "Medium", stakingRatio: 50, consensus: "Tendermint PoS", category: "DEX Chain" },
+  { name: "Mina", symbol: "MINA", apy: 12, minStake: 1, icon: "Ⓜ", color: "text-orange-300", coingeckoId: "mina-protocol", lockUp: "None", risk: "Medium", stakingRatio: 85, consensus: "Ouroboros PoS", category: "Layer 1" },
+  { name: "MultiversX", symbol: "EGLD", apy: 8.5, minStake: 1, icon: "✕", color: "text-blue-200", coingeckoId: "elrond-erd-2", lockUp: "10 days", risk: "Low", stakingRatio: 68, consensus: "SPoS", category: "Layer 1" },
+  { name: "Kusama", symbol: "KSM", apy: 16, minStake: 0.1, icon: "🐦", color: "text-gray-400", coingeckoId: "kusama", lockUp: "7 days", risk: "High", stakingRatio: 48, consensus: "NPoS", category: "Canary" },
+  { name: "Hedera", symbol: "HBAR", apy: 6.5, minStake: 1, icon: "ℏ", color: "text-gray-200", coingeckoId: "hedera-hashgraph", lockUp: "None", risk: "Low", stakingRatio: 30, consensus: "Hashgraph", category: "Layer 1" },
+  { name: "Toncoin", symbol: "TON", apy: 3.8, minStake: 1, icon: "💎", color: "text-blue-400", coingeckoId: "the-open-network", lockUp: "36 hrs", risk: "Low", stakingRatio: 25, consensus: "PoS", category: "Layer 1" },
+  { name: "PIVX", symbol: "PIVX", apy: 9.5, minStake: 1, icon: "🛡", color: "text-purple-400", coingeckoId: "pivx", lockUp: "None", risk: "Medium", stakingRatio: 55, consensus: "PoS", category: "Privacy" },
+  { name: "Cronos", symbol: "CRO", apy: 10, minStake: 1, icon: "🔵", color: "text-blue-300", coingeckoId: "crypto-com-chain", lockUp: "28 days", risk: "Medium", stakingRatio: 35, consensus: "Tendermint PoS", category: "Layer 1" },
+  { name: "Fetch.ai", symbol: "FET", apy: 7.5, minStake: 1, icon: "🤖", color: "text-indigo-300", coingeckoId: "fetch-ai", lockUp: "21 days", risk: "Medium", stakingRatio: 40, consensus: "Tendermint PoS", category: "AI" },
+  { name: "Axelar", symbol: "AXL", apy: 8, minStake: 1, icon: "🔗", color: "text-cyan-400", coingeckoId: "axelar", lockUp: "7 days", risk: "Medium", stakingRatio: 50, consensus: "Tendermint PoS", category: "Interop" },
 ];
 
 const DURATIONS = [
@@ -59,6 +95,7 @@ interface StakingResult {
   effectiveApy: number;
   dailyReward: number;
   monthlyReward: number;
+  yearlyReward: number;
   usdRewards: number | null;
   usdTotalValue: number | null;
 }
@@ -118,6 +155,7 @@ function calculateStaking(
   const estimatedRewards = totalValue - amount;
   const dailyReward = estimatedRewards / durationDays;
   const monthlyReward = dailyReward * 30;
+  const yearlyReward = dailyReward * 365;
 
   return {
     estimatedRewards,
@@ -125,8 +163,35 @@ function calculateStaking(
     effectiveApy,
     dailyReward,
     monthlyReward,
+    yearlyReward,
   };
 }
+
+function getProjectionData(amount: number, apy: number, durationDays: number, compoundingPeriodsPerYear: number) {
+  const points: { label: string; value: number; rewards: number }[] = [];
+  const intervals = [30, 90, 180, 365, 730, 1095, 1460, 1825];
+  for (const d of intervals) {
+    if (d > durationDays) break;
+    const calc = calculateStaking(amount, apy, d, compoundingPeriodsPerYear);
+    const label = d < 365 ? `${d}d` : `${(d / 365).toFixed(d % 365 === 0 ? 0 : 1)}y`;
+    points.push({ label, value: calc.totalValue, rewards: calc.estimatedRewards });
+  }
+  if (points.length === 0 || points[points.length - 1].label !== `${durationDays}d`) {
+    const calc = calculateStaking(amount, apy, durationDays, compoundingPeriodsPerYear);
+    const label = durationDays < 365 ? `${durationDays}d` : `${(durationDays / 365).toFixed(durationDays % 365 === 0 ? 0 : 1)}y`;
+    points.push({ label, value: calc.totalValue, rewards: calc.estimatedRewards });
+  }
+  return points;
+}
+
+function getRiskColor(risk: string) {
+  if (risk === "Low") return "text-green-400 bg-green-400/10 border-green-400/20";
+  if (risk === "Medium") return "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
+  return "text-red-400 bg-red-400/10 border-red-400/20";
+}
+
+type SortKey = "name" | "apy" | "risk" | "stakingRatio" | "lockUp" | "price";
+type SortDir = "asc" | "desc";
 
 export default function StakingPage() {
   const [selectedCoinIndex, setSelectedCoinIndex] = useState(0);
@@ -137,6 +202,10 @@ export default function StakingPage() {
   const [coinDropdownOpen, setCoinDropdownOpen] = useState(false);
   const [amountError, setAmountError] = useState("");
   const [positions, setPositions] = useState<StakingPosition[]>(loadPositions);
+  const [tableSort, setTableSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "apy", dir: "desc" });
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [coinSearch, setCoinSearch] = useState("");
+  const [dropdownSearch, setDropdownSearch] = useState("");
 
   const selectedCoin = STAKING_COINS[selectedCoinIndex];
   const selectedDuration = DURATIONS[durationIndex];
@@ -158,6 +227,12 @@ export default function StakingPage() {
     if (!priceData || !Array.isArray(priceData)) return null;
     const coin = priceData.find((c: any) => c.id === coingeckoId);
     return coin?.current_price ?? null;
+  };
+
+  const getMarketCap = (coingeckoId: string): number | null => {
+    if (!priceData || !Array.isArray(priceData)) return null;
+    const coin = priceData.find((c: any) => c.id === coingeckoId);
+    return coin?.market_cap ?? null;
   };
 
   const handleCalculate = () => {
@@ -238,6 +313,63 @@ export default function StakingPage() {
     };
   };
 
+  const projectionData = useMemo(() => {
+    if (!result) return [];
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) return [];
+    return getProjectionData(numAmount, selectedCoin.apy, selectedDuration.days, selectedCompounding.periodsPerYear);
+  }, [result, amount, selectedCoin.apy, selectedDuration.days, selectedCompounding.periodsPerYear]);
+
+  const categories = useMemo(() => {
+    const cats = new Set(STAKING_COINS.map((c) => c.category));
+    return ["All", ...Array.from(cats).sort()];
+  }, []);
+
+  const filteredCoins = useMemo(() => {
+    const q = coinSearch.toLowerCase();
+    return STAKING_COINS.filter((c) => {
+      if (categoryFilter !== "All" && c.category !== categoryFilter) return false;
+      if (q && !c.name.toLowerCase().includes(q) && !c.symbol.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [categoryFilter, coinSearch]);
+
+  const sortedCoins = useMemo(() => {
+    const riskOrder = { Low: 0, Medium: 1, High: 2 };
+    return [...filteredCoins].sort((a, b) => {
+      let cmp = 0;
+      switch (tableSort.key) {
+        case "name": cmp = a.name.localeCompare(b.name); break;
+        case "apy": cmp = a.apy - b.apy; break;
+        case "risk": cmp = riskOrder[a.risk] - riskOrder[b.risk]; break;
+        case "stakingRatio": cmp = a.stakingRatio - b.stakingRatio; break;
+        case "lockUp": cmp = a.lockUp.localeCompare(b.lockUp); break;
+        case "price": cmp = (getCurrentPrice(a.coingeckoId) || 0) - (getCurrentPrice(b.coingeckoId) || 0); break;
+      }
+      return tableSort.dir === "desc" ? -cmp : cmp;
+    });
+  }, [filteredCoins, tableSort, priceData]);
+
+  const handleSort = (key: SortKey) => {
+    setTableSort((prev) => ({
+      key,
+      dir: prev.key === key && prev.dir === "desc" ? "asc" : "desc",
+    }));
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (tableSort.key !== col) return <ArrowUpDown className="w-3 h-3 opacity-40" />;
+    return tableSort.dir === "desc"
+      ? <ChevronDown className="w-3 h-3 text-primary" />
+      : <ChevronUp className="w-3 h-3 text-primary" />;
+  };
+
+  const formatCompact = (n: number) => {
+    if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+    if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+    return `$${n.toLocaleString()}`;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div
@@ -249,7 +381,7 @@ export default function StakingPage() {
       <Navbar />
 
       <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8">
-        <AdBanner slot="staking-top" format="horizontal" className="w-full mb-6" />
+        <AdBanner slot="0123456789" format="horizontal" className="w-full mb-6" />
 
         <div>
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-2" data-testid="text-staking-title">
@@ -257,8 +389,31 @@ export default function StakingPage() {
             Staking Calculator
           </h1>
           <p className="text-muted-foreground" data-testid="text-staking-subtitle">
-            Estimate your staking rewards with compound interest across top proof-of-stake networks
+            Compare APY rates, estimate compound rewards, and track positions across {STAKING_COINS.length}+ proof-of-stake networks
           </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="glass-panel rounded-xl p-4 text-center" data-testid="stat-total-coins">
+            <p className="text-2xl font-display font-bold text-primary">{STAKING_COINS.length}</p>
+            <p className="text-xs text-muted-foreground">Supported Coins</p>
+          </div>
+          <div className="glass-panel rounded-xl p-4 text-center" data-testid="stat-avg-apy">
+            <p className="text-2xl font-display font-bold text-green-400">
+              {(STAKING_COINS.reduce((s, c) => s + c.apy, 0) / STAKING_COINS.length).toFixed(1)}%
+            </p>
+            <p className="text-xs text-muted-foreground">Avg APY</p>
+          </div>
+          <div className="glass-panel rounded-xl p-4 text-center" data-testid="stat-highest-apy">
+            <p className="text-2xl font-display font-bold text-yellow-400">
+              {Math.max(...STAKING_COINS.map((c) => c.apy))}%
+            </p>
+            <p className="text-xs text-muted-foreground">Highest APY</p>
+          </div>
+          <div className="glass-panel rounded-xl p-4 text-center" data-testid="stat-positions">
+            <p className="text-2xl font-display font-bold text-foreground">{positions.length}</p>
+            <p className="text-xs text-muted-foreground">Your Positions</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -290,24 +445,53 @@ export default function StakingPage() {
                     </div>
                   </button>
                   {coinDropdownOpen && (
-                    <div className="absolute z-50 w-full mt-1 rounded-lg bg-card border border-border shadow-xl max-h-64 overflow-y-auto">
-                      {STAKING_COINS.map((coin, i) => (
-                        <button
-                          key={coin.symbol}
-                          onClick={() => { setSelectedCoinIndex(i); setCoinDropdownOpen(false); }}
-                          className={`w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors text-left ${i === selectedCoinIndex ? "bg-primary/10" : ""}`}
-                          data-testid={`option-coin-${coin.symbol.toLowerCase()}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className={`text-lg ${coin.color}`}>{coin.icon}</span>
-                            <span className="font-medium text-sm text-foreground">{coin.name}</span>
-                            <span className="text-xs text-muted-foreground">{coin.symbol}</span>
-                          </div>
-                          <span className="text-xs text-primary">{coin.apy}% APY</span>
-                        </button>
-                      ))}
+                    <div className="absolute z-50 w-full mt-1 rounded-lg bg-card border border-border shadow-xl max-h-72 overflow-hidden">
+                      <div className="p-2 border-b border-border">
+                        <input
+                          placeholder="Search coins..."
+                          className="w-full px-3 py-1.5 text-sm rounded bg-muted/30 border-none outline-none text-foreground placeholder:text-muted-foreground"
+                          autoFocus
+                          value={dropdownSearch}
+                          onChange={(e) => setDropdownSearch(e.target.value)}
+                          data-testid="input-coin-search"
+                        />
+                      </div>
+                      <div className="overflow-y-auto max-h-56">
+                        {STAKING_COINS.filter((c) => {
+                          if (!dropdownSearch) return true;
+                          const q = dropdownSearch.toLowerCase();
+                          return c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
+                        }).map((coin, i) => {
+                          const idx = STAKING_COINS.indexOf(coin);
+                          return (
+                            <button
+                              key={`${coin.symbol}-${coin.name}`}
+                              onClick={() => { setSelectedCoinIndex(idx); setCoinDropdownOpen(false); setDropdownSearch(""); }}
+                              className={`w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors text-left ${idx === selectedCoinIndex ? "bg-primary/10" : ""}`}
+                              data-testid={`option-coin-${coin.symbol.toLowerCase()}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`text-lg ${coin.color}`}>{coin.icon}</span>
+                                <div>
+                                  <span className="font-medium text-sm text-foreground">{coin.name}</span>
+                                  <span className="text-xs text-muted-foreground ml-1">{coin.symbol}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getRiskColor(coin.risk)}`}>{coin.risk}</span>
+                                <span className="text-xs text-primary font-medium">{coin.apy}%</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                  <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> {selectedCoin.lockUp}</span>
+                  <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> {selectedCoin.risk} risk</span>
+                  <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {selectedCoin.consensus}</span>
                 </div>
               </div>
 
@@ -469,14 +653,66 @@ export default function StakingPage() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                        <span className="text-sm text-muted-foreground">Total Rewards</span>
+                        <span className="text-sm text-muted-foreground">Yearly Reward</span>
+                        <span className="font-mono text-sm text-green-400" data-testid="text-yearly-reward">
+                          +{result.yearlyReward.toLocaleString(undefined, { maximumFractionDigits: 6 })} {selectedCoin.symbol}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-green-500/20">
+                        <span className="text-sm text-foreground font-medium">Total Rewards</span>
                         <span className="font-mono text-sm text-green-400 font-semibold" data-testid="text-total-rewards">
                           +{result.estimatedRewards.toLocaleString(undefined, { maximumFractionDigits: 6 })} {selectedCoin.symbol}
                         </span>
                       </div>
                     </div>
+
+                    <div className="mt-4 p-3 rounded-lg bg-muted/10 border border-border/50">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                        <Lock className="w-3 h-3" /> Lock-up: <span className="text-foreground">{selectedCoin.lockUp}</span>
+                        <span className="mx-1">|</span>
+                        <Shield className="w-3 h-3" /> Risk: <span className={getRiskColor(selectedCoin.risk).split(" ")[0]}>{selectedCoin.risk}</span>
+                        <span className="mx-1">|</span>
+                        <Layers className="w-3 h-3" /> Staking Ratio: <span className="text-foreground">{selectedCoin.stakingRatio}%</span>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
+
+                {projectionData.length > 1 && (
+                  <Card className="glass-panel border-border/50">
+                    <CardContent className="p-6">
+                      <h3 className="text-sm font-display font-semibold text-muted-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-primary" />
+                        Growth Projection
+                      </h3>
+                      <div className="space-y-2">
+                        {projectionData.map((pt, i) => {
+                          const maxVal = projectionData[projectionData.length - 1].value;
+                          const pct = (pt.value / maxVal) * 100;
+                          const price = getCurrentPrice(selectedCoin.coingeckoId);
+                          return (
+                            <div key={i} className="flex items-center gap-3">
+                              <span className="text-xs text-muted-foreground w-8 text-right font-mono">{pt.label}</span>
+                              <div className="flex-1 h-6 bg-muted/20 rounded-full overflow-hidden relative">
+                                <div
+                                  className="h-full bg-gradient-to-r from-primary/60 to-green-400/60 rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                                <span className="absolute inset-0 flex items-center justify-end pr-3 text-[10px] font-mono text-foreground/80">
+                                  {pt.value.toLocaleString(undefined, { maximumFractionDigits: 4 })} {selectedCoin.symbol}
+                                  {price ? ` ($${(pt.value * price).toLocaleString(undefined, { maximumFractionDigits: 0 })})` : ""}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-green-400 font-mono w-20 text-right">
+                                +{pt.rewards.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 <Button
                   onClick={handleTrackPosition}
@@ -495,6 +731,23 @@ export default function StakingPage() {
                   <p className="text-muted-foreground font-medium" data-testid="text-no-results">
                     Select a coin, enter an amount, and click Calculate to see your estimated staking rewards
                   </p>
+                  <div className="mt-6 grid grid-cols-3 gap-3">
+                    {STAKING_COINS.slice(0, 6).map((coin) => (
+                      <button
+                        key={coin.symbol}
+                        onClick={() => {
+                          setSelectedCoinIndex(STAKING_COINS.indexOf(coin));
+                          setAmount(String(coin.minStake * 100));
+                        }}
+                        className="p-3 rounded-lg bg-muted/20 border border-border/50 hover:border-primary/50 transition-all text-center"
+                        data-testid={`quick-pick-${coin.symbol.toLowerCase()}`}
+                      >
+                        <span className={`text-lg ${coin.color}`}>{coin.icon}</span>
+                        <p className="text-xs text-foreground font-medium mt-1">{coin.symbol}</p>
+                        <p className="text-[10px] text-green-400">{coin.apy}% APY</p>
+                      </button>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -588,7 +841,150 @@ export default function StakingPage() {
           </section>
         )}
 
-        <AdBanner slot="staking-mid" className="my-6" />
+        <AdBanner slot="0123456789" className="my-6" />
+
+        <section data-testid="section-compare-yields">
+          <h2 className="text-xl font-display font-semibold mb-4 flex items-center gap-2" data-testid="text-compare-title">
+            <ArrowUpDown className="w-5 h-5 text-primary" />
+            Compare Staking Yields
+          </h2>
+
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <input
+              placeholder="Search..."
+              value={coinSearch}
+              onChange={(e) => setCoinSearch(e.target.value)}
+              className="px-3 py-1 rounded-full text-xs bg-muted/30 border border-border outline-none text-foreground placeholder:text-muted-foreground w-32 focus:border-primary/50 transition-colors"
+              data-testid="input-table-search"
+            />
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                  categoryFilter === cat
+                    ? "bg-primary/20 border-primary/50 text-primary"
+                    : "bg-muted/20 border-border text-muted-foreground hover:border-primary/30"
+                }`}
+                data-testid={`filter-${cat.toLowerCase()}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border/50">
+            <table className="w-full text-sm" data-testid="table-compare">
+              <thead>
+                <tr className="bg-muted/20 border-b border-border/50">
+                  <th className="text-left p-3">
+                    <button onClick={() => handleSort("name")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium">
+                      Asset <SortIcon col="name" />
+                    </button>
+                  </th>
+                  <th className="text-right p-3">
+                    <button onClick={() => handleSort("apy")} className="flex items-center gap-1 justify-end text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium ml-auto">
+                      APY <SortIcon col="apy" />
+                    </button>
+                  </th>
+                  <th className="text-right p-3 hidden sm:table-cell">
+                    <button onClick={() => handleSort("price")} className="flex items-center gap-1 justify-end text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium ml-auto">
+                      Price <SortIcon col="price" />
+                    </button>
+                  </th>
+                  <th className="text-right p-3 hidden md:table-cell">
+                    <button onClick={() => handleSort("stakingRatio")} className="flex items-center gap-1 justify-end text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium ml-auto">
+                      Staking Ratio <SortIcon col="stakingRatio" />
+                    </button>
+                  </th>
+                  <th className="text-center p-3 hidden md:table-cell">
+                    <button onClick={() => handleSort("lockUp")} className="flex items-center gap-1 justify-center text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium mx-auto">
+                      Lock-up <SortIcon col="lockUp" />
+                    </button>
+                  </th>
+                  <th className="text-center p-3 hidden lg:table-cell">
+                    <button onClick={() => handleSort("risk")} className="flex items-center gap-1 justify-center text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium mx-auto">
+                      Risk <SortIcon col="risk" />
+                    </button>
+                  </th>
+                  <th className="text-right p-3 hidden lg:table-cell">
+                    <button onClick={() => handleSort("price")} className="flex items-center gap-1 justify-end text-muted-foreground hover:text-foreground text-xs uppercase tracking-wider font-medium ml-auto">
+                      Mkt Cap <SortIcon col="price" />
+                    </button>
+                  </th>
+                  <th className="p-3 w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedCoins.map((coin) => {
+                  const price = getCurrentPrice(coin.coingeckoId);
+                  const mcap = getMarketCap(coin.coingeckoId);
+                  const idx = STAKING_COINS.indexOf(coin);
+                  return (
+                    <tr
+                      key={`${coin.symbol}-${coin.name}`}
+                      className="border-b border-border/30 hover:bg-muted/10 transition-colors"
+                      data-testid={`row-coin-${coin.symbol.toLowerCase()}`}
+                    >
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-lg ${coin.color}`}>{coin.icon}</span>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{coin.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{coin.symbol} · {coin.category}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 text-right">
+                        <span className="font-mono font-semibold text-green-400">{coin.apy}%</span>
+                      </td>
+                      <td className="p-3 text-right hidden sm:table-cell">
+                        <span className="font-mono text-foreground text-xs">
+                          {price ? (price < 1 ? `$${price.toFixed(4)}` : `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`) : "—"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right hidden md:table-cell">
+                        <div className="flex items-center gap-2 justify-end">
+                          <div className="w-16 h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary/60 rounded-full" style={{ width: `${coin.stakingRatio}%` }} />
+                          </div>
+                          <span className="text-xs text-muted-foreground font-mono">{coin.stakingRatio}%</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-center hidden md:table-cell">
+                        <span className="text-xs text-muted-foreground">{coin.lockUp}</span>
+                      </td>
+                      <td className="p-3 text-center hidden lg:table-cell">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getRiskColor(coin.risk)}`}>
+                          {coin.risk}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right hidden lg:table-cell">
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {mcap ? formatCompact(mcap) : "—"}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            setSelectedCoinIndex(idx);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          data-testid={`button-calc-${coin.symbol.toLowerCase()}`}
+                        >
+                          Calc
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <Card className="glass-panel border-border/30">
           <CardContent className="p-6 md:p-8">
@@ -604,58 +1000,24 @@ export default function StakingPage() {
                 <p>
                   <strong className="text-foreground">How APY Works:</strong> Annual Percentage Yield (APY) represents the total return over a year, including the effect of compounding. A higher compounding frequency (daily vs. monthly) generally results in slightly higher effective returns.
                 </p>
+                <p>
+                  <strong className="text-foreground">Staking Ratio:</strong> This shows the percentage of total token supply that is currently being staked. A higher ratio typically means stronger network security but may lead to lower rewards per staker.
+                </p>
               </div>
               <div className="space-y-3">
                 <p>
                   <strong className="text-foreground">Compounding:</strong> When you choose to compound your rewards, your earned tokens are re-staked automatically, earning you rewards on top of rewards. Daily compounding yields the highest effective APY.
                 </p>
                 <p>
-                  <strong className="text-foreground">Important Notes:</strong> APY rates are approximate and can fluctuate based on network conditions, validator performance, and total staked supply. Staking may involve lock-up periods and potential slashing risks. Always do your own research before staking.
+                  <strong className="text-foreground">Lock-up Periods:</strong> Many networks require you to lock your tokens for a set period (unbonding period) before you can withdraw. During this time, your tokens earn no rewards and cannot be traded. Consider this before staking.
+                </p>
+                <p>
+                  <strong className="text-foreground">Risks:</strong> Staking involves risks including slashing (penalty for validator misbehavior), lock-up period price volatility, smart contract bugs, and inflation dilution. Networks rated "High" risk have more aggressive slashing or are less battle-tested. Always do your own research.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        <section>
-          <h2 className="text-lg font-display font-semibold mb-4" data-testid="text-available-coins-title">
-            Available Staking Coins
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {STAKING_COINS.map((coin) => {
-              const price = getCurrentPrice(coin.coingeckoId);
-              return (
-                <button
-                  key={coin.symbol}
-                  onClick={() => {
-                    setSelectedCoinIndex(STAKING_COINS.indexOf(coin));
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="text-left group"
-                  data-testid={`card-staking-coin-${coin.symbol.toLowerCase()}`}
-                >
-                  <Card className="glass-panel border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:scale-[1.02] h-full">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-lg ${coin.color}`}>{coin.icon}</span>
-                        <span className="font-display font-semibold text-sm text-foreground">{coin.symbol}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-1">{coin.name}</p>
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="text-xs text-green-400">{coin.apy}% APY</Badge>
-                        {price && (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            ${price < 1 ? price.toFixed(4) : price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </button>
-              );
-            })}
-          </div>
-        </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <a href="https://gomining.com/?ref=8H3M22H" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 hover:border-orange-400/40 transition-all group" data-testid="banner-gomining-staking">
@@ -676,7 +1038,7 @@ export default function StakingPage() {
           </a>
         </div>
 
-        <AdBanner slot="staking-bottom" className="mt-8" />
+        <AdBanner slot="0123456789" className="mt-8" />
       </main>
       <Footer />
     </div>
