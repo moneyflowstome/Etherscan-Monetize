@@ -342,6 +342,26 @@ function SettingsTab({ token }: { token: string }) {
         ))}
 
         <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
+          <Zap className="w-4 h-4" /> ads.txt File
+        </h3>
+        <Card className="bg-muted/30 border-border">
+          <CardContent className="p-4">
+            <label className="text-sm font-medium text-foreground block mb-1">ads.txt Content</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              This file is served at <span className="font-mono text-primary">/ads.txt</span> and is required by Google AdSense for ad verification. Each line should follow the format: <span className="font-mono">google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0</span>
+            </p>
+            <textarea
+              value={localSettings["ads_txt_content"] || ""}
+              onChange={(e) => updateLocal("ads_txt_content", e.target.value)}
+              placeholder={"google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0"}
+              rows={5}
+              className="w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-foreground font-mono text-sm resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-primary/50"
+              data-testid="textarea-ads-txt"
+            />
+          </CardContent>
+        </Card>
+
+        <h3 className="font-display text-sm font-bold text-primary flex items-center gap-2 pt-4">
           <Settings className="w-4 h-4" /> General Settings
         </h3>
         {settingsFields.slice(5).map((field) => (

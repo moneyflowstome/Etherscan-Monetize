@@ -103,9 +103,14 @@ export async function registerRoutes(
     next();
   });
 
-  app.get("/ads.txt", (_req, res) => {
+  app.get("/ads.txt", async (_req, res) => {
     res.type("text/plain");
-    res.send("google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+    try {
+      const content = await storage.getSetting("ads_txt_content");
+      res.send(content || "google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+    } catch {
+      res.send("google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+    }
   });
 
   app.post("/api/track", (req, res) => {
