@@ -291,10 +291,29 @@ const COINGECKO_TO_CHAIN: Record<string, string> = {
   nem: "xem", neo: "neo", stellar: "xlm", cosmos: "atom", near: "near",
 };
 
+function formatSupply(num: number, symbol: string): string {
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B ${symbol.toUpperCase()}`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M ${symbol.toUpperCase()}`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K ${symbol.toUpperCase()}`;
+  return `${num.toLocaleString()} ${symbol.toUpperCase()}`;
+}
+
+function formatPrice(price: number | null | undefined): string {
+  if (price == null) return "—";
+  if (price < 0.001) return `$${price.toFixed(8)}`;
+  if (price < 1) return `$${price.toFixed(6)}`;
+  return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
 function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
+  const change1h = coin.price_change_percentage_1h_in_currency;
   const change24h = coin.price_change_percentage_24h_in_currency ?? coin.price_change_percentage_24h;
   const change7d = coin.price_change_percentage_7d_in_currency;
   const priceUp = (change24h || 0) >= 0;
+
+  const lowHighRange = coin.low_24h && coin.high_24h
+    ? ((coin.current_price - coin.low_24h) / (coin.high_24h - coin.low_24h)) * 100
+    : 50;
 
   return (
     <Card className="glass-panel border-primary/30 mb-4" data-testid={`panel-coin-detail-${coin.id}`}>
@@ -304,77 +323,134 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
             <img src={coin.image} alt="" className="w-10 h-10 rounded-full" />
             <div>
               <h3 className="font-display font-bold text-lg text-foreground">{coin.name}</h3>
-              <span className="text-xs text-muted-foreground uppercase">{coin.symbol} · #{coin.market_cap_rank}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground uppercase">{coin.symbol}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/30">#{coin.market_cap_rank}</Badge>
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1" data-testid="button-close-detail">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Price</p>
-            <p className="font-mono text-xl font-bold text-foreground" data-testid="text-detail-price">
-              ${coin.current_price?.toLocaleString(undefined, { maximumFractionDigits: coin.current_price < 1 ? 6 : 2 })}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">24h Change</p>
-            <p className={`font-mono text-xl font-bold ${priceUp ? "text-green-400" : "text-red-400"}`} data-testid="text-detail-change">
-              {priceUp ? "+" : ""}{(change24h || 0).toFixed(2)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Market Cap</p>
-            <p className="font-mono text-sm font-semibold text-foreground">{coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">24h Volume</p>
-            <p className="font-mono text-sm font-semibold text-foreground">{coin.total_volume ? formatMarketCap(coin.total_volume) : "—"}</p>
-          </div>
-          {change7d != null && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">7d Change</p>
-              <p className={`font-mono text-sm font-semibold ${change7d >= 0 ? "text-green-400" : "text-red-400"}`}>
-                {change7d >= 0 ? "+" : ""}{change7d.toFixed(2)}%
+
+        <div className="flex items-baseline gap-3 mb-4">
+          <p className="font-mono text-2xl md:text-3xl font-bold text-foreground" data-testid="text-detail-price">
+            {formatPrice(coin.current_price)}
+          </p>
+          <span className={`text-sm font-mono font-semibold ${priceUp ? "text-green-400" : "text-red-400"}`} data-testid="text-detail-change">
+            {priceUp ? "+" : ""}{(change24h || 0).toFixed(2)}%
+          </span>
+        </div>
+
+        <div className="flex gap-3 mb-5 flex-wrap">
+          {[
+            { label: "24h", val: change24h },
+            { label: "7d", val: change7d },
+            { label: "1h", val: change1h },
+          ].filter(x => x.val != null).map(({ label, val }) => (
+            <div key={label} className="text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
+              <p className={`text-xs font-mono font-semibold ${(val || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                {(val || 0) >= 0 ? "▲" : "▼"} {Math.abs(val || 0).toFixed(2)}%
               </p>
             </div>
-          )}
-          {coin.sparkline_in_7d?.price && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">7d Chart</p>
-              <MiniSparkline data={coin.sparkline_in_7d.price} positive={(change7d || 0) >= 0} />
-            </div>
-          )}
+          ))}
         </div>
-        {(coin.ath || coin.atl) && (
-          <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-4">
-            {coin.ath && (
-              <>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">All-Time High</p>
-                  <p className="font-mono text-sm text-foreground">${coin.ath?.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">From ATH</p>
-                  <p className="font-mono text-sm text-red-400">{coin.ath_change_percentage?.toFixed(1)}%</p>
-                </div>
-              </>
-            )}
-            {coin.atl != null && (
-              <>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">All-Time Low</p>
-                  <p className="font-mono text-sm text-foreground" data-testid="text-detail-atl">${coin.atl?.toLocaleString(undefined, { maximumFractionDigits: coin.atl < 1 ? 6 : 2 })}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">From ATL</p>
-                  <p className="font-mono text-sm text-green-400" data-testid="text-detail-atl-change">+{coin.atl_change_percentage?.toFixed(1)}%</p>
-                </div>
-              </>
-            )}
+
+        {coin.low_24h && coin.high_24h && (
+          <div className="mb-5">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-muted-foreground">Low / High <span className="text-foreground font-medium ml-1">24h</span></span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-foreground whitespace-nowrap">{formatPrice(coin.low_24h)}</span>
+              <div className="flex-1 h-2 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 relative overflow-hidden">
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-foreground border-2 border-background shadow-md"
+                  style={{ left: `calc(${Math.min(100, Math.max(0, lowHighRange))}% - 6px)` }}
+                />
+              </div>
+              <span className="text-xs font-mono text-foreground whitespace-nowrap">{formatPrice(coin.high_24h)}</span>
+            </div>
           </div>
         )}
+
+        {coin.sparkline_in_7d?.price && (
+          <div className="mb-5">
+            <p className="text-xs text-muted-foreground mb-2">7d Chart</p>
+            <MiniSparkline data={coin.sparkline_in_7d.price} positive={(change7d || 0) >= 0} />
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Statistics</h4>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="flex flex-col">
+              <span className="text-[11px] text-muted-foreground">Market Cap</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{coin.market_cap ? formatMarketCap(coin.market_cap) : "—"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] text-muted-foreground">Fully Diluted Market Cap</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{coin.fully_diluted_valuation ? formatMarketCap(coin.fully_diluted_valuation) : "—"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] text-muted-foreground">Volume 24h</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{coin.total_volume ? formatMarketCap(coin.total_volume) : "—"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] text-muted-foreground">Circulating Supply</span>
+              <span className="font-mono text-sm font-semibold text-foreground">{coin.circulating_supply ? formatSupply(coin.circulating_supply, coin.symbol) : "—"}</span>
+            </div>
+            {coin.max_supply && (
+              <div className="flex flex-col">
+                <span className="text-[11px] text-muted-foreground">Max Supply</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(coin.max_supply, coin.symbol)}</span>
+              </div>
+            )}
+            {coin.total_supply && (
+              <div className="flex flex-col">
+                <span className="text-[11px] text-muted-foreground">Total Supply</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{formatSupply(coin.total_supply, coin.symbol)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-4 mt-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            {coin.ath != null && (
+              <div className="flex flex-col">
+                <span className="text-[11px] text-muted-foreground">All Time High</span>
+                <span className="font-mono text-sm font-semibold text-foreground">{formatPrice(coin.ath)}</span>
+                {coin.ath_change_percentage != null && (
+                  <span className="text-[10px] font-mono text-red-400">{coin.ath_change_percentage.toFixed(1)}%</span>
+                )}
+              </div>
+            )}
+            {coin.atl != null && (
+              <div className="flex flex-col">
+                <span className="text-[11px] text-muted-foreground">All Time Low</span>
+                <span className="font-mono text-sm font-semibold text-foreground" data-testid="text-detail-atl">{formatPrice(coin.atl)}</span>
+                {coin.atl_change_percentage != null && (
+                  <span className="text-[10px] font-mono text-green-400" data-testid="text-detail-atl-change">+{coin.atl_change_percentage.toFixed(1)}%</span>
+                )}
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className="text-[11px] text-muted-foreground">Rank</span>
+              <span className="font-mono text-sm font-semibold text-foreground">#{coin.market_cap_rank || "—"}</span>
+            </div>
+            {coin.market_cap && coin.circulating_supply && coin.total_supply && (
+              <div className="flex flex-col">
+                <span className="text-[11px] text-muted-foreground">Market Dominance</span>
+                <span className="font-mono text-sm font-semibold text-foreground">
+                  {((coin.circulating_supply / (coin.total_supply || coin.circulating_supply)) * 100).toFixed(2)}%
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
