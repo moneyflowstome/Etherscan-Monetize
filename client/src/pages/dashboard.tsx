@@ -108,16 +108,20 @@ export default function Dashboard() {
 
   const handleConnectTronLink = useCallback(async () => {
     try {
-      const tronWeb = (window as any).tronWeb;
-      if (!tronWeb || !tronWeb.ready) {
+      const tronLink = (window as any).tronLink;
+      if (!tronLink) {
         toast({ title: "TronLink not found", description: "Please install TronLink browser extension to connect your TRON wallet.", variant: "destructive" });
         return;
       }
-      const addr = tronWeb.defaultAddress?.base58;
-      if (!addr) {
-        toast({ title: "TronLink locked", description: "Please unlock TronLink and try again.", variant: "destructive" });
+      if (tronLink.request) {
+        await tronLink.request({ method: "tron_requestAccounts" });
+      }
+      const tronWeb = (window as any).tronWeb;
+      if (!tronWeb || !tronWeb.defaultAddress?.base58) {
+        toast({ title: "TronLink locked", description: "Please unlock TronLink and approve the connection.", variant: "destructive" });
         return;
       }
+      const addr = tronWeb.defaultAddress.base58;
       setWalletInput(addr);
       const tronChain = CHAIN_OPTIONS.find((c) => c.isTron);
       if (tronChain) setSelectedChainId(tronChain.id);

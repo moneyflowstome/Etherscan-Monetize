@@ -559,6 +559,7 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
 function TrxExplorer({ chain }: { chain: ChainInfo }) {
   const [input, setInput] = useState("");
   const [address, setAddress] = useState("");
+  const { toast } = useToast();
 
   const { data: accountData, isLoading, error } = useQuery({
     queryKey: ["trx-account", address],
@@ -574,18 +575,49 @@ function TrxExplorer({ chain }: { chain: ChainInfo }) {
 
   const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
 
+  const handleConnectTronLink = async () => {
+    try {
+      const tronLink = (window as any).tronLink;
+      if (!tronLink) {
+        toast({ title: "TronLink not found", description: "Install the TronLink browser extension to connect your TRON wallet.", variant: "destructive" });
+        return;
+      }
+      if (tronLink.request) {
+        await tronLink.request({ method: "tron_requestAccounts" });
+      }
+      const tronWeb = (window as any).tronWeb;
+      if (!tronWeb || !tronWeb.defaultAddress?.base58) {
+        toast({ title: "TronLink locked", description: "Please unlock TronLink and approve the connection.", variant: "destructive" });
+        return;
+      }
+      const addr = tronWeb.defaultAddress.base58;
+      setInput(addr);
+      setAddress(addr);
+      toast({ title: "TronLink Connected", description: `Loaded wallet ${addr.slice(0, 6)}...${addr.slice(-4)}` });
+    } catch {
+      toast({ title: "Connection failed", description: "Could not connect to TronLink.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
         <Input placeholder="Enter TRON address (T...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-trx-address" />
         <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-trx-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
+        <Button variant="outline" onClick={handleConnectTronLink} className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 shrink-0" data-testid="button-trx-connect-tronlink"><Wallet className="w-4 h-4 mr-1" /> TronLink</Button>
       </div>
       {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
       {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-trx-error">{(error as Error).message}</div>}
       {accountData && (
         <Card className="glass-panel border-red-500/20">
           <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3"><Wallet className="w-5 h-5 text-red-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2"><Wallet className="w-5 h-5 text-red-400" /><h3 className="font-display font-semibold">Account Info</h3></div>
+              <div className="flex items-center gap-2">
+                <a href="/wallet?chain=-1" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1" data-testid="link-trx-wallet-tracker"><ArrowRight className="w-3 h-3" />Track in Wallet</a>
+                <a href={`https://tronscan.org/#/address/${address}`} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1" data-testid="link-trx-tronscan"><ExternalLink className="w-3 h-3" />TronScan</a>
+              </div>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-mono text-lg font-semibold text-red-400" data-testid="text-trx-balance">{accountData.balance} TRX</p></div>
               <div><p className="text-xs text-muted-foreground">Bandwidth</p><p className="font-mono" data-testid="text-trx-bandwidth">{accountData.bandwidth?.toLocaleString() || "0"}</p></div>
@@ -598,21 +630,32 @@ function TrxExplorer({ chain }: { chain: ChainInfo }) {
       {txData?.transactions?.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2"><ArrowRightLeft className="w-4 h-4 text-red-400" /><h3 className="font-display font-semibold text-sm">Recent Transactions</h3><Badge variant="secondary" className="text-xs">{txData.transactions.length}</Badge></div>
-          {txData.transactions.map((tx: any, i: number) => (
-            <Card key={tx.txID || i} className="glass-panel border-border/50" data-testid={`card-trx-tx-${i}`}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.txID)}</span><CopyButton text={tx.txID} id={`trx-tx-${i}`} /></div>
-                  {tx.confirmed ? (<Badge variant="outline" className="text-green-400 border-green-400/30 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />OK</Badge>) : (<Badge variant="outline" className="text-yellow-400 border-yellow-400/30 text-[10px]"><Clock className="w-3 h-3 mr-1" />Pending</Badge>)}
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-mono">{tx.amount || "—"} TRX</span></div>
-                  <div><span className="text-muted-foreground">Block:</span> <span className="font-mono">{tx.blockNumber || "—"}</span></div>
-                  <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(Math.floor(tx.timestamp / 1000)) : "—"}</span></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {txData.transactions.map((tx: any, i: number) => {
+            const isIncoming = tx.to === address;
+            return (
+              <Card key={tx.txID || i} className="glass-panel border-border/50" data-testid={`card-trx-tx-${i}`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">{truncateHash(tx.txID)}</span>
+                      <CopyButton text={tx.txID} id={`trx-tx-${i}`} />
+                      <a href={`https://tronscan.org/#/transaction/${tx.txID}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary"><ExternalLink className="w-3 h-3" /></a>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {tx.type && <Badge variant="outline" className="text-muted-foreground border-border text-[10px]">{tx.type === "TransferContract" ? "Transfer" : tx.type.replace("Contract", "")}</Badge>}
+                      {tx.confirmed ? (<Badge variant="outline" className="text-green-400 border-green-400/30 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />OK</Badge>) : (<Badge variant="outline" className="text-yellow-400 border-yellow-400/30 text-[10px]"><Clock className="w-3 h-3 mr-1" />Pending</Badge>)}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+                    <div><span className="text-muted-foreground">Amount:</span> <span className={`font-mono ${isIncoming ? "text-green-400" : "text-orange-400"}`}>{tx.amount ? `${isIncoming ? "+" : "-"}${tx.amount}` : "—"} TRX</span></div>
+                    {tx.from && <div><span className="text-muted-foreground">From:</span> <span className="font-mono">{truncateHash(tx.from)}</span></div>}
+                    {tx.to && <div><span className="text-muted-foreground">To:</span> <span className="font-mono">{truncateHash(tx.to)}</span></div>}
+                    <div><span className="text-muted-foreground">Time:</span> <span>{tx.timestamp ? timeAgo(Math.floor(tx.timestamp / 1000)) : "—"}</span></div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
