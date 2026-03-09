@@ -18,6 +18,7 @@ const NAV_LINKS = [
   { path: "/alerts", label: "Alerts" },
   { path: "/portfolio", label: "Portfolio" },
   { path: "/compare", label: "Compare" },
+  { path: "/calculator", label: "Calculator" },
   { path: "/airdrops", label: "Airdrops" },
   { path: "/staking", label: "Staking" },
   { path: "/news", label: "News" },

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
   BellRing,
+  BellOff,
   Search,
   Trash2,
   Plus,
@@ -232,11 +233,39 @@ function CreateAlertForm({
   );
 }
 
+function sendBrowserNotification(title: string, body: string, icon?: string) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      new Notification(title, { body, icon, badge: "/favicon.png" });
+    } catch {}
+  }
+}
+
+function useNotificationPermission() {
+  const [permission, setPermission] = useState<NotificationPermission>(
+    "Notification" in window ? Notification.permission : "denied"
+  );
+
+  const requestPermission = useCallback(async () => {
+    if (!("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setPermission(result);
+  }, []);
+
+  useEffect(() => {
+    if (!("Notification" in window)) return;
+    setPermission(Notification.permission);
+  }, []);
+
+  return { permission, requestPermission, supported: "Notification" in window };
+}
+
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<PriceAlert[]>(getStoredAlerts);
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const { toast } = useToast();
   const triggeredRef = useRef<Set<string>>(new Set());
+  const { permission, requestPermission, supported } = useNotificationPermission();
 
   useEffect(() => {
     const alreadyTriggered = alerts.filter((a) => a.triggered).map((a) => a.id);
@@ -284,13 +313,21 @@ export default function AlertsPage() {
           triggeredRef.current.add(alert.id);
           updated = true;
 
+          const notifBody =
+            direction === "above"
+              ? `Price went above ${formatPrice(alert.upperThreshold)} — now at ${formatPrice(currentPrice)}`
+              : `Price went below ${formatPrice(alert.lowerThreshold)} — now at ${formatPrice(currentPrice)}`;
+
           toast({
             title: `🔔 ${alert.coinName} Alert Triggered!`,
-            description:
-              direction === "above"
-                ? `Price went above ${formatPrice(alert.upperThreshold)} — now at ${formatPrice(currentPrice)}`
-                : `Price went below ${formatPrice(alert.lowerThreshold)} — now at ${formatPrice(currentPrice)}`,
+            description: notifBody,
           });
+
+          sendBrowserNotification(
+            `🔔 ${alert.coinName} Alert Triggered!`,
+            notifBody,
+            alert.coinImage
+          );
 
           return {
             ...alert,
@@ -374,8 +411,44 @@ export default function AlertsPage() {
                 : "Set price alerts to get notified when coins hit your targets"}
             </p>
           </div>
-          <div className="w-full md:w-72">
-            <CoinSearch onSelect={setSelectedCoin} />
+          <div className="flex items-center gap-3">
+            {supported && (
+              <>
+                {permission === "granted" ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-green-500/10 border-green-500/30 text-green-400 text-xs px-3 py-1.5 flex items-center gap-1.5"
+                    data-testid="badge-notifications-enabled"
+                  >
+                    <BellRing className="w-3.5 h-3.5" />
+                    Notifications On
+                  </Badge>
+                ) : permission === "denied" ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-red-500/10 border-red-500/30 text-red-400 text-xs px-3 py-1.5 flex items-center gap-1.5"
+                    data-testid="badge-notifications-denied"
+                  >
+                    <BellOff className="w-3.5 h-3.5" />
+                    Notifications Blocked
+                  </Badge>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={requestPermission}
+                    className="text-xs gap-1.5"
+                    data-testid="button-enable-notifications"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    Enable Notifications
+                  </Button>
+                )}
+              </>
+            )}
+            <div className="w-full md:w-72">
+              <CoinSearch onSelect={setSelectedCoin} />
+            </div>
           </div>
         </div>
 

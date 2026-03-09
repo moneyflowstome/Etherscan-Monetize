@@ -1319,6 +1319,53 @@ export async function registerRoutes(
     }
   });
 
+  const marketChartCache: Record<string, { data: any; timestamp: number }> = {};
+  const MARKET_CHART_TTL: Record<string, number> = {
+    "7": 120000,
+    "30": 300000,
+    "90": 600000,
+    "365": 600000,
+  };
+
+  app.get("/api/coin/:id/market-chart", async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!id || !/^[a-z0-9\-]+$/.test(id)) {
+        return res.status(400).json({ error: "Invalid coin ID" });
+      }
+      const days = String(req.query.days || "7");
+      if (!["7", "30", "90", "365"].includes(days)) {
+        return res.status(400).json({ error: "Invalid days parameter. Use 7, 30, 90, or 365" });
+      }
+
+      const cacheKey = `${id}_${days}`;
+      const cached = marketChartCache[cacheKey];
+      const ttl = MARKET_CHART_TTL[days] || 120000;
+      if (cached && Date.now() - cached.timestamp < ttl) {
+        return res.json(cached.data);
+      }
+
+      const url = `${COINGECKO_BASE}/coins/${id}/market_chart?vs_currency=usd&days=${days}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (cached) return res.json(cached.data);
+        if (response.status === 404) return res.status(404).json({ error: "Coin not found" });
+        throw new Error(`CoinGecko API error: ${response.status}`);
+      }
+      const raw = await response.json();
+
+      const data = {
+        prices: (raw.prices || []).map((p: [number, number]) => ({ t: p[0], v: p[1] })),
+        volumes: (raw.total_volumes || []).map((p: [number, number]) => ({ t: p[0], v: p[1] })),
+      };
+
+      marketChartCache[cacheKey] = { data, timestamp: Date.now() };
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   const cmcMapCache: { data: Map<string, number>; timestamp: number } = { data: new Map(), timestamp: 0 };
   const CMC_MAP_TTL = 86400000;
   const cmcQuoteCache: Record<string, { data: any; timestamp: number }> = {};

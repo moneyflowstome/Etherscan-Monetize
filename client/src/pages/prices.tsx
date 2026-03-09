@@ -23,7 +23,19 @@ import {
   Tag,
   Calendar,
   Hash,
+  BarChart3,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -324,9 +336,175 @@ function safeUrl(url: string): string | null {
   }
 }
 
+const CHART_TIMEFRAMES = [
+  { key: "7", label: "7d" },
+  { key: "30", label: "30d" },
+  { key: "90", label: "90d" },
+  { key: "365", label: "1y" },
+] as const;
+
+function PriceHistoryChart({ coinId }: { coinId: string }) {
+  const [days, setDays] = useState("7");
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["/api/coin/market-chart", coinId, days],
+    queryFn: async () => {
+      const res = await fetch(`/api/coin/${coinId}/market-chart?days=${days}`);
+      if (!res.ok) throw new Error("Failed to fetch chart data");
+      return res.json();
+    },
+    staleTime: days === "7" ? 120000 : days === "30" ? 300000 : 600000,
+    enabled: !!coinId,
+  });
+
+  const prices = data?.prices || [];
+  const volumes = data?.volumes || [];
+
+  const formatDate = (ts: number) => {
+    const d = new Date(ts);
+    if (days === "7") return d.toLocaleDateString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    if (days === "30") return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" });
+  };
+
+  const formatChartPrice = (val: number) => {
+    if (val < 0.001) return `$${val.toFixed(8)}`;
+    if (val < 1) return `$${val.toFixed(4)}`;
+    if (val < 1000) return `$${val.toFixed(2)}`;
+    return `$${val.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  };
+
+  const priceChange = prices.length >= 2 ? prices[prices.length - 1].v - prices[0].v : 0;
+  const priceChangePercent = prices.length >= 2 && prices[0].v > 0
+    ? ((priceChange / prices[0].v) * 100)
+    : 0;
+  const isPositive = priceChange >= 0;
+  const chartColor = isPositive ? "#22c55e" : "#ef4444";
+
+  return (
+    <div data-testid="chart-price-history">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-4 h-4 text-primary" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price History</span>
+          {prices.length >= 2 && (
+            <span className={`text-xs font-mono font-semibold ${isPositive ? "text-green-400" : "text-red-400"}`}>
+              {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
+            </span>
+          )}
+        </div>
+        <div className="flex rounded-lg border border-border overflow-hidden">
+          {CHART_TIMEFRAMES.map(tf => (
+            <button
+              key={tf.key}
+              onClick={() => setDays(tf.key)}
+              className={`px-3 py-1 text-xs font-medium transition-colors ${days === tf.key ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid={`button-chart-tf-${tf.label}`}
+            >
+              {tf.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-sm text-muted-foreground">Unable to load chart data</div>
+      ) : prices.length === 0 ? (
+        <div className="text-center py-8 text-sm text-muted-foreground">No chart data available</div>
+      ) : (
+        <div className="space-y-4">
+          <div className="h-[220px]" data-testid="chart-area-price">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={prices} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id={`priceGrad-${coinId}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={chartColor} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                <XAxis
+                  dataKey="t"
+                  tickFormatter={formatDate}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  minTickGap={40}
+                />
+                <YAxis
+                  tickFormatter={formatChartPrice}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={65}
+                  domain={["auto", "auto"]}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                  labelFormatter={(ts) => new Date(ts).toLocaleString()}
+                  formatter={(value: number) => [formatChartPrice(value), "Price"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="v"
+                  stroke={chartColor}
+                  strokeWidth={2}
+                  fill={`url(#priceGrad-${coinId})`}
+                  dot={false}
+                  activeDot={{ r: 4, fill: chartColor }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {volumes.length > 0 && (
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Volume</p>
+              <div className="h-[80px]" data-testid="chart-bar-volume">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={volumes} margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
+                    <XAxis
+                      dataKey="t"
+                      tickFormatter={formatDate}
+                      tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                      minTickGap={60}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "11px",
+                      }}
+                      labelFormatter={(ts) => new Date(ts).toLocaleString()}
+                      formatter={(value: number) => [formatMarketCap(value), "Volume"]}
+                    />
+                    <Bar dataKey="v" fill="hsl(var(--primary))" opacity={0.5} radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) {
   const [showAbout, setShowAbout] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "info" | "markets" | "news">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "chart" | "info" | "markets" | "news">("overview");
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -425,6 +603,7 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
 
   const tabs = [
     { key: "overview" as const, label: "Overview" },
+    { key: "chart" as const, label: "Chart" },
     { key: "info" as const, label: "Info" },
     { key: "markets" as const, label: "Markets" },
     { key: "news" as const, label: "News" },
@@ -684,6 +863,10 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
               );
             })()}
           </div>
+        )}
+
+        {activeTab === "chart" && (
+          <PriceHistoryChart coinId={coin.id} />
         )}
 
         {activeTab === "info" && (
