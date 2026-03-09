@@ -1174,7 +1174,7 @@ function CoinDetailPanel({ coin, onClose }: { coin: any; onClose: () => void }) 
         {d.public_notice && (
           <div className="border-t border-border pt-4 mt-4">
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-              <p className="text-xs text-yellow-400">{d.public_notice}</p>
+              <p className="text-xs text-yellow-400 [&_a]:text-yellow-300 [&_a]:underline" dangerouslySetInnerHTML={{ __html: d.public_notice.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/on\w+="[^"]*"/gi, "") }} />
             </div>
           </div>
         )}
