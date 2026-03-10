@@ -6,6 +6,11 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from "recharts";
 import {
   Briefcase,
@@ -18,6 +23,7 @@ import {
   DollarSign,
   BarChart3,
   X,
+  LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +42,46 @@ interface Holding {
 }
 
 const STORAGE_KEY = "tokenaltcoin_portfolio";
+const SNAPSHOT_STORAGE_KEY = "tokenaltcoin_portfolio_snapshots";
+
+interface PortfolioSnapshot {
+  date: string;
+  value: number;
+  costBasis: number;
+}
+
+function getStoredSnapshots(): PortfolioSnapshot[] {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSnapshot(value: number, costBasis: number) {
+  const today = new Date().toISOString().slice(0, 10);
+  const snapshots = getStoredSnapshots();
+  const existingIndex = snapshots.findIndex(s => s.date === today);
+  if (existingIndex >= 0) {
+    snapshots[existingIndex] = { date: today, value, costBasis };
+  } else {
+    snapshots.push({ date: today, value, costBasis });
+  }
+  snapshots.sort((a, b) => a.date.localeCompare(b.date));
+  localStorage.setItem(SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshots));
+}
+
+function filterSnapshotsByTimeframe(snapshots: PortfolioSnapshot[], timeframe: "7d" | "30d" | "all"): PortfolioSnapshot[] {
+  if (timeframe === "all") return snapshots;
+  const now = new Date();
+  const days = timeframe === "7d" ? 7 : 30;
+  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return snapshots.filter(s => s.date >= cutoff);
+}
+
 const PIE_COLORS = [
   "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981",
   "#06b6d4", "#f43f5e", "#84cc16", "#a855f7", "#14b8a6",
@@ -225,8 +271,144 @@ function CustomPieTooltip({ active, payload }: any) {
   );
 }
 
+function CustomAreaTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-xl text-sm">
+      <p className="text-muted-foreground text-xs mb-1">{label}</p>
+      {payload.map((entry: any, i: number) => (
+        <p key={i} className="font-semibold" style={{ color: entry.color }}>
+          {entry.name}: {formatValue(entry.value)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function PortfolioPerformanceChart({ snapshots }: { snapshots: PortfolioSnapshot[] }) {
+  const [timeframe, setTimeframe] = useState<"7d" | "30d" | "all">("30d");
+
+  const chartData = useMemo(() => {
+    const filtered = filterSnapshotsByTimeframe(snapshots, timeframe);
+    return filtered.map(s => ({
+      date: new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      value: parseFloat(s.value.toFixed(2)),
+      costBasis: parseFloat(s.costBasis.toFixed(2)),
+    }));
+  }, [snapshots, timeframe]);
+
+  if (chartData.length < 1) return null;
+
+  const firstValue = chartData[0]?.value || 0;
+  const lastValue = chartData[chartData.length - 1]?.value || 0;
+  const change = lastValue - firstValue;
+  const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0;
+  const isPositive = change >= 0;
+
+  return (
+    <Card className="glass-panel border-border mb-6" data-testid="card-performance-chart">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <LineChart className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Performance</h3>
+          </div>
+          <div className="flex items-center gap-1" data-testid="timeframe-selector">
+            {(["7d", "30d", "all"] as const).map(tf => (
+              <Button
+                key={tf}
+                variant={timeframe === tf ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setTimeframe(tf)}
+                className="text-xs h-7 px-3"
+                data-testid={`button-timeframe-${tf}`}
+              >
+                {tf === "all" ? "All" : tf.toUpperCase()}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {chartData.length > 1 && (
+          <div className="flex items-center gap-3 mb-4">
+            <span className={`text-lg font-bold font-display ${isPositive ? "text-green-400" : "text-red-400"}`} data-testid="text-performance-change">
+              {isPositive ? "+" : ""}{formatValue(change)}
+            </span>
+            <Badge variant={isPositive ? "default" : "destructive"} className="text-xs" data-testid="badge-performance-percent">
+              {isPositive ? "+" : ""}{changePercent.toFixed(2)}%
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {timeframe === "7d" ? "Last 7 days" : timeframe === "30d" ? "Last 30 days" : "All time"}
+            </span>
+          </div>
+        )}
+
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+              <defs>
+                <linearGradient id="portfolioValueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={isPositive ? "#22c55e" : "#ef4444"} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={isPositive ? "#22c55e" : "#ef4444"} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="costBasisGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => formatValue(v)}
+                width={70}
+              />
+              <Tooltip content={<CustomAreaTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="costBasis"
+                name="Cost Basis"
+                stroke="#6366f1"
+                fill="url(#costBasisGradient)"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                dot={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                name="Portfolio Value"
+                stroke={isPositive ? "#22c55e" : "#ef4444"}
+                fill="url(#portfolioValueGradient)"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {chartData.length <= 1 && (
+          <div className="text-center text-muted-foreground text-sm py-8">
+            <p>Not enough data yet. Check back tomorrow to see your portfolio trend.</p>
+            <p className="text-xs mt-1">A snapshot is recorded each time you visit this page.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<Holding[]>(getStoredHoldings);
+  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>(getStoredSnapshots);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -333,6 +515,13 @@ export default function PortfolioPage() {
 
     return { items, totalCurrentValue, totalCostBasis, totalPnl, totalPnlPercent, pieData };
   }, [holdings, priceMap]);
+
+  useEffect(() => {
+    if (holdings.length > 0 && pricesQuery.data && portfolioData.totalCurrentValue > 0) {
+      saveSnapshot(portfolioData.totalCurrentValue, portfolioData.totalCostBasis);
+      setSnapshots(getStoredSnapshots());
+    }
+  }, [holdings.length, pricesQuery.data, portfolioData.totalCurrentValue, portfolioData.totalCostBasis]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -444,6 +633,8 @@ export default function PortfolioPage() {
                 </CardContent>
               </Card>
             )}
+
+            <PortfolioPerformanceChart snapshots={snapshots} />
           </>
         )}
 

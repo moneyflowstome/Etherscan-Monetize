@@ -29,6 +29,8 @@ const NAV_LINKS: { path: string; label: string; featureKey?: string }[] = [
   { path: "/masternodes", label: "Masternodes", featureKey: "masternodes_enabled" },
   { path: "/blog", label: "Blog", featureKey: "blog_enabled" },
   { path: "/contact", label: "Contact", featureKey: "contact_enabled" },
+  { path: "/snapshot", label: "Snapshot" },
+  { path: "/learn", label: "Learn" },
 ];
 
 export function Navbar() {

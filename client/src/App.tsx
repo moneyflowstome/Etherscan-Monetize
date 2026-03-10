@@ -34,6 +34,8 @@ import ArbitragePage from "@/pages/arbitrage";
 import ChatPage from "@/pages/chat";
 import NftsPage from "@/pages/nfts";
 import AdvertisePage from "@/pages/advertise";
+import SnapshotPage from "@/pages/snapshot";
+import LearnPage from "@/pages/learn";
 
 export const FeatureContext = createContext<Record<string, string>>({});
 export function useFeatureEnabled(key: string): boolean {
@@ -116,6 +118,8 @@ function Router() {
         <FeatureRoute path="/blog/:slug" component={BlogPostPage} featureKey="blog_enabled" />
         <FeatureRoute path="/contact" component={ContactPage} featureKey="contact_enabled" />
         <Route path="/advertise" component={AdvertisePage}/>
+        <Route path="/snapshot" component={SnapshotPage}/>
+        <Route path="/learn" component={LearnPage}/>
         <Route path="/privacy" component={PrivacyPage}/>
         <Route path="/terms" component={TermsPage}/>
         <Route path="/admin" component={AdminPage}/>

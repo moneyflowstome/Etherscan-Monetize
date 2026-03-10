@@ -5512,5 +5512,142 @@ export async function registerRoutes(
     }
   })();
 
+  let snapshotCache: Record<string, { data: any; timestamp: number }> = {};
+  const SNAPSHOT_CACHE_TTL = 86400000;
+
+  app.get("/api/snapshot/:date", async (req, res) => {
+    try {
+      const { date } = req.params;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+      }
+
+      const parsedDate = new Date(date + "T00:00:00Z");
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ error: "Invalid date" });
+      }
+
+      const now = new Date();
+      if (parsedDate >= now) {
+        return res.status(400).json({ error: "Date must be in the past" });
+      }
+
+      const minDate = new Date("2013-04-28");
+      if (parsedDate < minDate) {
+        return res.status(400).json({ error: "Date must be after 2013-04-28" });
+      }
+
+      const cached = snapshotCache[date];
+      if (cached && Date.now() - cached.timestamp < SNAPSHOT_CACHE_TTL) {
+        return res.json(cached.data);
+      }
+
+      const SNAPSHOT_COINS = [
+        { id: "bitcoin", name: "Bitcoin", symbol: "btc", image: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png" },
+        { id: "ethereum", name: "Ethereum", symbol: "eth", image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png" },
+        { id: "ripple", name: "XRP", symbol: "xrp", image: "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png" },
+        { id: "solana", name: "Solana", symbol: "sol", image: "https://assets.coingecko.com/coins/images/4128/large/solana.png" },
+        { id: "dogecoin", name: "Dogecoin", symbol: "doge", image: "https://assets.coingecko.com/coins/images/5/large/dogecoin.png" },
+      ];
+
+      const targetTs = parsedDate.getTime() / 1000;
+      const nowMidnight = new Date();
+      nowMidnight.setUTCHours(0, 0, 0, 0);
+      const targetMidnight = new Date(parsedDate);
+      targetMidnight.setUTCHours(0, 0, 0, 0);
+      const daysSince = Math.floor((nowMidnight.getTime() - targetMidnight.getTime()) / 86400000);
+
+      if (daysSince > 365 || daysSince < 1) {
+        return res.status(400).json({ error: "Select a date within the last 365 days (not today)" });
+      }
+
+      const ids = SNAPSHOT_COINS.map(c => c.id).join(",");
+      const priceUrl = `${COINGECKO_BASE}/simple/price?ids=${ids}&vs_currencies=usd&include_market_cap=true`;
+      let currentPrices: Record<string, any> = {};
+      try {
+        const priceRes = await fetch(priceUrl);
+        if (priceRes.ok) currentPrices = await priceRes.json();
+      } catch {}
+
+      const coins: any[] = [];
+
+      async function fetchWithRetry(url: string, retries = 3): Promise<any> {
+        for (let attempt = 0; attempt < retries; attempt++) {
+          try {
+            if (attempt > 0) await new Promise(r => setTimeout(r, (4000 + Math.random() * 2000) * attempt));
+            const resp = await fetch(url);
+            if (resp.ok) return resp.json();
+            if (resp.status === 429 || resp.status >= 500) continue;
+            return null;
+          } catch {
+            if (attempt === retries - 1) return null;
+          }
+        }
+        return null;
+      }
+
+      for (let i = 0; i < SNAPSHOT_COINS.length; i++) {
+        const coin = SNAPSHOT_COINS[i];
+        try {
+          await new Promise(r => setTimeout(r, i === 0 ? 3000 : 6000));
+          const chartUrl = `${COINGECKO_BASE}/coins/${coin.id}/market_chart?vs_currency=usd&days=${daysSince}`;
+          const chartData = await fetchWithRetry(chartUrl);
+          if (!chartData) continue;
+
+          const prices = chartData?.prices;
+          const mcaps = chartData?.market_caps;
+          const volumes = chartData?.total_volumes;
+          if (!Array.isArray(prices) || prices.length === 0) continue;
+
+          const targetMs = targetTs * 1000;
+          let closestIdx = 0;
+          let closestDiff = Math.abs(prices[0][0] - targetMs);
+          for (let j = 1; j < prices.length; j++) {
+            const diff = Math.abs(prices[j][0] - targetMs);
+            if (diff < closestDiff) { closestDiff = diff; closestIdx = j; }
+          }
+
+          const priceThen = prices[closestIdx]?.[1] ?? null;
+          const marketCapThen = mcaps?.[closestIdx]?.[1] ?? null;
+          const volumeThen = volumes?.[closestIdx]?.[1] ?? null;
+          const priceNow = currentPrices[coin.id]?.usd ?? prices[prices.length - 1]?.[1] ?? null;
+          const marketCapNow = currentPrices[coin.id]?.usd_market_cap ?? null;
+          const changePercent = priceThen && priceNow
+            ? ((priceNow - priceThen) / priceThen) * 100
+            : null;
+
+          coins.push({
+            id: coin.id,
+            name: coin.name,
+            symbol: coin.symbol,
+            image: coin.image,
+            priceThen,
+            priceNow,
+            changePercent,
+            marketCapThen,
+            marketCapNow,
+            volumeThen,
+          });
+        } catch {
+          continue;
+        }
+      }
+
+      const responseData = { date, coins };
+      snapshotCache[date] = { data: responseData, timestamp: Date.now() };
+
+      if (Object.keys(snapshotCache).length > 30) {
+        const entries = Object.entries(snapshotCache).sort((a, b) => a[1].timestamp - b[1].timestamp);
+        for (let i = 0; i < entries.length - 20; i++) {
+          delete snapshotCache[entries[i][0]];
+        }
+      }
+
+      res.json(responseData);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }
