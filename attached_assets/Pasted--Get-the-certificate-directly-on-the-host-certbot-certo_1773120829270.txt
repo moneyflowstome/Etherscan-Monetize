@@ -1,0 +1,48 @@
+
+# Get the certificate directly on the host
+certbot certonly --standalone \
+  -d tokenaltcoin.com -d www.tokenaltcoin.com \
+  --email clodmodracing@mail.com \
+  --agree-tos --no-eff-email
+Hit:1 http://mirror.pit.teraswitch.com/ubuntu noble-backports InRelease
+Hit:2 http://mirror.pit.teraswitch.com/ubuntu noble InRelease                                                                        
+Hit:3 http://mirror.pit.teraswitch.com/ubuntu noble-security InRelease                                                                      
+Hit:4 https://deb.nodesource.com/node_20.x nodistro InRelease                                                                               
+Hit:5 http://mirror.pit.teraswitch.com/ubuntu noble-updates InRelease                                                                               
+Hit:6 https://download.docker.com/linux/ubuntu noble InRelease                                                                                      
+Hit:7 http://apt.postgresql.org/pub/repos/apt noble-pgdg InRelease                                                                                  
+Hit:8 https://repository.monarx.com/repository/ubuntu-noble noble InRelease                                                                         
+Hit:9 http://archive.ubuntu.com/ubuntu noble InRelease
+Get:10 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Hit:11 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Get:12 http://archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+Get:13 http://archive.ubuntu.com/ubuntu noble-updates/restricted amd64 c-n-f Metadata [556 B]
+Get:14 http://archive.ubuntu.com/ubuntu noble-security/restricted amd64 c-n-f Metadata [544 B]
+Fetched 253 kB in 1s (173 kB/s)   
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+89 packages can be upgraded. Run 'apt list --upgradable' to see them.
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+certbot is already the newest version (2.9.0-1).
+0 upgraded, 0 newly installed, 0 to remove and 89 not upgraded.
+[+] stop 1/1
+ ✔ Container etherscan-monetize-nginx-1 Stopped                                                                                                  0.0s
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Requesting a certificate for tokenaltcoin.com and www.tokenaltcoin.com
+
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/tokenaltcoin.com/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/tokenaltcoin.com/privkey.pem
+This certificate expires on 2026-06-08.
+These files will be updated when the certificate renews.
+Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+ * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+ * Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
