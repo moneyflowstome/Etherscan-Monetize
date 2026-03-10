@@ -64,12 +64,11 @@ export function BannerRotation({ zone, size, className = "" }: BannerRotationPro
 
   if (banners.length === 0) {
     return (
-      <div className={`flex items-center justify-center w-full ${className}`}
-        style={{ maxWidth: dims.width }}
+      <div className={`flex items-center justify-center ${className}`}
+        style={{ width: dims.width, height: dims.height }}
         data-testid={`banner-placeholder-${zone}`}>
         <a href="/advertise"
-          className="flex items-center justify-center w-full border border-dashed border-border/30 rounded-md bg-muted/5 hover:bg-muted/15 transition-colors cursor-pointer"
-          style={{ height: Math.max(dims.height, 40), maxWidth: "100%" }}
+          className="flex items-center justify-center w-full h-full border border-dashed border-border/30 rounded-md bg-muted/5 hover:bg-muted/15 transition-colors cursor-pointer"
           data-testid={`link-advertise-${zone}`}>
           <span className="text-[10px] text-muted-foreground/40 tracking-wide">Advertise Here</span>
         </a>
@@ -81,15 +80,15 @@ export function BannerRotation({ zone, size, className = "" }: BannerRotationPro
   if (!banner) return null;
 
   return (
-    <div className={`relative flex items-center justify-center w-full ${className}`}
-      style={{ maxWidth: dims.width }}
+    <div className={`relative flex items-center justify-center ${className}`}
+      style={{ width: dims.width, height: dims.height }}
       data-testid={`banner-${zone}`}>
       <a href={banner.targetUrl} target="_blank" rel="noopener noreferrer sponsored"
         onClick={() => handleClick(banner.id)}
-        className="block w-full transition-opacity hover:opacity-90"
+        className="block transition-opacity hover:opacity-90"
         data-testid={`banner-link-${banner.id}`}>
         <img src={banner.imageUrl} alt={banner.name || "Advertisement"}
-          style={{ width: "100%", maxWidth: dims.width, height: "auto", aspectRatio: `${dims.width}/${dims.height}`, objectFit: "cover" }}
+          style={{ width: dims.width, height: dims.height, objectFit: "cover" }}
           className="rounded"
           loading="lazy" />
       </a>
