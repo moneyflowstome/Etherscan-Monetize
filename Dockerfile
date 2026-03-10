@@ -20,13 +20,10 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder /app/shared ./shared
+COPY --from=builder /app/script/migrate.cjs ./script/migrate.cjs
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN npm ci --omit=dev && \
-    npm install drizzle-kit drizzle-orm tsx pg && \
-    npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 RUN chmod +x docker-entrypoint.sh && \
     chown -R appuser:appgroup /app

@@ -11,10 +11,10 @@ pool.query('SELECT 1').then(() => { pool.end(); process.exit(0); }).catch(() => 
   sleep 2
 done
 
-echo "Database is ready. Pushing schema..."
-./node_modules/.bin/drizzle-kit push
+echo "Database is ready. Running migrations..."
+node script/migrate.cjs
 if [ $? -ne 0 ]; then
-  echo "ERROR: Database schema push failed. Exiting."
+  echo "ERROR: Migration failed. Exiting."
   exit 1
 fi
 
