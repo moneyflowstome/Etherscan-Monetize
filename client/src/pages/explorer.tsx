@@ -574,10 +574,10 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={handleConnectSolflare} className="text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" data-testid="button-connect-solflare">
+        <Button variant="outline" size="sm" onClick={handleConnectSolflare} className="hidden md:inline-flex text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" data-testid="button-connect-solflare">
           <Wallet className="w-3.5 h-3.5" /> Connect Solflare
         </Button>
-        <Button variant="outline" size="sm" onClick={handleConnectPhantom} className="text-xs gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10" data-testid="button-connect-phantom">
+        <Button variant="outline" size="sm" onClick={handleConnectPhantom} className="hidden md:inline-flex text-xs gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10" data-testid="button-connect-phantom">
           <Wallet className="w-3.5 h-3.5" /> Connect Phantom
         </Button>
         {address && (
@@ -709,7 +709,7 @@ function TrxExplorer({ chain }: { chain: ChainInfo }) {
       <div className="flex gap-2">
         <Input placeholder="Enter TRON address (T...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-trx-address" />
         <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-trx-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
-        <Button variant="outline" onClick={handleConnectTronLink} className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 shrink-0" data-testid="button-trx-connect-tronlink"><Wallet className="w-4 h-4 mr-1" /> TronLink</Button>
+        <Button variant="outline" onClick={handleConnectTronLink} className="hidden md:inline-flex bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 shrink-0" data-testid="button-trx-connect-tronlink"><Wallet className="w-4 h-4 mr-1" /> TronLink</Button>
       </div>
       {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
       {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-trx-error">{(error as Error).message}</div>}

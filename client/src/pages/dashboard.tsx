@@ -721,7 +721,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleConnectSolflare}
-                  className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
+                  className="hidden md:inline-flex bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
                   data-testid="button-connect-solflare"
                 >
                   <Wallet className="w-4 h-4" />
@@ -731,7 +731,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleConnectPhantom}
-                  className="bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
+                  className="hidden md:inline-flex bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
                   data-testid="button-connect-phantom"
                 >
                   <Wallet className="w-4 h-4" />
@@ -741,7 +741,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleConnectTronLink}
-                  className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                  className="hidden md:inline-flex bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
                   data-testid="button-connect-tronlink"
                 >
                   <Wallet className="w-4 h-4" />
@@ -1197,7 +1197,7 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     onClick={handleConnectSolflare}
-                    className="w-full bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
+                    className="hidden md:inline-flex w-full bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
                     data-testid="button-sidebar-connect-solflare"
                   >
                     <Wallet className="w-4 h-4" />
@@ -1207,7 +1207,7 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     onClick={handleConnectPhantom}
-                    className="w-full bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
+                    className="hidden md:inline-flex w-full bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
                     data-testid="button-sidebar-connect-phantom"
                   >
                     <Wallet className="w-4 h-4" />
@@ -1243,7 +1243,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleConnectTronLink}
-                  className="w-full bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                  className="hidden md:inline-flex w-full bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
                   data-testid="button-sidebar-connect-tronlink"
                 >
                   <Wallet className="w-4 h-4" />
