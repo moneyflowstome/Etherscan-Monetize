@@ -69,13 +69,13 @@ export function Navbar() {
           <span className="font-display font-bold text-lg md:text-xl tracking-wider text-foreground" data-testid="text-app-name">TokenAltcoin</span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-0.5 flex-1 mx-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
           {visibleLinks.map((link) => (
             <Link key={link.path} href={link.path}>
               <Button
                 variant="ghost"
                 size="sm"
-                className={`text-sm px-3 transition-colors ${
+                className={`text-xs px-2 py-1 h-7 whitespace-nowrap transition-colors shrink-0 ${
                   location === link.path
                     ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
