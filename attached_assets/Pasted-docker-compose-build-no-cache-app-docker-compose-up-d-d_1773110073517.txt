@@ -1,0 +1,52 @@
+docker compose build --no-cache app
+docker compose up -d
+[+] down 5/5
+ ✔ Container etherscan-monetize-certbot-1 Removed                                                                                                0.2s
+ ✔ Container etherscan-monetize-nginx-1   Removed                                                                                                0.0s
+ ✔ Container etherscan-monetize-app-1     Removed                                                                                                0.1s
+ ✔ Container etherscan-monetize-db-1      Removed                                                                                                0.2s
+ ✔ Network etherscan-monetize_default     Removed                                                                                                0.1s
+[+] Building 110.1s (23/23) FINISHED                                                                                                                 
+ => [internal] load local bake definitions                                                                                                      0.0s
+ => => reading from stdin 578B                                                                                                                  0.0s
+ => [internal] load build definition from Dockerfile                                                                                            0.0s
+ => => transferring dockerfile: 944B                                                                                                            0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                               0.1s
+ => [internal] load .dockerignore                                                                                                               0.0s
+ => => transferring context: 163B                                                                                                               0.0s
+ => [internal] load build context                                                                                                               0.0s
+ => => transferring context: 6.92kB                                                                                                             0.0s
+ => [base 1/2] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                    0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                         0.0s
+ => CACHED [base 2/2] WORKDIR /app                                                                                                              0.0s
+ => [runner 1/9] RUN addgroup -S appgroup && adduser -S appuser -G appgroup                                                                     0.3s
+ => [deps 1/2] COPY package.json package-lock.json* ./                                                                                          0.1s
+ => [deps 2/2] RUN npm ci --include=dev                                                                                                        13.9s
+ => [builder 1/3] COPY --from=deps /app/node_modules ./node_modules                                                                             7.3s 
+ => [builder 2/3] COPY . .                                                                                                                      0.3s 
+ => [builder 3/3] RUN npm run build                                                                                                            14.8s 
+ => [runner 2/9] COPY --from=builder /app/dist ./dist                                                                                           0.1s 
+ => [runner 3/9] COPY --from=builder /app/package.json ./package.json                                                                           0.0s 
+ => [runner 4/9] COPY --from=builder /app/package-lock.json ./package-lock.json                                                                 0.0s 
+ => [runner 5/9] COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts                                                                 0.1s 
+ => [runner 6/9] COPY --from=builder /app/shared ./shared                                                                                       0.0s 
+ => [runner 7/9] COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh                                                           0.0s 
+ => [runner 8/9] RUN npm ci --omit=dev &&     npm install drizzle-kit tsx &&     npm cache clean --force                                       12.0s
+ => [runner 9/9] RUN chmod +x docker-entrypoint.sh &&     chown -R appuser:appgroup /app                                                       36.8s 
+ => exporting to image                                                                                                                         20.1s 
+ => => exporting layers                                                                                                                         8.3s 
+ => => exporting manifest sha256:a81fd115dc9d8c38b25806aeab31126599011c99e97b6fddd29f420ffb728d4e                                               0.0s 
+ => => exporting config sha256:1ba90316581664036c9d715eff06b655a1533491e9c5c4519bd72751b92a8102                                                 0.0s 
+ => => exporting attestation manifest sha256:423526c77397e6131860aeded684273d42bfce4a756ad9ee965d64efb47bc94e                                   0.0s 
+ => => exporting manifest list sha256:56ca901e038853d2969bdcce4491eae0e216cd570f4fa571a375aa710efe476e                                          0.0s
+ => => naming to docker.io/library/etherscan-monetize-app:latest                                                                                0.0s
+ => => unpacking to docker.io/library/etherscan-monetize-app:latest                                                                            11.8s
+ => resolving provenance for metadata file                                                                                                      0.0s
+[+] build 1/1
+ ✔ Image etherscan-monetize-app Built                                                                                                          110.1s
+[+] up 5/5
+ ✔ Network etherscan-monetize_default     Created                                                                                                0.0s
+ ✔ Container etherscan-monetize-db-1      Healthy                                                                                                6.7s
+ ✔ Container etherscan-monetize-certbot-1 Created                                                                                                0.7s
+ ✔ Container etherscan-monetize-app-1     Created                                                                                                0.0s
+ ✔ Container etherscan-monetize-nginx-1   Created                                                                                                0.1s
