@@ -17,9 +17,9 @@ export function Footer() {
   const footerBannerEnabled = settings?.banner_footer_enabled !== "false";
 
   return (
-    <footer className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 mt-16 pt-8 border-t border-border">
+    <footer className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 mt-8 pt-6 border-t border-border">
       {footerBannerEnabled && (
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4 w-full">
           <BannerRotation zone="footer" size="468x60" />
         </div>
       )}
