@@ -1,7 +1,7 @@
-import { Zap, Menu, X, Sun, Moon, LogIn } from "lucide-react";
+import { Zap, Menu, X, Sun, Moon, LogIn, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
-import { useState, useContext } from "react";
+import { useState, useContext, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/hooks/use-theme";
 import { FeatureContext } from "@/App";
@@ -36,11 +36,39 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const featureSettings = useContext(FeatureContext);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const visibleLinks = NAV_LINKS.filter(link => {
     if (!link.featureKey) return true;
     return featureSettings[link.featureKey] !== "false";
   });
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [checkScroll, visibleLinks.length]);
+
+  function scrollNav(dir: "left" | "right") {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === "left" ? -200 : 200, behavior: "smooth" });
+  }
 
   const { data: showLogin } = useQuery({
     queryKey: ["show-login-link"],
@@ -62,46 +90,64 @@ export function Navbar() {
   return (
     <nav className="relative z-20 border-b border-border sticky top-0 px-4 md:px-6 py-3 backdrop-blur-xl bg-background/80" data-testid="navbar">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 no-underline">
+        <Link href="/" className="flex items-center gap-2 no-underline shrink-0">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
           <span className="font-display font-bold text-lg md:text-xl tracking-wider text-foreground" data-testid="text-app-name">TokenAltcoin</span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-0.5 flex-1 mx-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-          {visibleLinks.map((link) => (
-            <Link key={link.path} href={link.path}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`text-xs px-2 py-1 h-7 whitespace-nowrap transition-colors shrink-0 ${
-                  location === link.path
-                    ? "text-primary bg-primary/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
-                data-testid={`nav-${link.label.toLowerCase().replace(" ", "-")}`}
-              >
-                {link.label}
-              </Button>
-            </Link>
-          ))}
+        <div className="hidden md:flex items-center flex-1 mx-3 relative">
+          {canScrollLeft && (
+            <button onClick={() => scrollNav("left")}
+              className="absolute left-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-background/90 border border-border shadow-md text-foreground hover:bg-muted transition-colors"
+              data-testid="button-nav-scroll-left">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+          <div ref={scrollRef}
+            className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide px-1"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            {visibleLinks.map((link) => (
+              <Link key={link.path} href={link.path}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-xs px-2 py-1 h-7 whitespace-nowrap transition-colors shrink-0 ${
+                    location === link.path
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                  data-testid={`nav-${link.label.toLowerCase().replace(" ", "-")}`}
+                >
+                  {link.label}
+                </Button>
+              </Link>
+            ))}
+          </div>
+          {canScrollRight && (
+            <button onClick={() => scrollNav("right")}
+              className="absolute right-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-background/90 border border-border shadow-md text-foreground hover:bg-muted transition-colors"
+              data-testid="button-nav-scroll-right">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {loginVisible && (
             <Link href="/admin">
               <Button
                 variant="ghost"
                 size="sm"
-                className={`text-sm px-3 transition-colors ${
+                className={`text-xs px-2 h-7 transition-colors ${
                   location === "/admin"
                     ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
                 data-testid="nav-login"
               >
-                <LogIn className="w-4 h-4 mr-1" />
+                <LogIn className="w-3.5 h-3.5 mr-1" />
                 Login
               </Button>
             </Link>
@@ -110,7 +156,7 @@ export function Navbar() {
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground w-7 h-7"
             data-testid="button-theme-toggle"
           >
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
