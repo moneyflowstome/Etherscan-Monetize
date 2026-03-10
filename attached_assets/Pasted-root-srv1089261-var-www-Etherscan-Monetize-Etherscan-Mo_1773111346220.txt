@@ -1,0 +1,87 @@
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cd /var/www/Etherscan-Monetize/Etherscan-Monetize
+
+# Update the Dockerfile
+cat > Dockerfile << 'EOF'
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json package-lock.json* ./
+RUN npm ci --include=dev
+
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM base AS runner
+ENV NODE_ENV=production
+ENV PORT=5000
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/script/migrate.cjs ./script/migrate.cjs
+COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
+
+RUN npm ci --omit=dev && npm cache clean --force
+
+RUN chmod +x docker-entrypoint.sh && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
+docker compose up -d --no-cache appiting."s..." process.exit(0); }).catch(() => { pool.end(); process.exit(1); });
+[+] down 5/5
+ ✔ Container etherscan-monetize-certbot-1 Removed                                                                                                0.2s
+ ✔ Container etherscan-monetize-nginx-1   Removed                                                                                                0.0s
+ ✔ Container etherscan-monetize-app-1     Removed                                                                                                0.1s
+ ✔ Container etherscan-monetize-db-1      Removed                                                                                                0.2s
+ ✔ Network etherscan-monetize_default     Removed                                                                                                0.1s
+[+] Building 108.4s (22/22) FINISHED                                                                                                                 
+ => [internal] load local bake definitions                                                                                                      0.0s
+ => => reading from stdin 578B                                                                                                                  0.0s
+ => [internal] load build definition from Dockerfile                                                                                            0.0s
+ => => transferring dockerfile: 862B                                                                                                            0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                               0.3s
+ => [internal] load .dockerignore                                                                                                               0.0s
+ => => transferring context: 163B                                                                                                               0.0s
+ => [internal] load build context                                                                                                               0.0s
+ => => transferring context: 8.38kB                                                                                                             0.0s
+ => [base 1/2] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                    0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                         0.0s
+ => CACHED [base 2/2] WORKDIR /app                                                                                                              0.0s
+ => [runner 1/8] RUN addgroup -S appgroup && adduser -S appuser -G appgroup                                                                     0.3s
+ => [deps 1/2] COPY package.json package-lock.json* ./                                                                                          0.1s
+ => [deps 2/2] RUN npm ci --include=dev                                                                                                        12.7s
+ => [builder 1/3] COPY --from=deps /app/node_modules ./node_modules                                                                             7.5s 
+ => [builder 2/3] COPY . .                                                                                                                      0.3s 
+ => [builder 3/3] RUN npm run build                                                                                                            15.4s 
+ => [runner 2/8] COPY --from=builder /app/dist ./dist                                                                                           0.1s 
+ => [runner 3/8] COPY --from=builder /app/package.json ./package.json                                                                           0.1s 
+ => [runner 4/8] COPY --from=builder /app/package-lock.json ./package-lock.json                                                                 0.1s 
+ => [runner 5/8] COPY --from=builder /app/script/migrate.cjs ./script/migrate.cjs                                                               0.1s 
+ => [runner 6/8] COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh                                                           0.0s 
+ => [runner 7/8] RUN npm ci --omit=dev && npm cache clean --force                                                                               9.5s 
+ => [runner 8/8] RUN chmod +x docker-entrypoint.sh &&     chown -R appuser:appgroup /app                                                       33.5s 
+ => exporting to image                                                                                                                         24.2s 
+ => => exporting layers                                                                                                                         9.9s 
+ => => exporting manifest sha256:68d8c11d72fb47b7aa34ac621a2cc0565d3b76bfb6975c367d166ed434cdb451                                               0.0s 
+ => => exporting config sha256:0103c9f89d4e82202bdab37067a4958cce89b29f9097aca4cfb139e5379a2c10                                                 0.0s 
+ => => exporting attestation manifest sha256:aa4b19ff23fa03e65bd988d700da6ee8e23b34eff070566a45cd02981181e50f                                   0.0s 
+ => => exporting manifest list sha256:91d9583414fdcce607d95ab36a81b34598fc5dcd1a5dac55f92d19a76e507903                                          0.0s
+ => => naming to docker.io/library/etherscan-monetize-app:latest                                                                                0.0s
+ => => unpacking to docker.io/library/etherscan-monetize-app:latest                                                                            14.2s
+ => resolving provenance for metadata file                                                                                                      0.0s
+[+] build 1/1
+ ✔ Image etherscan-monetize-app Built                                                                                                          108.5s
+[+] up 5/5
+ ✔ Network etherscan-monetize_default     Created                                                                                                0.0s
+ ✔ Container etherscan-monetize-db-1      Healthy                                                                                                6.6s
+ ✔ Container etherscan-monetize-certbot-1 Created                                                                                                0.6s
+ ✔ Container etherscan-monetize-app-1     Created                                                                                                0.1s
+ ✔ Container etherscan-monetize-nginx-1   Created                                                                                                0.1s
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
