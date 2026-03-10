@@ -42,6 +42,7 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,6 +166,9 @@ function LoginForm({ onLogin }: { onLogin: (token: string) => void }) {
               {loading ? "Authenticating..." : "Login"}
             </Button>
             <p className="text-xs text-muted-foreground text-center">Enter admin password</p>
+            <a href="/" className="flex items-center justify-center gap-1.5 text-xs text-primary hover:underline mt-2" data-testid="link-admin-home">
+              <Home className="w-3.5 h-3.5" /> Back to Home
+            </a>
           </form>
         </CardContent>
       </Card>
