@@ -157,7 +157,7 @@ export default function Dashboard() {
       if (!tronLink) {
         if (isMobileDevice) {
           window.open("https://www.tronlink.org/", "_blank");
-          toast({ title: "Get TronLink", description: "Opening TronLink download page. Copy your address and paste it here to track." });
+          toast({ title: "Get TronLink", description: "Download TronLink, copy your address, and paste it here to track." });
         } else {
           window.open("https://chromewebstore.google.com/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec", "_blank");
           toast({ title: "TronLink not found", description: "Opening Chrome extension page. Install and refresh to connect." });
@@ -189,7 +189,7 @@ export default function Dashboard() {
       if (!solflare) {
         if (isMobileDevice) {
           window.open("https://solflare.com/download", "_blank");
-          toast({ title: "Get Solflare", description: "Opening Solflare download page. Copy your address and paste it here to track." });
+          toast({ title: "Get Solflare", description: "Download Solflare, copy your address, and paste it here to track." });
         } else {
           window.open("https://chromewebstore.google.com/detail/solflare-wallet/bhhhlbepdkbapadjdcopmkbaliekbhogl", "_blank");
           toast({ title: "Solflare not found", description: "Opening Chrome extension page. Install and refresh to connect." });
@@ -218,7 +218,7 @@ export default function Dashboard() {
       if (!phantom || !phantom.isPhantom) {
         if (isMobileDevice) {
           window.open("https://phantom.app/download", "_blank");
-          toast({ title: "Get Phantom", description: "Opening Phantom download page. Copy your address and paste it here to track." });
+          toast({ title: "Get Phantom", description: "Download Phantom, copy your address, and paste it here to track." });
         } else {
           window.open("https://chromewebstore.google.com/detail/phantom/bfnaelmomeimhlpmgjnjophhpkkoljpa", "_blank");
           toast({ title: "Phantom not found", description: "Opening Chrome extension page. Install and refresh to connect." });

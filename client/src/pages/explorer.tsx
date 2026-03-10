@@ -530,7 +530,7 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
       if (!solflare) {
         if (isMobile) {
           window.open("https://solflare.com/download", "_blank");
-          toast({ title: "Get Solflare", description: "Opening Solflare download page. Copy your address and paste it here to track." });
+          toast({ title: "Get Solflare", description: "Download Solflare, copy your address, and paste it here to track." });
         } else {
           window.open("https://chromewebstore.google.com/detail/solflare-wallet/bhhhlbepdkbapadjdcopmkbaliekbhogl", "_blank");
           toast({ title: "Solflare not found", description: "Opening Chrome extension page. Install and refresh to connect." });
@@ -557,7 +557,7 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
       if (!phantom || !phantom.isPhantom) {
         if (isMobile) {
           window.open("https://phantom.app/download", "_blank");
-          toast({ title: "Get Phantom", description: "Opening Phantom download page. Copy your address and paste it here to track." });
+          toast({ title: "Get Phantom", description: "Download Phantom, copy your address, and paste it here to track." });
         } else {
           window.open("https://chromewebstore.google.com/detail/phantom/bfnaelmomeimhlpmgjnjophhpkkoljpa", "_blank");
           toast({ title: "Phantom not found", description: "Opening Chrome extension page. Install and refresh to connect." });
