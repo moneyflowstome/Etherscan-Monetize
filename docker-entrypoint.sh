@@ -12,7 +12,7 @@ pool.query('SELECT 1').then(() => { pool.end(); process.exit(0); }).catch(() => 
 done
 
 echo "Database is ready. Pushing schema..."
-npx drizzle-kit push
+./node_modules/.bin/drizzle-kit push
 if [ $? -ne 0 ]; then
   echo "ERROR: Database schema push failed. Exiting."
   exit 1

@@ -25,7 +25,7 @@ COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN npm ci --omit=dev && \
-    npm install drizzle-kit tsx && \
+    npm install drizzle-kit drizzle-orm tsx pg && \
     npm cache clean --force
 
 RUN chmod +x docker-entrypoint.sh && \
