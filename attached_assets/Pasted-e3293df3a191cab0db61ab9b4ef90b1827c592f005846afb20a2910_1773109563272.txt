@@ -1,0 +1,16 @@
+e3293df3a191cab0db61ab9b4ef90b1827c592f005846afb20a29107113f5657                                   0.0s
+[+] up 44/44ting manifest list sha256:1128ed4f33fe3cb8083f9c2e1d33ab93cd40d05283bb1604da188c8850b42a2f                                          0.0s
+ ✔ Image nginx:alpine                      Pulled                                                                                              7.3ss
+ ✔ Image certbot/certbot                   Pulled                                                                                              13.0s
+ ✔ Image postgres:16-alpine                Pulled                                                                                              14.0s
+ ✔ Image etherscan-monetize-app            Built                                                                                               142.4s
+ ✔ Network etherscan-monetize_default      Created                                                                                             0.0s
+ ✔ Volume etherscan-monetize_postgres_data Created                                                                                             0.0s
+ ✔ Volume etherscan-monetize_certbot_data  Created                                                                                             0.0s
+ ✔ Volume etherscan-monetize_certbot_www   Created                                                                                             0.0s
+ ✔ Container etherscan-monetize-certbot-1  Created                                                                                             0.8s
+ ✔ Container etherscan-monetize-db-1       Healthy                                                                                             7.0s
+ ✔ Container etherscan-monetize-app-1      Created                                                                                             0.0s
+ ✔ Container etherscan-monetize-nginx-1    Created                                                                                             0.1s
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint etherscan-monetize-nginx-1 (f24b0dc8c8bea5f2600629a6cc01fcac03dd0279d3371fcb178e40045c323027): failed to bind host port 0.0.0.0:80/tcp: address already in use
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
