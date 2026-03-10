@@ -149,11 +149,19 @@ export default function Dashboard() {
     });
   }, [walletInput, toast, selectedChain.isTron, selectedChain.isSolana]);
 
+  const isMobileDevice = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   const handleConnectTronLink = useCallback(async () => {
     try {
       const tronLink = (window as any).tronLink;
       if (!tronLink) {
-        toast({ title: "TronLink not found", description: "Please install TronLink browser extension to connect your TRON wallet.", variant: "destructive" });
+        if (isMobileDevice) {
+          window.open("https://www.tronlink.org/", "_blank");
+          toast({ title: "Get TronLink", description: "Opening TronLink download page. Copy your address and paste it here to track." });
+        } else {
+          window.open("https://chromewebstore.google.com/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec", "_blank");
+          toast({ title: "TronLink not found", description: "Opening Chrome extension page. Install and refresh to connect." });
+        }
         return;
       }
       if (tronLink.request) {
@@ -173,13 +181,19 @@ export default function Dashboard() {
     } catch {
       toast({ title: "Connection failed", description: "Could not connect to TronLink.", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, isMobileDevice]);
 
   const handleConnectSolflare = useCallback(async () => {
     try {
       const solflare = (window as any).solflare;
       if (!solflare) {
-        toast({ title: "Solflare not found", description: "Please install the Solflare browser extension.", variant: "destructive" });
+        if (isMobileDevice) {
+          window.open("https://solflare.com/download", "_blank");
+          toast({ title: "Get Solflare", description: "Opening Solflare download page. Copy your address and paste it here to track." });
+        } else {
+          window.open("https://chromewebstore.google.com/detail/solflare-wallet/bhhhlbepdkbapadjdcopmkbaliekbhogl", "_blank");
+          toast({ title: "Solflare not found", description: "Opening Chrome extension page. Install and refresh to connect." });
+        }
         return;
       }
       await solflare.connect();
@@ -196,13 +210,19 @@ export default function Dashboard() {
     } catch {
       toast({ title: "Connection failed", description: "Could not connect to Solflare.", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, isMobileDevice]);
 
   const handleConnectPhantom = useCallback(async () => {
     try {
       const phantom = (window as any).phantom?.solana || (window as any).solana;
       if (!phantom || !phantom.isPhantom) {
-        toast({ title: "Phantom not found", description: "Please install the Phantom browser extension.", variant: "destructive" });
+        if (isMobileDevice) {
+          window.open("https://phantom.app/download", "_blank");
+          toast({ title: "Get Phantom", description: "Opening Phantom download page. Copy your address and paste it here to track." });
+        } else {
+          window.open("https://chromewebstore.google.com/detail/phantom/bfnaelmomeimhlpmgjnjophhpkkoljpa", "_blank");
+          toast({ title: "Phantom not found", description: "Opening Chrome extension page. Install and refresh to connect." });
+        }
         return;
       }
       const resp = await phantom.connect();
@@ -219,7 +239,7 @@ export default function Dashboard() {
     } catch {
       toast({ title: "Connection failed", description: "Could not connect to Phantom.", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, isMobileDevice]);
 
   const handleCopyAddress = useCallback(() => {
     if (trackedAddress) {
@@ -721,31 +741,31 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleConnectSolflare}
-                  className="hidden md:inline-flex bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
+                  className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
                   data-testid="button-connect-solflare"
                 >
                   <Wallet className="w-4 h-4" />
-                  Connect Solflare
+                  {isMobileDevice ? "Get Solflare" : "Connect Solflare"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleConnectPhantom}
-                  className="hidden md:inline-flex bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
+                  className="bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
                   data-testid="button-connect-phantom"
                 >
                   <Wallet className="w-4 h-4" />
-                  Connect Phantom
+                  {isMobileDevice ? "Get Phantom" : "Connect Phantom"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleConnectTronLink}
-                  className="hidden md:inline-flex bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                  className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
                   data-testid="button-connect-tronlink"
                 >
                   <Wallet className="w-4 h-4" />
-                  Connect TronLink
+                  {isMobileDevice ? "Get TronLink" : "Connect TronLink"}
                 </Button>
               </div>
             </div>
@@ -1197,21 +1217,21 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     onClick={handleConnectSolflare}
-                    className="hidden md:inline-flex w-full bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
+                    className="w-full bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 gap-2"
                     data-testid="button-sidebar-connect-solflare"
                   >
                     <Wallet className="w-4 h-4" />
-                    Connect Solflare
+                    {isMobileDevice ? "Get Solflare" : "Connect Solflare"}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleConnectPhantom}
-                    className="hidden md:inline-flex w-full bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
+                    className="w-full bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20 hover:text-violet-300 gap-2"
                     data-testid="button-sidebar-connect-phantom"
                   >
                     <Wallet className="w-4 h-4" />
-                    Connect Phantom
+                    {isMobileDevice ? "Get Phantom" : "Connect Phantom"}
                   </Button>
                 </div>
                 {solanaTokens.length > 0 && (
@@ -1243,11 +1263,11 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleConnectTronLink}
-                  className="hidden md:inline-flex w-full bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
+                  className="w-full bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 gap-2"
                   data-testid="button-sidebar-connect-tronlink"
                 >
                   <Wallet className="w-4 h-4" />
-                  Connect TronLink
+                  {isMobileDevice ? "Get TronLink" : "Connect TronLink"}
                 </Button>
               </CardContent>
             </Card>

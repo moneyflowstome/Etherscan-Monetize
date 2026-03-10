@@ -522,11 +522,19 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
 
   const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
 
+  const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   const handleConnectSolflare = async () => {
     try {
       const solflare = (window as any).solflare;
       if (!solflare) {
-        toast({ title: "Solflare not found", description: "Install the Solflare wallet extension to connect.", variant: "destructive" });
+        if (isMobile) {
+          window.open("https://solflare.com/download", "_blank");
+          toast({ title: "Get Solflare", description: "Opening Solflare download page. Copy your address and paste it here to track." });
+        } else {
+          window.open("https://chromewebstore.google.com/detail/solflare-wallet/bhhhlbepdkbapadjdcopmkbaliekbhogl", "_blank");
+          toast({ title: "Solflare not found", description: "Opening Chrome extension page. Install and refresh to connect." });
+        }
         return;
       }
       await solflare.connect();
@@ -547,7 +555,13 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
     try {
       const phantom = (window as any).phantom?.solana || (window as any).solana;
       if (!phantom || !phantom.isPhantom) {
-        toast({ title: "Phantom not found", description: "Install the Phantom wallet extension to connect.", variant: "destructive" });
+        if (isMobile) {
+          window.open("https://phantom.app/download", "_blank");
+          toast({ title: "Get Phantom", description: "Opening Phantom download page. Copy your address and paste it here to track." });
+        } else {
+          window.open("https://chromewebstore.google.com/detail/phantom/bfnaelmomeimhlpmgjnjophhpkkoljpa", "_blank");
+          toast({ title: "Phantom not found", description: "Opening Chrome extension page. Install and refresh to connect." });
+        }
         return;
       }
       const resp = await phantom.connect();
@@ -574,11 +588,11 @@ function SolExplorer({ chain }: { chain: ChainInfo }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={handleConnectSolflare} className="hidden md:inline-flex text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" data-testid="button-connect-solflare">
-          <Wallet className="w-3.5 h-3.5" /> Connect Solflare
+        <Button variant="outline" size="sm" onClick={handleConnectSolflare} className="text-xs gap-1.5 border-purple-500/30 text-purple-400 hover:bg-purple-500/10" data-testid="button-connect-solflare">
+          <Wallet className="w-3.5 h-3.5" /> {isMobile ? "Get Solflare" : "Connect Solflare"}
         </Button>
-        <Button variant="outline" size="sm" onClick={handleConnectPhantom} className="hidden md:inline-flex text-xs gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10" data-testid="button-connect-phantom">
-          <Wallet className="w-3.5 h-3.5" /> Connect Phantom
+        <Button variant="outline" size="sm" onClick={handleConnectPhantom} className="text-xs gap-1.5 border-violet-500/30 text-violet-400 hover:bg-violet-500/10" data-testid="button-connect-phantom">
+          <Wallet className="w-3.5 h-3.5" /> {isMobile ? "Get Phantom" : "Connect Phantom"}
         </Button>
         {address && (
           <a
@@ -680,11 +694,19 @@ function TrxExplorer({ chain }: { chain: ChainInfo }) {
 
   const handleSearch = () => { if (input.trim()) setAddress(input.trim()); };
 
+  const isMobileTrx = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
   const handleConnectTronLink = async () => {
     try {
       const tronLink = (window as any).tronLink;
       if (!tronLink) {
-        toast({ title: "TronLink not found", description: "Install the TronLink browser extension to connect your TRON wallet.", variant: "destructive" });
+        if (isMobileTrx) {
+          window.open("https://www.tronlink.org/", "_blank");
+          toast({ title: "Get TronLink", description: "Opening TronLink download page. Copy your address and paste it here to track." });
+        } else {
+          window.open("https://chromewebstore.google.com/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec", "_blank");
+          toast({ title: "TronLink not found", description: "Opening Chrome extension page. Install and refresh to connect." });
+        }
         return;
       }
       if (tronLink.request) {
@@ -709,7 +731,7 @@ function TrxExplorer({ chain }: { chain: ChainInfo }) {
       <div className="flex gap-2">
         <Input placeholder="Enter TRON address (T...)" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="bg-card border-border" data-testid="input-trx-address" />
         <Button onClick={handleSearch} disabled={!input.trim()} data-testid="button-trx-search"><Search className="w-4 h-4 mr-1" /> Search</Button>
-        <Button variant="outline" onClick={handleConnectTronLink} className="hidden md:inline-flex bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 shrink-0" data-testid="button-trx-connect-tronlink"><Wallet className="w-4 h-4 mr-1" /> TronLink</Button>
+        <Button variant="outline" onClick={handleConnectTronLink} className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 shrink-0" data-testid="button-trx-connect-tronlink"><Wallet className="w-4 h-4 mr-1" /> {isMobileTrx ? "Get TronLink" : "TronLink"}</Button>
       </div>
       {isLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
       {error && <div className="glass-panel p-4 text-destructive text-sm" data-testid="text-trx-error">{(error as Error).message}</div>}
