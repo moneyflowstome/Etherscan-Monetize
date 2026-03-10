@@ -99,7 +99,7 @@ export function Navbar() {
           <span className="font-display font-bold text-lg md:text-xl tracking-wider text-foreground" data-testid="text-app-name">TokenAltcoin</span>
         </Link>
 
-        <div className="hidden md:flex items-center flex-1 mx-3 relative">
+        <div className="hidden md:flex items-center flex-1 min-w-0 mx-3 relative">
           {canScrollLeft && (
             <button onClick={() => scrollNav("left")}
               className="absolute left-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-background/90 border border-border shadow-md text-foreground hover:bg-muted transition-colors"
@@ -136,13 +136,13 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {loginVisible && (
             <Link href="/admin">
               <Button
                 variant="ghost"
                 size="sm"
-                className={`text-xs px-2 h-7 transition-colors ${
+                className={`text-xs px-2 h-8 transition-colors ${
                   location === "/admin"
                     ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -158,15 +158,15 @@ export function Navbar() {
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="text-muted-foreground hover:text-foreground w-7 h-7"
+            className="text-foreground hover:text-primary hover:bg-muted/60 w-8 h-8 border border-border/50 rounded-lg"
             data-testid="button-theme-toggle"
           >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === "dark" ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden text-foreground"
+            className="md:hidden text-foreground w-8 h-8"
             onClick={() => setMobileOpen(!mobileOpen)}
             data-testid="button-mobile-menu"
           >
