@@ -1,0 +1,22 @@
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# docker compose down
+docker compose up -d
+[+] down 5/5
+ ✔ Container etherscan-monetize-certbot-1 Removed                                                                                               0.7ss
+ ✔ Container etherscan-monetize-nginx-1   Removed                                                                                               0.4ss
+ ✔ Container etherscan-monetize-app-1     Removed                                                                                               10.5s
+ ✔ Container etherscan-monetize-db-1      Removed                                                                                               0.3s
+ ! Network etherscan-monetize_default     Resource is still in use                                                                              0.0s
+[+] up 4/4
+ ✔ Container etherscan-monetize-db-1      Healthy                                                                                                6.4s
+ ✔ Container etherscan-monetize-certbot-1 Created                                                                                                0.1s
+ ✔ Container etherscan-monetize-app-1     Created                                                                                                0.1s
+ ✔ Container etherscan-monetize-nginx-1   Created                                                                                                0.1s
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# docker compose down
+docker volume rm etherscan-monetize_postgres_data
+docker compose up -d
+[+] down 5/5
+ ✔ Container etherscan-monetize-certbot-1 Removed                                                                                               0.2ss
+ ✔ Container etherscan-monetize-nginx-1   Removed                                                                                               0.3ss
+ ✔ Container etherscan-monetize-app-1     Removed                                                                                               10.2s
+ ✔ Container etherscan-monetize-db-1      Removed                                                                                               0.2s
+ ! Network etherscan-monetize_default     Resource is still in use        
