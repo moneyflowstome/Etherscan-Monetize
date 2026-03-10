@@ -1,0 +1,52 @@
+ ✔ Image nginx:alpine                      Pulled                                                                                              7.3ss
+ ✔ Image certbot/certbot                   Pulled                                                                                              13.0s
+ ✔ Image postgres:16-alpine                Pulled                                                                                              14.0s
+ ✔ Image etherscan-monetize-app            Built                                                                                               142.4s
+ ✔ Network etherscan-monetize_default      Created                                                                                             0.0s
+ ✔ Volume etherscan-monetize_postgres_data Created                                                                                             0.0s
+ ✔ Volume etherscan-monetize_certbot_data  Created                                                                                             0.0s
+ ✔ Volume etherscan-monetize_certbot_www   Created                                                                                             0.0s
+ ✔ Container etherscan-monetize-certbot-1  Created                                                                                             0.8s
+ ✔ Container etherscan-monetize-db-1       Healthy                                                                                             7.0s
+ ✔ Container etherscan-monetize-app-1      Created                                                                                             0.0s
+ ✔ Container etherscan-monetize-nginx-1    Created                                                                                             0.1s
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint etherscan-monetize-nginx-1 (f24b0dc8c8bea5f2600629a6cc01fcac03dd0279d3371fcb178e40045c323027): failed to bind host port 0.0.0.0:80/tcp: address already in use
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# # Check what's using port 80
+sudo lsof -i :80
+
+# If it's Apache (most common on Hostinger):
+sudo systemctl stop apache2
+sudo systemctl disable apache2
+
+# If it's Nginx already installed on the host:
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+
+# Then restart your containers:
+docker compose down
+docker compose up -d
+COMMAND     PID     USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+nginx   2034520 www-data    9u  IPv4 26698132      0t0  TCP *:http (LISTEN)
+nginx   2034520 www-data   10u  IPv6 26698133      0t0  TCP *:http (LISTEN)
+nginx   2034521 www-data    9u  IPv4 26698132      0t0  TCP *:http (LISTEN)
+nginx   2034521 www-data   10u  IPv6 26698133      0t0  TCP *:http (LISTEN)
+nginx   2187233     root    9u  IPv4 26698132      0t0  TCP *:http (LISTEN)
+nginx   2187233     root   10u  IPv6 26698133      0t0  TCP *:http (LISTEN)
+Failed to stop apache2.service: Unit apache2.service not loaded.
+Failed to disable unit: Unit file apache2.service does not exist.
+Synchronizing state of nginx.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install disable nginx
+Removed "/etc/systemd/system/multi-user.target.wants/nginx.service".
+[+] down 5/5
+ ✔ Container etherscan-monetize-certbot-1 Removed                                                                                                0.4s
+ ✔ Container etherscan-monetize-nginx-1   Removed                                                                                                0.0s
+ ✔ Container etherscan-monetize-app-1     Removed                                                                                                0.2s
+ ✔ Container etherscan-monetize-db-1      Removed                                                                                                0.3s
+ ✔ Network etherscan-monetize_default     Removed                                                                                                0.1s
+[+] up 5/5
+ ✔ Network etherscan-monetize_default     Created                                                                                                0.1s
+ ✔ Container etherscan-monetize-certbot-1 Created                                                                                                0.1s
+ ✔ Container etherscan-monetize-db-1      Healthy                                                                                                6.2s
+ ✔ Container etherscan-monetize-app-1     Created                                                                                                0.1s
+ ✔ Container etherscan-monetize-nginx-1   Created                                                                                                0.1s
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
