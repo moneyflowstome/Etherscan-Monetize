@@ -1,0 +1,53 @@
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cat > /var/www/Etherscan-Monetize/Etherscan-Monetize/docker-compose.yml << 'EOF'
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tokenaltcoin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: tokenaltcoin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tokenaltcoin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    expose:
+      - "5000"
+    environment:
+      DATABASE_URL: postgresql://tokenaltcoin:${POSTGRES_PASSWORD}@db:5432/tokenaltcoin
+      PORT: "5000"
+      NODE_ENV: production
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
+      CMC_API_KEY: ${CMC_API_KEY}
+      CHANGENOW_API_KEY: ${CHANGENOW_API_KEY}
+      BRAVE_API_KEY: ${BRAVE_API_KEY}
+      OPENSEA_API_KEY: ${OPENSEA_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+EOFostgres_data:sencrypt:/etc/letsencrypt:rolt.conf:ro
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# nano /var/www/Etherscan-Monetize/Etherscan-Monetize/docker-compose.yml
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cd /var/www/Etherscan-Monetize/Etherscan-Monetize
+docker compose down
+docker compose up -d
+[+] down 4/4
+ ✔ Container etherscan-monetize-nginx-1 Removed                                                                                                 0.1ss
+ ✔ Container etherscan-monetize-app-1   Removed                                                                                                 10.2s
+ ✔ Container etherscan-monetize-db-1    Removed                                                                                                 0.3s
+ ! Network etherscan-monetize_default   Resource is still in use                                                                                0.0s
+WARN[0000] Found orphan containers ([etherscan-monetize-certbot-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up. 
+[+] up 3/3
+ ✔ Container etherscan-monetize-db-1    Healthy                                                                                                  6.1s
+ ✔ Container etherscan-monetize-app-1   Created                                                                                                  0.1s
+ ✔ Container etherscan-monetize-nginx-1 Created                                                                                                  0.1s
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
