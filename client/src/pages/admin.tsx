@@ -43,6 +43,7 @@ import {
   Ban,
   CheckCircle,
   Home,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2846,7 +2847,376 @@ function generateBannerHtml(config: {
 </a>`;
 }
 
-function BannersTab() {
+function BannersTab({ token }: { token: string }) {
+  const [subTab, setSubTab] = useState<"manage" | "inquiries" | "settings" | "generator">("manage");
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+        <Image className="w-5 h-5 text-primary" /> Banner Ads
+      </h2>
+      <div className="flex gap-1 flex-wrap">
+        {([
+          { key: "manage", label: "Manage Banners" },
+          { key: "inquiries", label: "Inquiries" },
+          { key: "settings", label: "Settings" },
+          { key: "generator", label: "Code Generator" },
+        ] as const).map(({ key, label }) => (
+          <button key={key} onClick={() => setSubTab(key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${subTab === key ? "bg-primary/20 text-primary border border-primary/30" : "bg-muted/30 text-muted-foreground hover:text-foreground border border-border/30"}`}
+            data-testid={`button-banner-subtab-${key}`}>{label}</button>
+        ))}
+      </div>
+      {subTab === "manage" && <BannerManageSection token={token} />}
+      {subTab === "inquiries" && <BannerInquiriesSection token={token} />}
+      {subTab === "settings" && <BannerSettingsSection token={token} />}
+      {subTab === "generator" && <BannerGeneratorSection />}
+    </div>
+  );
+}
+
+const AD_BANNER_SIZES = ["728x90", "468x60", "300x250", "160x600", "320x50", "970x90", "336x280"];
+const AD_BANNER_ZONES = ["header", "footer", "sidebar", "blog-top", "blog-middle", "blog-bottom"];
+
+function BannerManageSection({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [form, setForm] = useState({ name: "", imageUrl: "", targetUrl: "", size: "468x60", zone: "footer", active: true, sortOrder: 0 });
+
+  const { data: bannerList, isLoading } = useQuery({
+    queryKey: ["admin-banners"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/banners", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const banners = Array.isArray(bannerList) ? bannerList : [];
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const url = editId ? `/api/admin/banners/${editId}` : "/api/admin/banners";
+      const method = editId ? "PUT" : "POST";
+      const res = await fetch(url, { method, headers: { ...apiHeaders(token), "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-banners"] });
+      toast({ title: editId ? "Banner updated" : "Banner created" });
+      setShowForm(false);
+      setEditId(null);
+      setForm({ name: "", imageUrl: "", targetUrl: "", size: "468x60", zone: "footer", active: true, sortOrder: 0 });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/banners/${id}`, { method: "DELETE", headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-banners"] });
+      toast({ title: "Banner deleted" });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, active }: { id: number; active: boolean }) => {
+      const res = await fetch(`/api/admin/banners/${id}`, { method: "PUT", headers: { ...apiHeaders(token), "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-banners"] }),
+  });
+
+  function startEdit(b: any) {
+    setForm({ name: b.name, imageUrl: b.imageUrl, targetUrl: b.targetUrl, size: b.size, zone: b.zone, active: b.active, sortOrder: b.sortOrder || 0 });
+    setEditId(b.id);
+    setShowForm(true);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">{banners.length} banner(s)</p>
+        <Button size="sm" onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: "", imageUrl: "", targetUrl: "", size: "468x60", zone: "footer", active: true, sortOrder: 0 }); }}
+          className="bg-primary hover:bg-primary/90" data-testid="button-add-banner">
+          <Plus className="w-4 h-4 mr-1" /> {showForm ? "Cancel" : "Add Banner"}
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-bold">{editId ? "Edit Banner" : "New Banner"}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Name</label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Banner name" className="bg-muted/30 border-border text-sm" data-testid="input-ad-banner-name" />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Target URL</label>
+                <Input value={form.targetUrl} onChange={(e) => setForm({ ...form, targetUrl: e.target.value })} placeholder="https://..." className="bg-muted/30 border-border text-sm" data-testid="input-ad-banner-url" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-[10px] text-muted-foreground block mb-1">Image URL</label>
+                <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://example.com/banner.png" className="bg-muted/30 border-border text-sm" data-testid="input-ad-banner-image" />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Size</label>
+                <select value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })} className="w-full bg-muted/30 border border-border rounded-md px-3 py-2 text-sm" data-testid="select-ad-banner-size">
+                  {AD_BANNER_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Zone</label>
+                <select value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} className="w-full bg-muted/30 border border-border rounded-md px-3 py-2 text-sm" data-testid="select-ad-banner-zone">
+                  {AD_BANNER_ZONES.map(z => <option key={z} value={z}>{z}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Sort Order</label>
+                <Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} className="bg-muted/30 border-border text-sm" data-testid="input-ad-banner-order" />
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setForm({ ...form, active: !form.active })}
+                  className={`w-10 h-5 rounded-full transition-colors ${form.active ? "bg-primary" : "bg-muted/50"} relative`} data-testid="toggle-ad-banner-active">
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${form.active ? "left-5" : "left-0.5"}`} />
+                </button>
+                <span className="text-xs">Active</span>
+              </div>
+            </div>
+            {form.imageUrl && (
+              <div className="bg-muted/20 rounded-lg p-2">
+                <p className="text-[10px] text-muted-foreground mb-1">Preview:</p>
+                <img src={form.imageUrl} alt="Preview" className="max-h-24 rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            )}
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.name || !form.imageUrl || !form.targetUrl}
+              className="bg-primary hover:bg-primary/90" data-testid="button-save-ad-banner">
+              <Save className="w-4 h-4 mr-1" /> {editId ? "Update" : "Create"} Banner
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? <div className="text-muted-foreground text-sm">Loading...</div> : banners.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <Image className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">No banners yet</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {banners.map((b: any) => (
+            <div key={b.id} className="flex items-center gap-3 bg-muted/20 rounded-lg p-3 border border-border/30" data-testid={`banner-row-${b.id}`}>
+              {b.imageUrl && <img src={b.imageUrl} alt={b.name} className="w-16 h-10 rounded object-cover shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate">{b.name}</span>
+                  <Badge className={`text-[10px] ${b.active ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"}`}>{b.active ? "Active" : "Inactive"}</Badge>
+                  <Badge className="text-[10px] bg-muted/30 border-border">{b.size}</Badge>
+                  <Badge className="text-[10px] bg-muted/30 border-border">{b.zone}</Badge>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 flex gap-3">
+                  <span>{b.clicks || 0} clicks</span>
+                  <span className="truncate max-w-[200px]">{b.targetUrl}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => toggleMutation.mutate({ id: b.id, active: !b.active })}
+                  className={`w-8 h-4 rounded-full transition-colors ${b.active ? "bg-primary" : "bg-muted/50"} relative`} data-testid={`toggle-banner-${b.id}`}>
+                  <div className={`w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all ${b.active ? "left-4" : "left-0.5"}`} />
+                </button>
+                <Button size="sm" variant="ghost" onClick={() => startEdit(b)} className="h-7 w-7 p-0" data-testid={`button-edit-banner-${b.id}`}>
+                  <Edit className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this banner?")) deleteMutation.mutate(b.id); }} className="h-7 w-7 p-0 text-red-400" data-testid={`button-delete-banner-${b.id}`}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BannerInquiriesSection({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [replyId, setReplyId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const { data: inquiryList, isLoading } = useQuery({
+    queryKey: ["admin-banner-inquiries"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/banner-inquiries", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const inquiries = Array.isArray(inquiryList) ? inquiryList : [];
+
+  const replyMutation = useMutation({
+    mutationFn: async ({ id, status, adminReply }: { id: number; status: string; adminReply?: string }) => {
+      const res = await fetch(`/api/admin/banner-inquiries/${id}`, { method: "PUT", headers: { ...apiHeaders(token), "Content-Type": "application/json" }, body: JSON.stringify({ status, adminReply }) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-banner-inquiries"] });
+      toast({ title: "Inquiry updated" });
+      setReplyId(null);
+      setReplyText("");
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">{inquiries.length} inquiry(ies) from potential advertisers</p>
+      {isLoading ? <div className="text-muted-foreground text-sm">Loading...</div> : inquiries.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <Mail className="w-10 h-10 mx-auto mb-2 opacity-30" /><p className="text-sm">No inquiries yet</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {inquiries.map((inq: any) => (
+            <Card key={inq.id} className="bg-card/50 border-border/50">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">{inq.name}</span>
+                      <Badge className={`text-[10px] ${inq.status === "pending" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" : inq.status === "replied" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-muted/30 border-border text-muted-foreground"}`}>{inq.status}</Badge>
+                      <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">{inq.bannerSize}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{inq.email}{inq.company ? ` — ${inq.company}` : ""}</p>
+                    <p className="text-[10px] text-muted-foreground/60">{new Date(inq.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {inq.status === "pending" && (
+                      <Button size="sm" variant="outline" onClick={() => { setReplyId(replyId === inq.id ? null : inq.id); setReplyText(inq.adminReply || ""); }}
+                        className="text-xs h-7" data-testid={`button-reply-inquiry-${inq.id}`}>Reply</Button>
+                    )}
+                    {inq.status !== "closed" && (
+                      <Button size="sm" variant="ghost" onClick={() => replyMutation.mutate({ id: inq.id, status: "closed" })}
+                        className="text-xs h-7" data-testid={`button-close-inquiry-${inq.id}`}><X className="w-3 h-3" /></Button>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-muted/20 rounded-lg p-3">
+                  <p className="text-xs">{inq.message}</p>
+                </div>
+                {inq.adminReply && (
+                  <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
+                    <p className="text-[10px] text-primary font-medium mb-1">Your Reply:</p>
+                    <p className="text-xs">{inq.adminReply}</p>
+                  </div>
+                )}
+                {replyId === inq.id && (
+                  <div className="space-y-2">
+                    <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Write your reply..."
+                      rows={3} className="w-full bg-muted/30 border border-border rounded-md px-3 py-2 text-sm resize-none" data-testid={`textarea-reply-${inq.id}`} />
+                    <Button size="sm" onClick={() => replyMutation.mutate({ id: inq.id, status: "replied", adminReply: replyText })}
+                      disabled={!replyText.trim()} className="bg-primary hover:bg-primary/90" data-testid={`button-send-reply-${inq.id}`}>
+                      <Send className="w-3 h-3 mr-1" /> Send Reply
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BannerSettingsSection({ token }: { token: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [localSettings, setLocalSettings] = useState<Record<string, string>>({});
+
+  const { data: settings } = useQuery({
+    queryKey: ["admin-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings", { headers: apiHeaders(token) });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (settings && typeof settings === "object" && !Array.isArray(settings)) {
+      setLocalSettings(prev => ({ ...settings, ...prev }));
+    }
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const bannerKeys = ["banner_rotation_enabled", "banner_rotation_interval", "banner_footer_enabled", "banner_blog_enabled"];
+      const updates: Record<string, string> = {};
+      bannerKeys.forEach(k => { if (localSettings[k] !== undefined) updates[k] = localSettings[k]; });
+      const res = await fetch("/api/admin/settings", { method: "PUT", headers: { ...apiHeaders(token), "Content-Type": "application/json" }, body: JSON.stringify(updates) });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["banner-settings"] });
+      toast({ title: "Banner settings saved" });
+    },
+  });
+
+  function toggle(key: string) {
+    setLocalSettings(prev => ({ ...prev, [key]: prev[key] === "false" ? "true" : "false" }));
+  }
+
+  const isOn = (key: string) => localSettings[key] !== "false";
+
+  return (
+    <div className="space-y-4">
+      <Card className="bg-card/50 border-border/50">
+        <CardContent className="p-4 space-y-4">
+          <h3 className="text-sm font-bold">Banner Display Settings</h3>
+
+          {[
+            { key: "banner_rotation_enabled", label: "Enable Banner Rotation", desc: "Automatically rotate between multiple banners in the same zone" },
+            { key: "banner_footer_enabled", label: "Show Footer Banner", desc: "Display a 468x60 banner in the site footer" },
+            { key: "banner_blog_enabled", label: "Show Blog Banners", desc: "Display banners in blog listing pages (top, middle, bottom)" },
+          ].map(({ key, label, desc }) => (
+            <div key={key} className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium">{label}</span>
+                <p className="text-[10px] text-muted-foreground">{desc}</p>
+              </div>
+              <button onClick={() => toggle(key)}
+                className={`w-10 h-5 rounded-full transition-colors ${isOn(key) ? "bg-primary" : "bg-muted/50"} relative`} data-testid={`toggle-setting-${key}`}>
+                <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${isOn(key) ? "left-5" : "left-0.5"}`} />
+              </button>
+            </div>
+          ))}
+
+          <div>
+            <label className="text-sm font-medium block mb-1">Rotation Interval (seconds)</label>
+            <p className="text-[10px] text-muted-foreground mb-2">Time between banner rotations when multiple banners are in the same zone</p>
+            <Input type="number" value={localSettings["banner_rotation_interval"] || "8"}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, banner_rotation_interval: e.target.value }))}
+              className="bg-muted/30 border-border text-sm w-32" data-testid="input-rotation-interval" />
+          </div>
+
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="bg-primary hover:bg-primary/90" data-testid="button-save-banner-settings">
+            <Save className="w-4 h-4 mr-1" /> Save Settings
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function BannerGeneratorSection() {
   const { toast } = useToast();
   const [selectedSize, setSelectedSize] = useState<typeof BANNER_SIZES[number]>(BANNER_SIZES[0]);
   const [title, setTitle] = useState("TokenAltcoin");
@@ -2884,18 +3254,8 @@ function BannersTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
-            <Image className="w-5 h-5 text-primary" /> Banner Generator
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">Create affiliate banners with embed codes for external websites</p>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => copyCode(allBannersHtml, "All banners")}
-          className="bg-primary hover:bg-primary/90"
-          data-testid="button-copy-all-banners"
-        >
+        <p className="text-xs text-muted-foreground">Create affiliate banners with embed codes for external websites</p>
+        <Button size="sm" onClick={() => copyCode(allBannersHtml, "All banners")} className="bg-primary hover:bg-primary/90" data-testid="button-copy-all-banners">
           <Code className="w-4 h-4 mr-1" /> Copy All Sizes
         </Button>
       </div>
@@ -2904,14 +3264,10 @@ function BannersTab() {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Presets</h3>
         <div className="flex gap-2 flex-wrap">
           {BANNER_PRESETS.map(preset => (
-            <button
-              key={preset.name}
-              onClick={() => applyPreset(preset)}
+            <button key={preset.name} onClick={() => applyPreset(preset)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:border-primary/40 bg-muted/20 hover:bg-muted/40 transition-all text-xs"
-              data-testid={`button-preset-${preset.name.toLowerCase().replace(/\s/g, "-")}`}
-            >
-              <span className="w-3 h-3 rounded-full" style={{ background: preset.color }} />
-              {preset.name}
+              data-testid={`button-preset-${preset.name.toLowerCase().replace(/\s/g, "-")}`}>
+              <span className="w-3 h-3 rounded-full" style={{ background: preset.color }} />{preset.name}
             </button>
           ))}
         </div>
@@ -2921,83 +3277,38 @@ function BannersTab() {
         <div className="space-y-4">
           <div className="glass-panel rounded-xl p-4 border border-border space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Banner Content</h3>
-            <div>
-              <label className="text-[10px] text-muted-foreground mb-1 block">Title</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-title" />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground mb-1 block">Tagline / Description</label>
-              <Input value={tagline} onChange={(e) => setTagline(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-tagline" />
-            </div>
+            <div><label className="text-[10px] text-muted-foreground mb-1 block">Title</label><Input value={title} onChange={(e) => setTitle(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-title" /></div>
+            <div><label className="text-[10px] text-muted-foreground mb-1 block">Tagline / Description</label><Input value={tagline} onChange={(e) => setTagline(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-tagline" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] text-muted-foreground mb-1 block">CTA Button Text</label>
-                <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-cta" />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground mb-1 block">Link URL</label>
-                <Input value={url} onChange={(e) => setUrl(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-url" />
-              </div>
+              <div><label className="text-[10px] text-muted-foreground mb-1 block">CTA Button Text</label><Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-cta" /></div>
+              <div><label className="text-[10px] text-muted-foreground mb-1 block">Link URL</label><Input value={url} onChange={(e) => setUrl(e.target.value)} className="bg-muted/30 border-border text-sm" data-testid="input-banner-url" /></div>
             </div>
           </div>
-
           <div className="glass-panel rounded-xl p-4 border border-border space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Styling</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] text-muted-foreground mb-1 block">Accent Color</label>
-                <div className="flex gap-2 items-center">
-                  <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" data-testid="input-banner-accent" />
-                  <Input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="bg-muted/30 border-border text-sm flex-1 font-mono" data-testid="input-banner-accent-hex" />
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground mb-1 block">Background Color</label>
-                <div className="flex gap-2 items-center">
-                  <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" data-testid="input-banner-bg" />
-                  <Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="bg-muted/30 border-border text-sm flex-1 font-mono" data-testid="input-banner-bg-hex" />
-                </div>
-              </div>
+              <div><label className="text-[10px] text-muted-foreground mb-1 block">Accent Color</label><div className="flex gap-2 items-center"><input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" data-testid="input-banner-accent" /><Input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="bg-muted/30 border-border text-sm flex-1 font-mono" data-testid="input-banner-accent-hex" /></div></div>
+              <div><label className="text-[10px] text-muted-foreground mb-1 block">Background Color</label><div className="flex gap-2 items-center"><input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" data-testid="input-banner-bg" /><Input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="bg-muted/30 border-border text-sm flex-1 font-mono" data-testid="input-banner-bg-hex" /></div></div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAnimated(!animated)}
-                className={`w-10 h-5 rounded-full transition-colors ${animated ? "bg-primary" : "bg-muted/50"} relative`}
-                data-testid="toggle-banner-animated"
-              >
-                <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${animated ? "left-5" : "left-0.5"}`} />
-              </button>
-              <span className="text-xs text-foreground">Animated (pulse glow + hover shine)</span>
+              <button onClick={() => setAnimated(!animated)} className={`w-10 h-5 rounded-full transition-colors ${animated ? "bg-primary" : "bg-muted/50"} relative`} data-testid="toggle-banner-animated"><div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${animated ? "left-5" : "left-0.5"}`} /></button>
+              <span className="text-xs text-foreground">Animated</span>
             </div>
           </div>
-
           <div className="glass-panel rounded-xl p-4 border border-border space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Banner Size</h3>
             <div className="grid grid-cols-1 gap-2">
               {BANNER_SIZES.map(size => (
-                <button
-                  key={size.id}
-                  onClick={() => setSelectedSize(size)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-left ${
-                    selectedSize.id === size.id
-                      ? "border-primary/50 bg-primary/10"
-                      : "border-border bg-muted/10 hover:bg-muted/20"
-                  }`}
-                  data-testid={`button-size-${size.id}`}
-                >
-                  <div>
-                    <span className="text-xs font-semibold text-foreground">{size.label}</span>
-                    <span className="text-[10px] text-muted-foreground ml-2">{size.desc}</span>
-                  </div>
-                  <Badge variant="outline" className={`text-[10px] ${selectedSize.id === size.id ? "border-primary/50 text-primary" : "border-border"}`}>
-                    {size.id}
-                  </Badge>
+                <button key={size.id} onClick={() => setSelectedSize(size)}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-left ${selectedSize.id === size.id ? "border-primary/50 bg-primary/10" : "border-border bg-muted/10 hover:bg-muted/20"}`}
+                  data-testid={`button-size-${size.id}`}>
+                  <div><span className="text-xs font-semibold text-foreground">{size.label}</span><span className="text-[10px] text-muted-foreground ml-2">{size.desc}</span></div>
+                  <Badge variant="outline" className={`text-[10px] ${selectedSize.id === size.id ? "border-primary/50 text-primary" : "border-border"}`}>{size.id}</Badge>
                 </button>
               ))}
             </div>
           </div>
         </div>
-
         <div className="space-y-4">
           <div className="glass-panel rounded-xl p-4 border border-border">
             <div className="flex items-center justify-between mb-3">
@@ -3008,50 +3319,15 @@ function BannersTab() {
               <div dangerouslySetInnerHTML={{ __html: currentHtml }} />
             </div>
           </div>
-
           <div className="glass-panel rounded-xl p-4 border border-border">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Embed Code</h3>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => copyCode(currentHtml, selectedSize.label)}
-                className="text-xs"
-                data-testid="button-copy-embed"
-              >
+              <Button size="sm" variant="outline" onClick={() => copyCode(currentHtml, selectedSize.label)} className="text-xs" data-testid="button-copy-embed">
                 {copied === selectedSize.label ? <Check className="w-3 h-3 mr-1 text-green-400" /> : <Copy className="w-3 h-3 mr-1" />}
                 {copied === selectedSize.label ? "Copied!" : "Copy Code"}
               </Button>
             </div>
-            <pre className="text-[10px] text-muted-foreground bg-muted/20 rounded-lg p-3 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono border border-border" data-testid="code-embed-preview">
-              {currentHtml}
-            </pre>
-          </div>
-
-          <div className="glass-panel rounded-xl p-4 border border-border">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">All Sizes Preview</h3>
-            <div className="space-y-4">
-              {BANNER_SIZES.map(size => {
-                const html = generateBannerHtml({ size, title, tagline, ctaText, url, accentColor, bgColor, animated });
-                return (
-                  <div key={size.id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] text-muted-foreground">{size.label} ({size.id})</span>
-                      <button
-                        onClick={() => copyCode(html, size.label)}
-                        className="text-[10px] text-primary hover:underline flex items-center gap-1"
-                        data-testid={`button-copy-${size.id}`}
-                      >
-                        {copied === size.label ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy</>}
-                      </button>
-                    </div>
-                    <div className="flex justify-center overflow-auto p-3 bg-[#111] rounded-lg border border-border" style={{ maxHeight: Math.min(size.height + 40, 300) }}>
-                      <div style={{ transform: size.width > 400 ? "scale(0.6)" : "scale(0.85)", transformOrigin: "top center" }} dangerouslySetInnerHTML={{ __html: html }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <pre className="text-[10px] text-muted-foreground bg-muted/20 rounded-lg p-3 overflow-x-auto max-h-48 whitespace-pre-wrap break-all font-mono border border-border" data-testid="code-embed-preview">{currentHtml}</pre>
           </div>
         </div>
       </div>
@@ -3179,7 +3455,7 @@ function AdminTabs({ token }: { token: string }) {
       {activeTab === "airdrops" && <AirdropsTab token={token} />}
       {activeTab === "blog" && <BlogTab token={token} />}
       {activeTab === "seo" && <SeoTab token={token} />}
-      {activeTab === "banners" && <BannersTab />}
+      {activeTab === "banners" && <BannersTab token={token} />}
       {activeTab === "security" && <SecurityTab token={token} />}
       {activeTab === "spam" && <SpamMonitorTab token={token} />}
       {activeTab === "chat" && <ChatModerationTab token={token} />}

@@ -16,9 +16,12 @@ import {
   type BlockedIp, type InsertBlockedIp,
   type ChatMessage, type InsertChatMessage,
   type SpamReport, type InsertSpamReport,
+  type Banner, type InsertBanner,
+  type BannerInquiry, type InsertBannerInquiry,
   users, siteSettings, pageViews, hiddenNews, pinnedNews, exchanges,
   contactMessages, blogPosts, seoMeta, airdrops,
   loginAttempts, blockedIps, chatMessages, spamReports,
+  banners, bannerInquiries,
 } from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -114,6 +117,19 @@ export interface IStorage {
   getSpamStats(): Promise<{ total: number; unresolved: number; autoBanned: number; topOffenders: { ip: string; nickname: string; count: number }[] }>;
   bulkResolveSpamReports(ids: number[]): Promise<void>;
   getRecentChatMessagesByIp(ip: string, minutes: number): Promise<ChatMessage[]>;
+
+  getBanners(zone?: string): Promise<Banner[]>;
+  getBanner(id: number): Promise<Banner | undefined>;
+  getActiveBannersByZone(zone: string): Promise<Banner[]>;
+  createBanner(banner: InsertBanner): Promise<Banner>;
+  updateBanner(id: number, data: Partial<InsertBanner>): Promise<Banner | undefined>;
+  deleteBanner(id: number): Promise<void>;
+  incrementBannerClick(id: number): Promise<void>;
+
+  getBannerInquiries(): Promise<BannerInquiry[]>;
+  getBannerInquiry(id: number): Promise<BannerInquiry | undefined>;
+  createBannerInquiry(inquiry: InsertBannerInquiry): Promise<BannerInquiry>;
+  updateBannerInquiry(id: number, data: { status?: string; adminReply?: string }): Promise<BannerInquiry | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -537,6 +553,57 @@ export class DatabaseStorage implements IStorage {
   async getRecentChatMessagesByIp(ip: string, minutes: number): Promise<ChatMessage[]> {
     const cutoff = new Date(Date.now() - minutes * 60 * 1000);
     return db.select().from(chatMessages).where(sql`${chatMessages.ip} = ${ip} AND ${chatMessages.createdAt} > ${cutoff}`).orderBy(desc(chatMessages.createdAt));
+  }
+
+  async getBanners(zone?: string): Promise<Banner[]> {
+    if (zone) return db.select().from(banners).where(eq(banners.zone, zone)).orderBy(banners.sortOrder);
+    return db.select().from(banners).orderBy(banners.sortOrder);
+  }
+
+  async getBanner(id: number): Promise<Banner | undefined> {
+    const [b] = await db.select().from(banners).where(eq(banners.id, id));
+    return b;
+  }
+
+  async getActiveBannersByZone(zone: string): Promise<Banner[]> {
+    return db.select().from(banners).where(sql`${banners.zone} = ${zone} AND ${banners.active} = true`).orderBy(banners.sortOrder);
+  }
+
+  async createBanner(banner: InsertBanner): Promise<Banner> {
+    const [b] = await db.insert(banners).values(banner).returning();
+    return b;
+  }
+
+  async updateBanner(id: number, data: Partial<InsertBanner>): Promise<Banner | undefined> {
+    const [b] = await db.update(banners).set(data).where(eq(banners.id, id)).returning();
+    return b;
+  }
+
+  async deleteBanner(id: number): Promise<void> {
+    await db.delete(banners).where(eq(banners.id, id));
+  }
+
+  async incrementBannerClick(id: number): Promise<void> {
+    await db.update(banners).set({ clicks: sql`${banners.clicks} + 1` }).where(eq(banners.id, id));
+  }
+
+  async getBannerInquiries(): Promise<BannerInquiry[]> {
+    return db.select().from(bannerInquiries).orderBy(desc(bannerInquiries.createdAt));
+  }
+
+  async getBannerInquiry(id: number): Promise<BannerInquiry | undefined> {
+    const [i] = await db.select().from(bannerInquiries).where(eq(bannerInquiries.id, id));
+    return i;
+  }
+
+  async createBannerInquiry(inquiry: InsertBannerInquiry): Promise<BannerInquiry> {
+    const [i] = await db.insert(bannerInquiries).values(inquiry).returning();
+    return i;
+  }
+
+  async updateBannerInquiry(id: number, data: { status?: string; adminReply?: string }): Promise<BannerInquiry | undefined> {
+    const [i] = await db.update(bannerInquiries).set(data).where(eq(bannerInquiries.id, id)).returning();
+    return i;
   }
 }
 

@@ -1,9 +1,28 @@
 import { Zap, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { BannerRotation } from "./BannerRotation";
 
 export function Footer() {
+  const { data: settings } = useQuery({
+    queryKey: ["banner-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/banner-settings");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const footerBannerEnabled = settings?.banner_footer_enabled !== "false";
+
   return (
     <footer className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 mt-16 pt-8 border-t border-border">
+      {footerBannerEnabled && (
+        <div className="flex justify-center mb-6">
+          <BannerRotation zone="footer" size="468x60" />
+        </div>
+      )}
       <div className="flex flex-col items-center gap-6 pb-8">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-primary" />
@@ -21,6 +40,7 @@ export function Footer() {
           <Link href="/masternodes" className="hover:text-foreground transition-colors" data-testid="footer-link-masternodes">Masternodes</Link>
           <Link href="/blog" className="hover:text-foreground transition-colors" data-testid="footer-link-blog">Blog</Link>
           <Link href="/contact" className="hover:text-foreground transition-colors" data-testid="footer-link-contact">Contact</Link>
+          <Link href="/advertise" className="hover:text-foreground transition-colors text-primary" data-testid="footer-link-advertise">Advertise</Link>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
           {[

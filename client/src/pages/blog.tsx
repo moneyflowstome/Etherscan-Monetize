@@ -17,9 +17,23 @@ import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AdBanner } from "@/components/AdBanner";
+import { BannerRotation } from "@/components/BannerRotation";
 import type { BlogPost } from "@shared/schema";
 
 const POSTS_PER_PAGE = 9;
+
+function useBannerBlogEnabled() {
+  const { data } = useQuery({
+    queryKey: ["banner-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/banner-settings");
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+  return data?.banner_blog_enabled !== "false";
+}
 
 function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString("en-US", {
@@ -140,6 +154,7 @@ export default function BlogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const blogBannersEnabled = useBannerBlogEnabled();
 
   const { data, isLoading, error } = useQuery<{
     posts: BlogPost[];
@@ -179,6 +194,11 @@ export default function BlogPage() {
       <AdBanner slot="blog-listing-top" format="horizontal" className="w-full mb-6" />
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+        {blogBannersEnabled && (
+          <div className="flex justify-center mb-6">
+            <BannerRotation zone="blog-top" size="728x90" />
+          </div>
+        )}
         <div className="mb-8">
           <h1
             className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2"
@@ -257,11 +277,23 @@ export default function BlogPage() {
               </div>
             )}
 
+            {blogBannersEnabled && (
+              <div className="flex justify-center my-6">
+                <BannerRotation zone="blog-middle" size="468x60" />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {regularPosts.map((post) => (
                 <BlogCard key={post.id} post={post} />
               ))}
             </div>
+
+            {blogBannersEnabled && (
+              <div className="flex justify-center mt-6">
+                <BannerRotation zone="blog-bottom" size="728x90" />
+              </div>
+            )}
 
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 mt-10" data-testid="blog-pagination">

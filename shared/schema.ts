@@ -221,3 +221,36 @@ export const spamReports = pgTable("spam_reports", {
 export const insertSpamReportSchema = createInsertSchema(spamReports).omit({ id: true, createdAt: true });
 export type InsertSpamReport = z.infer<typeof insertSpamReportSchema>;
 export type SpamReport = typeof spamReports.$inferSelect;
+
+export const banners = pgTable("banners", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  targetUrl: text("target_url").notNull(),
+  size: text("size").notNull(),
+  zone: text("zone").notNull(),
+  clicks: integer("clicks").notNull().default(0),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBannerSchema = createInsertSchema(banners).omit({ id: true, clicks: true, createdAt: true });
+export type InsertBanner = z.infer<typeof insertBannerSchema>;
+export type Banner = typeof banners.$inferSelect;
+
+export const bannerInquiries = pgTable("banner_inquiries", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  company: text("company"),
+  bannerSize: text("banner_size").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("pending"),
+  adminReply: text("admin_reply"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBannerInquirySchema = createInsertSchema(bannerInquiries).omit({ id: true, status: true, adminReply: true, createdAt: true });
+export type InsertBannerInquiry = z.infer<typeof insertBannerInquirySchema>;
+export type BannerInquiry = typeof bannerInquiries.$inferSelect;

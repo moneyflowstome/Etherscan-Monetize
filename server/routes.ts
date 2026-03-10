@@ -4126,6 +4126,165 @@ export async function registerRoutes(
       }
     });
 
+  // ── Banner Rotation API ──
+  const VALID_BANNER_ZONES = new Set(["header", "footer", "sidebar", "blog-top", "blog-middle", "blog-bottom"]);
+  const VALID_BANNER_SIZES = new Set(["728x90", "468x60", "300x250", "160x600", "320x50", "970x90", "336x280"]);
+
+  app.get("/api/banner-settings", async (_req, res) => {
+    try {
+      const keys = ["banner_rotation_enabled", "banner_rotation_interval", "banner_footer_enabled", "banner_blog_enabled"];
+      const result: Record<string, string> = {};
+      for (const k of keys) {
+        const v = await storage.getSetting(k);
+        result[k] = v ?? (k === "banner_rotation_interval" ? "8" : "true");
+      }
+      res.json(result);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/banners/:zone", async (req, res) => {
+    try {
+      const zone = req.params.zone;
+      if (!VALID_BANNER_ZONES.has(zone)) return res.status(400).json({ error: "Invalid zone" });
+      const list = await storage.getActiveBannersByZone(zone);
+      res.json(list);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  const clickTracker = new Map<string, number>();
+  setInterval(() => clickTracker.clear(), 60000);
+
+  app.post("/api/banners/:id/click", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const clientIp = normalizeIp(req.ip || req.socket.remoteAddress || "unknown");
+      const key = `${clientIp}:${id}`;
+      const lastClick = clickTracker.get(key) || 0;
+      if (Date.now() - lastClick < 30000) {
+        return res.json({ ok: true });
+      }
+      clickTracker.set(key, Date.now());
+      const banner = await storage.getBanner(id);
+      if (!banner || !banner.active) return res.json({ ok: true });
+      await storage.incrementBannerClick(id);
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/banner-inquiry", async (req, res) => {
+    try {
+      const { name, email, company, bannerSize, message } = req.body;
+      if (!name || !email || !bannerSize || !message) return res.status(400).json({ error: "Name, email, banner size, and message are required" });
+      if (typeof name !== "string" || name.length > 200) return res.status(400).json({ error: "Invalid name" });
+      if (typeof email !== "string" || !email.includes("@") || email.length > 200) return res.status(400).json({ error: "Invalid email" });
+      if (typeof message !== "string" || message.length > 5000) return res.status(400).json({ error: "Message too long" });
+      const inquiry = await storage.createBannerInquiry({
+        name: name.slice(0, 200),
+        email: email.slice(0, 200),
+        company: company ? String(company).slice(0, 200) : null,
+        bannerSize: String(bannerSize).slice(0, 20),
+        message: message.slice(0, 5000),
+      });
+      res.json(inquiry);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/banners", requireAdmin, async (_req, res) => {
+    try {
+      const list = await storage.getBanners();
+      res.json(list);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/banners", requireAdmin, async (req, res) => {
+    try {
+      const { name, imageUrl, targetUrl, size, zone, active, sortOrder } = req.body;
+      if (!name || !imageUrl || !targetUrl || !size || !zone) return res.status(400).json({ error: "Missing required fields" });
+      if (!VALID_BANNER_SIZES.has(size)) return res.status(400).json({ error: "Invalid banner size" });
+      if (!VALID_BANNER_ZONES.has(zone)) return res.status(400).json({ error: "Invalid zone" });
+      const banner = await storage.createBanner({
+        name: String(name).slice(0, 200),
+        imageUrl: String(imageUrl).slice(0, 1000),
+        targetUrl: String(targetUrl).slice(0, 1000),
+        size,
+        zone,
+        active: active !== false,
+        sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+      });
+      res.json(banner);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/admin/banners/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const { name, imageUrl, targetUrl, size, zone, active, sortOrder } = req.body;
+      const update: any = {};
+      if (name !== undefined) update.name = String(name).slice(0, 200);
+      if (imageUrl !== undefined) update.imageUrl = String(imageUrl).slice(0, 1000);
+      if (targetUrl !== undefined) update.targetUrl = String(targetUrl).slice(0, 1000);
+      if (size !== undefined && VALID_BANNER_SIZES.has(size)) update.size = size;
+      if (zone !== undefined && VALID_BANNER_ZONES.has(zone)) update.zone = zone;
+      if (active !== undefined) update.active = !!active;
+      if (sortOrder !== undefined) update.sortOrder = Number(sortOrder) || 0;
+      const banner = await storage.updateBanner(id, update);
+      if (!banner) return res.status(404).json({ error: "Banner not found" });
+      res.json(banner);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/admin/banners/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      await storage.deleteBanner(id);
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/banner-inquiries", requireAdmin, async (_req, res) => {
+    try {
+      const list = await storage.getBannerInquiries();
+      res.json(list);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.put("/api/admin/banner-inquiries/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const { status, adminReply } = req.body;
+      const update: any = {};
+      if (status) update.status = String(status).slice(0, 20);
+      if (adminReply !== undefined) update.adminReply = String(adminReply).slice(0, 5000);
+      const inquiry = await storage.updateBannerInquiry(id, update);
+      if (!inquiry) return res.status(404).json({ error: "Inquiry not found" });
+      res.json(inquiry);
+    } catch {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // ── ChangeNOW Swap API ──
   const CN_API = "https://api.changenow.io/v2";
   let CN_KEY = await getApiKey("CHANGENOW_API_KEY");
