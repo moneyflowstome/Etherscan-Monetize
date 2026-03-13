@@ -1,0 +1,127 @@
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# find /var/www -name "docker-compose.yml" -exec echo {} \;
+/var/www/altcoinswap/docker-compose.yml
+/var/www/Etherscan-Monetize/Etherscan-Monetize/docker-compose.yml
+/var/www/Etherscan-Monetize/docker-compose.yml
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cd /var/www/<handy-invoice-folder>
+docker compose up -d
+-bash: syntax error near unexpected token `newline'
+WARN[0000] Found orphan containers ([etherscan-monetize-certbot-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up. 
+[+] up 2/2
+ ✔ Container etherscan-monetize-db-1  Healthy                                                                                                    0.6s
+ ✔ Container etherscan-monetize-app-1 Running                                                                                                    0.0s
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# docker ps
+cat /etc/nginx/sites-available/handymaninvoice
+cat /etc/nginx/sites-available/vintagercarchives
+cat /etc/nginx/sites-available/altcoinswap
+CONTAINER ID   IMAGE                    COMMAND                  CREATED          STATUS                   PORTS                                         NAMES
+de84c70ddd9c   etherscan-monetize-app   "./docker-entrypoint…"   47 seconds ago   Up 46 seconds            0.0.0.0:5050->5000/tcp, [::]:5050->5000/tcp   etherscan-monetize-app-1
+18a8a5803e2e   postgres:16-alpine       "docker-entrypoint.s…"   7 minutes ago    Up 7 minutes (healthy)   5432/tcp                                      etherscan-monetize-db-1
+19e99c6a6dbb   altcoinswap-app          "docker-entrypoint.s…"   20 hours ago     Up 20 hours              0.0.0.0:8080->5000/tcp, [::]:8080->5000/tcp   altcoinswap-app-1
+c6073bba3be4   postgres:16-alpine       "docker-entrypoint.s…"   20 hours ago     Up 20 hours (healthy)    5432/tcp                                      altcoinswap-db-1
+b30a5ddecf42   certbot/certbot          "/bin/sh -c 'trap ex…"   2 days ago       Up 2 days                80/tcp, 443/tcp                               etherscan-monetize-certbot-run-f9f4f2370335
+dd0a3250a0f2   certbot/certbot          "/bin/sh -c 'trap ex…"   2 days ago       Up 2 days                80/tcp, 443/tcp                               etherscan-monetize-certbot-1
+c0e998199050   certbot/certbot          "/bin/sh -c 'trap ex…"   2 days ago       Up 2 days                80/tcp, 443/tcp                               etherscan-monetize-certbot-run-a30fe899fdf6
+e80eac6bd15c   certbot/certbot          "/bin/sh -c 'trap ex…"   2 days ago       Up 2 days                80/tcp, 443/tcp                               etherscan-monetize-certbot-run-d05811df4111
+e5f6a33f5d78   vintagercarchive-app     "docker-entrypoint.s…"   4 weeks ago      Up 4 weeks               0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp   vintagercarchive-app-1
+774ae11ae7d4   postgres:15-alpine       "docker-entrypoint.s…"   5 weeks ago      Up 5 weeks               5432/tcp                                      vintagercarchive-db-1
+65447228391d   postgres:15-alpine       "docker-entrypoint.s…"   5 weeks ago      Up 5 weeks (healthy)     5432/tcp                                      handy-invoice_db_1
+server {
+    server_name handymaninvoice.com www.handymaninvoice.com;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/handymaninvoice.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/handymaninvoice.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+server {
+    if ($host = www.handymaninvoice.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = handymaninvoice.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name handymaninvoice.com www.handymaninvoice.com;
+    return 404; # managed by Certbot
+
+
+
+
+}server {
+    server_name vintagercarchives.com www.vintagercarchives.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/vintagercarchives.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/vintagercarchives.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+
+server {
+    if ($host = www.vintagercarchives.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = vintagercarchives.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name vintagercarchives.com www.vintagercarchives.com;
+    return 404; # managed by Certbot
+
+
+
+
+}server {
+    listen 80;
+    server_name altcoinswap.io www.altcoinswap.io;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
