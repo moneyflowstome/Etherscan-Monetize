@@ -1,0 +1,35 @@
+root@srv1089261:/var/www# docker network ls | grep handy
+299ab0f7c5d3   handy-invoice_default        bridge    local
+root@srv1089261:/var/www# docker run -d --name handy-invoice_app_1 --restart unless-stopped -p 5000:5000 --network handy-invoice_default handy-invoice_app
+23cf5c57158c26ea11f0d9df3b5b334ce8a9a9239f2757e69dc62d17d6a0e4ea
+root@srv1089261:/var/www# find / -path "*/handy*/.env" 2>/dev/null
+docker inspect handy-invoice_db_1 | grep -A5 "Env"
+            "Env": [
+                "POSTGRES_USER=postgres",
+                "POSTGRES_PASSWORD=HandymanSecure2026!",
+                "POSTGRES_DB=handymaninvoice",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "GOSU_VERSION=1.19",
+root@srv1089261:/var/www# docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+NAMES                                         STATUS                          PORTS
+handy-invoice_app_1                           Restarting (1) 21 seconds ago   
+etherscan-monetize-app-1                      Up 11 minutes                   0.0.0.0:5050->5000/tcp, [::]:5050->5000/tcp
+etherscan-monetize-db-1                       Up 18 minutes (healthy)         5432/tcp
+altcoinswap-app-1                             Up 21 hours                     0.0.0.0:8080->5000/tcp, [::]:8080->5000/tcp
+altcoinswap-db-1                              Up 21 hours (healthy)           5432/tcp
+etherscan-monetize-certbot-run-f9f4f2370335   Up 2 days                       80/tcp, 443/tcp
+etherscan-monetize-certbot-1                  Up 2 days                       80/tcp, 443/tcp
+etherscan-monetize-certbot-run-a30fe899fdf6   Up 2 days                       80/tcp, 443/tcp
+etherscan-monetize-certbot-run-d05811df4111   Up 2 days                       80/tcp, 443/tcp
+vintagercarchive-app-1                        Up 4 weeks                      0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+vintagercarchive-db-1                         Up 5 weeks                      5432/tcp
+handy-invoice_db_1                            Up 5 weeks (healthy)            5432/tcp
+root@srv1089261:/var/www# curl -sk https://tokenaltcoin.com -o /dev/null -w "tokenaltcoin.com: %{http_code}\n"
+curl -sk https://vintagercarchives.com -o /dev/null -w "vintagercarchives.com: %{http_code}\n"
+curl -sk https://handymaninvoice.com -o /dev/null -w "handymaninvoice.com: %{http_code}\n"
+curl -sk http://altcoinswap.io -o /dev/null -w "altcoinswap.io: %{http_code}\n"
+tokenaltcoin.com: 200
+vintagercarchives.com: 200
+handymaninvoice.com: 502
+altcoinswap.io: 200
+root@srv1089261:/var/www# 
