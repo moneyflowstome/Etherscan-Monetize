@@ -95,7 +95,7 @@ export function AdBanner({ slot, format = "auto", layout, layoutKey, className =
       <ins
         className="adsbygoogle"
         style={{ display: "block", width: "100%", ...style }}
-        data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+        data-ad-client="ca-pub-6443370520894068"
         data-ad-slot={slot}
         data-ad-format={format}
         data-full-width-responsive="true"

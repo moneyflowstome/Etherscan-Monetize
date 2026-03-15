@@ -234,9 +234,9 @@ export async function registerRoutes(
     res.type("text/plain");
     try {
       const content = await storage.getSetting("ads_txt_content");
-      res.send(content || "google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+      res.send(content || "google.com, pub-6443370520894068, DIRECT, f08c47fec0942fa0");
     } catch {
-      res.send("google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0");
+      res.send("google.com, pub-6443370520894068, DIRECT, f08c47fec0942fa0");
     }
   });
 
