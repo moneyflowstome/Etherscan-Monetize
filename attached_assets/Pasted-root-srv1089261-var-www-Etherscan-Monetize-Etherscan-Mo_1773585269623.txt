@@ -1,0 +1,63 @@
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cd /var/www/Etherscan-Monetize/Etherscan-Monetize
+git stash
+git pull
+docker compose build --no-cache app
+docker compose up -d
+Saved working directory and index state WIP on main: 705e854 Add Docker configuration and deployment guide for Hostinger
+remote: Enumerating objects: 6, done.
+remote: Counting objects: 100% (6/6), done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 4 (delta 2), reused 4 (delta 2), pack-reused 0 (from 0)
+Unpacking objects: 100% (4/4), 2.20 KiB | 1.10 MiB/s, done.
+From https://github.com/moneyflowstome/Etherscan-Monetize
+   a014d61..b897149  main       -> origin/main
+Updating 705e854..b897149
+error: The following untracked working tree files would be overwritten by merge:
+        script/migrate.cjs
+Please move or remove them before you merge.
+Aborting
+[+] Building 102.0s (23/23) FINISHED                                                                                                                 
+ => [internal] load local bake definitions                                                                                                      0.0s
+ => => reading from stdin 578B                                                                                                                  0.0s
+ => [internal] load build definition from Dockerfile                                                                                            0.0s
+ => => transferring dockerfile: 944B                                                                                                            0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                               0.2s
+ => [internal] load .dockerignore                                                                                                               0.0s
+ => => transferring context: 163B                                                                                                               0.0s
+ => [internal] load build context                                                                                                               0.0s
+ => => transferring context: 11.10kB                                                                                                            0.0s
+ => [base 1/2] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                    0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                         0.0s
+ => CACHED [base 2/2] WORKDIR /app                                                                                                              0.0s
+ => [runner 1/9] RUN addgroup -S appgroup && adduser -S appuser -G appgroup                                                                     0.3s
+ => [deps 1/2] COPY package.json package-lock.json* ./                                                                                          0.1s
+ => [deps 2/2] RUN npm ci --include=dev                                                                                                        13.1s
+ => [builder 1/3] COPY --from=deps /app/node_modules ./node_modules                                                                            10.1s 
+ => [builder 2/3] COPY . .                                                                                                                      0.3s 
+ => [builder 3/3] RUN npm run build                                                                                                            16.9s 
+ => [runner 2/9] COPY --from=builder /app/dist ./dist                                                                                           0.1s 
+ => [runner 3/9] COPY --from=builder /app/package.json ./package.json                                                                           0.0s 
+ => [runner 4/9] COPY --from=builder /app/package-lock.json ./package-lock.json                                                                 0.1s 
+ => [runner 5/9] COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts                                                                 0.0s 
+ => [runner 6/9] COPY --from=builder /app/shared ./shared                                                                                       0.0s 
+ => [runner 7/9] COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh                                                           0.0s 
+ => [runner 8/9] RUN npm ci --omit=dev &&     npm install drizzle-kit tsx &&     npm cache clean --force                                       11.2s
+ => [runner 9/9] RUN chmod +x docker-entrypoint.sh &&     chown -R appuser:appgroup /app                                                       25.7s 
+ => exporting to image                                                                                                                         18.6s 
+ => => exporting layers                                                                                                                         7.8s 
+ => => exporting manifest sha256:92f3999120f644fca46685f542c36bdc0f9861fdd5a0aedaa837979223c693d2                                               0.0s 
+ => => exporting config sha256:3a1ca104fd3c9217db57c5b03deadb47c9ebe73adf052f481860926d41e01b5a                                                 0.0s 
+ => => exporting attestation manifest sha256:f7264cf5c6725a2e5b8841825bb702146768f1186480fd9dc14fd99c7fe4c4bd                                   0.0s 
+ => => exporting manifest list sha256:56e3fc7c526421398419052da4fbabc575e8a3db403f4acc7793cdad25665da2                                          0.0s
+ => => naming to docker.io/library/etherscan-monetize-app:latest                                                                                0.0s
+ => => unpacking to docker.io/library/etherscan-monetize-app:latest                                                                            10.7s
+ => resolving provenance for metadata file                                                                                                      0.0s
+[+] build 1/1
+ ✔ Image etherscan-monetize-app Built                                                                                                          102.1s
+[+] up 4/4
+ ✔ Container etherscan-monetize-db-1      Healthy                                                                                               14.3s
+ ✔ Container etherscan-monetize-app-1     Recreated                                                                                             13.6s
+ ✔ Container etherscan-monetize-certbot-1 Created                                                                                               0.6ss
+ ✔ Container etherscan-monetize-nginx-1   Created                                                                                               0.1s
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint etherscan-monetize-nginx-1 (120f4fc696967b2ae5d483f4ecf32af1fea0ef523bec1440e667bdf99d4805fd): failed to bind host port 0.0.0.0:80/tcp: address already in use
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
