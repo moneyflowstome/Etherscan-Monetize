@@ -1,0 +1,139 @@
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cd /var/www/Etherscan-Monetize/Etherscan-Monetize
+rm script/migrate.cjs
+git checkout -- .
+git pull
+Updating 705e854..b897149
+Fast-forward
+ Dockerfile                                                                                     |   7 +-
+ attached_assets/IMG_7651_1773584045452.jpeg                                                    | Bin 0 -> 4347311 bytes
+ .../Pasted--Get-the-certificate-directly-on-the-host-certbot-certo_1773120829270.txt           |  48 +++++++++++
+ attached_assets/Pasted--Image-nginx-alpine-Pulled--1773109656796_1773109656797.txt             |  52 ++++++++++++
+ .../Pasted--j-let-B-j-browser-unknown-L-B-L-B-0-1-let-O-Object-ent_1773361152589.txt           |  15 ++++
+ .../Pasted-docker-compose-build-no-cache-app-docker-compose-up-d-d_1773110073517.txt           |  52 ++++++++++++
+ .../Pasted-e3293df3a191cab0db61ab9b4ef90b1827c592f005846afb20a2910_1773109563272.txt           |  16 ++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773109728263.txt           |  96 ++++++++++++++++++++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773109834893.txt           |  54 ++++++++++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773111346220.txt           |  87 ++++++++++++++++++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773114041865.txt           |  22 +++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773120954387.txt           |  74 +++++++++++++++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773121257679.txt           |  53 ++++++++++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773360326688.txt           | 127 +++++++++++++++++++++++++++++
+ .../Pasted-root-srv1089261-var-www-Etherscan-Monetize-cd-var-www-E_1773110632981.txt           |  73 +++++++++++++++++
+ .../Pasted-root-srv1089261-var-www-docker-network-ls-grep-handy-29_1773360989554.txt           |  35 ++++++++
+ .../Pasted-root-srv1089261-var-www-domainreminder-cd-var-www-Ether_1773585088641.txt           |  62 ++++++++++++++
+ .../Pasted-ws-B-visitors-size-sort-j-B-B-count-j-count-slice-0-20-_1773361069586.txt           |  11 +++
+ client/index.html                                                                              |  14 ++--
+ client/public/favicon.png                                                                      | Bin 1145 -> 3141 bytes
+ client/public/icons/icon-192.png                                                               | Bin 1185 -> 12145 bytes
+ client/public/icons/icon-512.png                                                               | Bin 7561 -> 46827 bytes
+ client/public/og-image.png                                                                     | Bin 0 -> 54330 bytes
+ client/public/opengraph.jpg                                                                    | Bin 73780 -> 74831 bytes
+ docker-entrypoint.sh                                                                           |   6 +-
+ script/migrate.cjs                                                                             | 204 ++++++++++++++++++++++++++++++++++++++++++++++
+ 26 files changed, 1093 insertions(+), 15 deletions(-)
+ create mode 100644 attached_assets/IMG_7651_1773584045452.jpeg
+ create mode 100644 attached_assets/Pasted--Get-the-certificate-directly-on-the-host-certbot-certo_1773120829270.txt
+ create mode 100644 attached_assets/Pasted--Image-nginx-alpine-Pulled--1773109656796_1773109656797.txt
+ create mode 100644 attached_assets/Pasted--j-let-B-j-browser-unknown-L-B-L-B-0-1-let-O-Object-ent_1773361152589.txt
+ create mode 100644 attached_assets/Pasted-docker-compose-build-no-cache-app-docker-compose-up-d-d_1773110073517.txt
+ create mode 100644 attached_assets/Pasted-e3293df3a191cab0db61ab9b4ef90b1827c592f005846afb20a2910_1773109563272.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773109728263.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773109834893.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773111346220.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773114041865.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773120954387.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773121257679.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-Etherscan-Mo_1773360326688.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-Etherscan-Monetize-cd-var-www-E_1773110632981.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-docker-network-ls-grep-handy-29_1773360989554.txt
+ create mode 100644 attached_assets/Pasted-root-srv1089261-var-www-domainreminder-cd-var-www-Ether_1773585088641.txt
+ create mode 100644 attached_assets/Pasted-ws-B-visitors-size-sort-j-B-B-count-j-count-slice-0-20-_1773361069586.txt
+ create mode 100644 client/public/og-image.png
+ create mode 100644 script/migrate.cjs
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# docker stop etherscan-monetize-nginx-1 etherscan-monetize-certbot-1 2>/dev/null
+docker rm etherscan-monetize-nginx-1 etherscan-monetize-certbot-1 2>/dev/null
+etherscan-monetize-nginx-1
+etherscan-monetize-certbot-1
+etherscan-monetize-nginx-1
+etherscan-monetize-certbot-1
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# cat > docker-compose.yml << 'EOF'
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tokenaltcoin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: tokenaltcoin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tokenaltcoin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5050:5000"
+    environment:
+      DATABASE_URL: postgresql://tokenaltcoin:${POSTGRES_PASSWORD}@db:5432/tokenaltcoin
+      PORT: "5000"
+      NODE_ENV: production
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
+      CMC_API_KEY: ${CMC_API_KEY}
+      CHANGENOW_API_KEY: ${CHANGENOW_API_KEY}
+      BRAVE_API_KEY: ${BRAVE_API_KEY}
+      OPENSEA_API_KEY: ${OPENSEA_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+EOFostgres_data:
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# docker compose build --no-cache app
+docker compose up -d
+[+] Building 102.2s (22/22) FINISHED                                                                                                                 
+ => [internal] load local bake definitions                                                                                                      0.0s
+ => => reading from stdin 578B                                                                                                                  0.0s
+ => [internal] load build definition from Dockerfile                                                                                            0.0s
+ => => transferring dockerfile: 862B                                                                                                            0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                               0.3s
+ => [internal] load .dockerignore                                                                                                               0.0s
+ => => transferring context: 163B                                                                                                               0.0s
+ => [internal] load build context                                                                                                               0.0s
+ => => transferring context: 207.93kB                                                                                                           0.0s
+ => [base 1/2] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                    0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa                         0.0s
+ => CACHED [base 2/2] WORKDIR /app                                                                                                              0.0s
+ => [runner 1/8] RUN addgroup -S appgroup && adduser -S appuser -G appgroup                                                                     0.3s
+ => [deps 1/2] COPY package.json package-lock.json* ./                                                                                          0.1s
+ => [deps 2/2] RUN npm ci --include=dev                                                                                                        13.8s
+ => [builder 1/3] COPY --from=deps /app/node_modules ./node_modules                                                                            10.2s 
+ => [builder 2/3] COPY . .                                                                                                                      0.3s 
+ => [builder 3/3] RUN npm run build                                                                                                            14.9s 
+ => [runner 2/8] COPY --from=builder /app/dist ./dist                                                                                           0.1s 
+ => [runner 3/8] COPY --from=builder /app/package.json ./package.json                                                                           0.1s 
+ => [runner 4/8] COPY --from=builder /app/package-lock.json ./package-lock.json                                                                 0.0s 
+ => [runner 5/8] COPY --from=builder /app/script/migrate.cjs ./script/migrate.cjs                                                               0.0s 
+ => [runner 6/8] COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh                                                           0.0s 
+ => [runner 7/8] RUN npm ci --omit=dev && npm cache clean --force                                                                               9.3s 
+ => [runner 8/8] RUN chmod +x docker-entrypoint.sh &&     chown -R appuser:appgroup /app                                                       27.3s 
+ => exporting to image                                                                                                                         20.3s 
+ => => exporting layers                                                                                                                         8.4s 
+ => => exporting manifest sha256:7e9f6202c670450b69b60bcaecbc7feaa006999c2e6266fc37d71106bb10656b                                               0.0s 
+ => => exporting config sha256:ae125218f405958a2a3968397efa7e5dc0a1c46e36c7ff884327d418e77abf9e                                                 0.0s 
+ => => exporting attestation manifest sha256:24fe644c5fb03876b61596c9999c3d8eed64b320dc89e99cefe68f79a217de77                                   0.0s 
+ => => exporting manifest list sha256:568be2084461349d57971f50dfaa9f929de3d448886a45d950339f6eff2f4376                                          0.0s
+ => => naming to docker.io/library/etherscan-monetize-app:latest                                                                                0.0s
+ => => unpacking to docker.io/library/etherscan-monetize-app:latest                                                                            11.8s
+ => resolving provenance for metadata file                                                                                                      0.0s
+[+] build 1/1
+ ✔ Image etherscan-monetize-app Built                                                                                                          102.2s
+[+] up 2/2
+ ✔ Container etherscan-monetize-db-1  Healthy                                                                                                    3.3s
+ ✔ Container etherscan-monetize-app-1 Recreated                                                                                                  2.8s
+root@srv1089261:/var/www/Etherscan-Monetize/Etherscan-Monetize# 
